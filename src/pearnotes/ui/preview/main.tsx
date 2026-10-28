@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
  * against it is the honest check */
 import "../../../index.css";
 import "../../styles/pearnotes.css";
+import "../../styles/journey-assets.css";
 import "./preview.css";
 import { PearNotesPrototypeApp } from "./PrototypeApp";
 

@@ -15,9 +15,16 @@
  * ------------------------------------------------------------------ */
 
 import "../styles/pearnotes.css";
+import "../styles/journey-assets.css";
 
 export type * from "./types";
 export { SubjectAvatar, normalizeAvatar } from "./SubjectAvatar";
+export { JourneyNode } from "./JourneyNode";
+export type { JourneyNodeProps, JourneyNodeKind } from "./JourneyNode";
+export { JourneySticker, JourneyDoodle, JourneyNote } from "./JourneySticker";
+export type { JourneyStickerProps } from "./JourneySticker";
+export { JOURNEY_STICKERS, pickSticker, stickerUrl } from "./journeyAssets";
+export type { JourneyStickerAsset, JourneyStickerTheme } from "./journeyAssets";
 export { PearNotesHome } from "./HomeShell";
 export type { PearNotesHomeProps } from "./HomeShell";
 export { SubjectPicker } from "./SubjectPicker";

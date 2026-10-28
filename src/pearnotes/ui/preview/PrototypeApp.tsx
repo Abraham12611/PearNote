@@ -12,6 +12,7 @@ import {
   PROTOTYPE_FIXTURE_LABEL,
 } from "../fixtures";
 import type { LearningPath, LessonMode } from "../types";
+import { JourneyAssetGallery } from "./JourneyAssetGallery";
 
 /* ------------------------------------------------------------------
  * Isolated prototype harness (Issue #5, P00.3).
@@ -43,6 +44,7 @@ const SCENES = [
   { id: "journey-compact", label: "journey · compact" },
   { id: "journey-expanded", label: "journey · expanded" },
   { id: "journey-empty", label: "journey · no material" },
+  { id: "journey-assets", label: "journey asset pack" },
   { id: "lesson-guided", label: "lesson · guided" },
   { id: "lesson-explore", label: "lesson · explore" },
 ] as const;
@@ -161,7 +163,8 @@ export function PearNotesPrototypeApp() {
 
   const isPicker = scene.startsWith("picker");
   const isDrawer = scene.startsWith("drawer");
-  const isJourney = scene.startsWith("journey");
+  const isJourney = scene.startsWith("journey") && scene !== "journey-assets";
+  const isAssets = scene === "journey-assets";
   const isLesson = scene.startsWith("lesson");
   const emptyAccount = scene === "home-empty" || scene === "picker-empty" || scene === "picker-loading";
   const homeSubjects = emptyAccount ? [] : FIXTURE_SUBJECTS;
@@ -242,6 +245,8 @@ export function PearNotesPrototypeApp() {
         onRetry={() => action("retry curricula.getPath")}
         onInviteCrew={() => action("→ invite friends to this unit")}
       />
+
+      {isAssets && <JourneyAssetGallery />}
 
       {isLesson && (
         <LessonShell
