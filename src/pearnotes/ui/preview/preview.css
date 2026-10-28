@@ -1,0 +1,148 @@
+/* harness-only styles — never imported by app code, only by
+ * src/pearnotes/ui/preview/main.tsx */
+
+.pnh-bar {
+  position: fixed;
+  z-index: 80; /* under .pn-layer dialogs — close the overlay to switch scenes */
+  top: 10px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateX(-50%);
+}
+
+.pnh-toggle {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(21, 21, 23, 0.92);
+  color: #bac2c6;
+  padding: 7px 14px;
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pnh-toggle:hover { color: #fff; }
+
+.pnh-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  display: flex;
+  max-height: 70dvh;
+  min-width: 200px;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  border-radius: 16px;
+  background: rgba(21, 21, 23, 0.97);
+  padding: 8px;
+  transform: translateX(-50%);
+}
+
+.pnh-menu-item {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #bac2c6;
+  padding: 8px 12px;
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pnh-menu-item:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.pnh-menu-item.is-active { color: #c9ff3d; }
+
+.pnh-note {
+  color: rgba(255, 255, 255, 0.4);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+/* decorative lesson-board placeholder (DemoBoard in PrototypeApp) */
+.pnh-board {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0 1px, transparent 1.4px);
+  background-size: 30px 30px;
+}
+
+.pnh-zone {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  border: 2px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 10px 14px;
+}
+
+.pnh-card {
+  position: absolute;
+  display: flex;
+  width: 240px;
+  flex-direction: column;
+  gap: 6px;
+  border-radius: 8px;
+  background: #f5efdf;
+  box-shadow: 0 16px 30px -14px rgba(23, 16, 25, 0.6);
+  color: #1d1712;
+  padding: 14px 16px 16px;
+}
+
+.pnh-card::before {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 58px;
+  height: 16px;
+  rotate: 2deg;
+  background: #e7dcc3;
+  content: "";
+  transform: translateX(-50%);
+}
+
+.pnh-card strong {
+  font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 800;
+}
+
+.pnh-card p {
+  margin: 0;
+  color: #6b5f50;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.pnh-card-kicker {
+  color: #6b5f50;
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.pnh-card-ink {
+  background: #151517;
+  color: #fff;
+}
+
+.pnh-card-ink .pnh-card-kicker,
+.pnh-card-ink p { color: #bac2c6; }
+
+.pnh-card-note { background: #fbf2c4; }
+
+.pnh-card-note::before { background: #e7dcc3; }
+
+@media (max-width: 767px) {
+  .pnh-note { display: none; }
+}
