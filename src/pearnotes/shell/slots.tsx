@@ -74,6 +74,18 @@ function slot<P extends object>(
   };
 }
 
+/** `?journey=v2` opts the live app into the JourneyDrawer redesign
+ *  (docs/phase00/JOURNEY_REDESIGN.md) while keeping LearningPathDrawer as
+ *  the default — read once at module init; both builds stay in the bundle. */
+const preferJourney =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("journey") === "v2";
+
+const drawerSources: SlotSource[] = [
+  ...(preferJourney ? [{ file: "JourneyDrawer.tsx", exportName: "JourneyDrawer" }] : []),
+  { file: "LearningPathDrawer.tsx", exportName: "LearningPathDrawer" },
+];
+
 export const pearnotesSlots: PearNotesSlots = {
   Home: slot<PearNotesHomeProps>(
     [
@@ -87,7 +99,7 @@ export const pearnotesSlots: PearNotesSlots = {
     SubjectPickerPlaceholder,
   ),
   LearningPathDrawer: slot<LearningPathDrawerProps>(
-    [{ file: "LearningPathDrawer.tsx", exportName: "LearningPathDrawer" }],
+    drawerSources,
     LearningPathDrawerPlaceholder,
     /* A null path = no data yet: the placeholder's honest "nothing here"
        beats a perpetual skeleton on the real drawer. */

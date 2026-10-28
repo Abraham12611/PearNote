@@ -82,6 +82,23 @@ export type PathNodeState =
   | "needs_review"
   | "locked";
 
+/** Structural node type on the path (JOURNEY_REDESIGN §state model).
+ *  `lesson` is the default; `practice` is a skill-check drill; `checkpoint`
+ *  is a unit milestone (quiz / wrap-up). */
+export type PathNodeKind = "lesson" | "practice" | "checkpoint";
+
+/** Friend activity attached to a single path node. All fields optional —
+ *  a node with no social data renders nothing. Names are display labels
+ *  used for the face pile initials in Phase 00 prototypes. */
+export interface PathLessonSocial {
+  /** "N studying now with you" */
+  studyingNow?: number;
+  /** "N friends completed this" */
+  completed?: number;
+  /** up-to-3 display names for the face pile */
+  friends?: string[];
+}
+
 export interface PathLesson {
   id: string;
   title: string;
@@ -91,6 +108,12 @@ export interface PathLesson {
   activityCount: number;
   /** distinct sources backing this lesson — shown as a chip */
   sourceCount: number;
+  /** structural kind — `lesson` when omitted */
+  kind?: PathNodeKind;
+  /** estimated minutes, shown as "· 5 min" metadata when present */
+  durationMin?: number;
+  /** friend activity for this node (JOURNEY_REDESIGN §social rules) */
+  social?: PathLessonSocial;
   /** 0–1, only meaningful while `state === "in_progress"` */
   progress?: number;
   /** the path's recommended next node gets the lime "next" tag */
@@ -126,6 +149,15 @@ export interface LearningPath {
   subjectId: string;
   status: LearningPathStatus;
   sections: PathSection[];
+  /** subject-level friend activity for the drawer header/footer */
+  social?: {
+    /** "N friends studied this" (header strip) */
+    friendsStudied?: number;
+    /** "N friends are learning {subject}" (expanded footer) */
+    friendsLearning?: number;
+    /** up-to-3 display names for the face pile */
+    names?: string[];
+  };
   /** operator-safe message when `status === "error"` */
   error?: { message: string; retryable: boolean };
 }
