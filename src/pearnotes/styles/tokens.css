@@ -1,0 +1,85 @@
+/* ------------------------------------------------------------------
+ * PearNotes design tokens — Phase 00 additive layer.
+ *
+ * Everything here is prefixed `--pn-` and lives on `:root`; nothing
+ * overwrites the upstream OurSpaces `@theme` tokens in `src/index.css`.
+ * Where an upstream token already exists (lime, sticker black, fonts,
+ * motion curves/durations) the PearNotes token *references* it so the
+ * learning chrome stays in the same material family. The blueprint's
+ * "starting palette" values that differ from shipped upstream values
+ * (e.g. lime #c6f750 vs shipped #c9ff3d) resolve to upstream — the
+ * blueprint says "adjust against upstream CSS".
+ * ------------------------------------------------------------------ */
+
+:root {
+  /* --- palette ---------------------------------------------------- */
+  --pn-ink: #0b0b0d;                       /* blueprint --ink: near-black base */
+  --pn-panel: var(--color-rail, #151517);  /* blueprint --panel-dark */
+  --pn-sticker: var(--color-sticker, #0b0b0e);
+  --pn-lime: var(--color-lime, #c9ff3d);
+  --pn-paper: #f5efdf;                     /* blueprint --paper: warm white card */
+  --pn-paper-deep: #e7dcc3;                /* creased edge, tape, recycled slip */
+  --pn-paper-shadow: #171019;              /* paper-card lift shadow (plum-black) */
+  --pn-on-dark: #ffffff;
+  --pn-muted-on-dark: #bac2c6;             /* blueprint --text-muted */
+  --pn-faint-on-dark: rgba(255, 255, 255, 0.52);
+  --pn-on-paper: #1d1712;
+  --pn-muted-on-paper: #6b5f50;
+  --pn-danger: #ff8f7a;
+  --pn-amber: #ffc85c;
+
+  /* --- subject identity hues ---------------------------------------
+   * Blueprint proposes five; the rest are Phase-00 proposals to round
+   * out the avatar pack (ASSETS_BRANDING.md). One signature hue per
+   * subject — the disc, drawer header and path accents all wear it.
+   * The learner's subject record carries the final hex; these are the
+   * defaults offered at creation time. */
+  --pn-subject-science: #4fb6e9;
+  --pn-subject-math: #7c5cff;
+  --pn-subject-biology: #59b995;
+  --pn-subject-physics: #3f70ff;
+  --pn-subject-chemistry: #ffad59;
+  --pn-subject-medicine: #e46a94;
+  --pn-subject-pharmacy: #b985ff;
+  --pn-subject-computer-science: #5c6ac4;
+  --pn-subject-history: #d97b54;
+  --pn-subject-literature: #b05c6f;
+  --pn-subject-languages: #f2c94c;
+  --pn-subject-economics: #c9a227;
+  --pn-subject-art: #ff7ab8;
+  --pn-subject-engineering: #7d93a8;
+  --pn-subject-general: #a3c26a;           /* pear green — quieter than lime */
+  --pn-subject-unknown: #8d8d99;
+
+  /* --- typography ---------------------------------------------------
+   * Two families only, inherited from upstream @theme. */
+  --pn-font-display: var(--font-display, "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif);
+  --pn-font-sans: var(--font-sans, "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif);
+
+  /* --- spacing / elevation ------------------------------------------
+   * 4/8/12/16/24/32 scale per DESIGN_SYSTEM.md. Floating chrome radius
+   * ~24–28px, tiles 14–18px, pills fully round — same numbers upstream. */
+  --pn-radius-tile: 15px;
+  --pn-radius-card: 26px;
+  --pn-radius-chrome: 28px;
+  --pn-lift: 0 14px 30px -10px; /* usage: box-shadow: var(--pn-lift) <own color, ~45%> */
+
+  /* --- motion ---------------------------------------------------------
+   * Reuse the house system: glide default, pop for arrivals, snap for
+   * climax beats only. */
+  --pn-ease-glide: var(--ease-glide, cubic-bezier(0.16, 1, 0.3, 1));
+  --pn-ease-pop: var(--ease-pop, cubic-bezier(0.2, 0.9, 0.3, 1.18));
+  --pn-ease-snap: var(--ease-snap, cubic-bezier(0.34, 1.56, 0.64, 1));
+  --pn-dur-instant: var(--dur-instant, 120ms);
+  --pn-dur-quick: var(--dur-quick, 160ms);
+  --pn-dur-base: var(--dur-base, 220ms);
+  --pn-dur-arrive: var(--dur-arrive, 360ms);
+  --pn-dur-stage: var(--dur-stage, 500ms);
+
+  /* --- responsive breakpoints (match RESPONSIVE_ACCESSIBILITY.md) ------
+   * Used via @media queries in pearnotes.css; recorded here as the
+   * single source of truth in comments:
+   *   >=1200px : desktop — drawer 52vw
+   *   768–1199 : tablet — drawer min(66vw, 720px)
+   *   <768px   : mobile — drawer is a full-screen sheet */
+}
