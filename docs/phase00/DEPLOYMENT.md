@@ -22,9 +22,9 @@ provisions/selects a deployment; choose/create only a PearNotes-owned one.
 
 | Env | Convex deployment | Frontend | Who/what touches it |
 |---|---|---|---|
-| dev (local) | `dev:<pearnotes-dev>` — **owner to provision** | `npm run dev` + `.env.local` | all engineers |
-| preview | `dev:<pearnotes-preview>` (separate deployment = separate DB) | Vercel PR previews | CI on PRs to `develop` |
-| prod | **does not exist yet** — do not create | — | nobody until Phase 07-style review |
+| dev (local + owner preview) | `dev:keen-marten-701` — **provisioned**, see [LIVE_BACKEND.md](LIVE_BACKEND.md) | `npm run dev` + `.env.local`, Vercel PR previews | all engineers |
+| preview (dedicated) | optional: separate deployment or Convex preview deployments — see LIVE_BACKEND §4c | Vercel PR previews | CI on PRs to `develop` |
+| prod | `wooden-rat-386` exists (auto-created by Convex) but is **empty — do not push** | — | nobody until Phase 07-style review |
 
 Rules:
 - One Convex **project**, three deployments — do not create a second project or
@@ -47,15 +47,13 @@ Rules:
 
 Engineers cannot complete these — they need account/credential access.
 
-### 3a. Convex (blocks all live smoke tests, BASELINE §7 S3–S6)
-1. `npx convex login` as the PearNotes owner account.
-2. Create **one** Convex project `pearnotes` with deployments `dev` and a
-   second `dev`-type deployment for previews (or use Convex preview
-   deployments if plan supports).
-3. Run `npx convex dev` once locally to write `.env.local`, verify it names the
-   PearNotes deployment, then share `VITE_CONVEX_URL`/`VITE_CONVEX_SITE_URL`
-   (nonsecret) with engineers.
-4. Set deployment env vars per `.env.example` §"Deployment env vars".
+### 3a. Convex — ✅ DONE (2026-10-28)
+
+Project `pearnote` (team `abraham-dahunsi`), dev deployment
+`keen-marten-701` provisioned and functions pushed. Full details, env
+surface, and seed state: [LIVE_BACKEND.md](LIVE_BACKEND.md).
+Remaining owner step: none required for local dev — `.env.local` was
+written by `convex dev` and is gitignored.
 
 ### 3b. Vercel (PR previews)
 1. Create a Vercel project for PearNotes under the team account; connect this
@@ -63,10 +61,13 @@ Engineers cannot complete these — they need account/credential access.
    auto-prod deploys).
 2. `vercel.json` already supplies: framework `vite`, `npm ci`, `npm run build`,
    output `dist`, SPA fallback rewrite.
-3. Set project env: `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL` for the **preview**
-   deployment only.
+3. Set project env for the **Preview** environment only:
+   `VITE_CONVEX_URL` = `https://keen-marten-701.convex.cloud`,
+   `VITE_CONVEX_SITE_URL` = `https://keen-marten-701.convex.site`
+   (values are public client config — see LIVE_BACKEND §2).
 4. Verify one PR preview URL serves the app and does NOT call upstream Convex
-   (check the browser's network panel for `necessary-cobra-892`/`dusty-condor-648`).
+   (check the browser's network panel for `necessary-cobra-892`/`dusty-condor-648`),
+   then run the smoke checklist in LIVE_BACKEND §4b.
 
 ### 3c. GitHub branch protection — currently **none** on `main` or `develop`
 (verified 2026-10-28: `GET /repos/Abraham12611/PearNote/branches/{main,develop}/protection` → 404)
