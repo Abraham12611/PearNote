@@ -5,6 +5,7 @@ import * as mail from "./tables/mail";
 import * as voice from "./tables/voice";
 import * as row from "./tables/rightOfWay";
 import * as games from "./tables/games";
+import * as learning from "./tables/learning";
 
 // The whole data model at a glance; each table's fields and indexes live in
 // convex/tables/<area>.ts. Shape rationale: docs/data-model-plan.md §11.
@@ -48,4 +49,20 @@ export default defineSchema({
   gameAnswers: games.gameAnswers, // each pick, held back until the reveal
   awards: games.awards, // stickers a round gave out
   puzzlePieces: games.puzzlePieces, // where each jigsaw piece is
+
+  // PearNotes learning domain (Phase 00.4; engineering/DATA_MODEL.md).
+  // Private by default — every read passes learningAuth.ts ownership checks.
+  subjects: learning.subjects, // a learner's named area of study; never seeded
+  sources: learning.sources, // an uploaded file's metadata (blob = storageId)
+  sourceSegments: learning.sourceSegments, // addressable private document text
+  subjectSources: learning.subjectSources, // which source parts feed a subject
+  concepts: learning.concepts, // extracted ideas with source citations
+  objectives: learning.objectives, // assessable statements per subject
+  curriculumVersions: learning.curriculumVersions, // immutable generations
+  sections: learning.sections, // version → ordered sections
+  units: learning.units, // section → ordered units
+  lessons: learning.lessons, // unit → lesson, points at a canvas space
+  activities: learning.activities, // typed specs, revised not mutated
+  attempts: learning.attempts, // immutable personal answers — not widgets
+  mastery: learning.mastery, // derived per-user objective state
 });
