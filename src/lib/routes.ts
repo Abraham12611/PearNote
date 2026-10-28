@@ -24,6 +24,23 @@ export function inviteUrlForSpace(slug: string) {
   return `${window.location.origin}${window.location.pathname}#/join/${encodeURIComponent(slug)}`;
 }
 
+/* --- PearNotes shell (`#/learn*`, feature-gated; src/pearnotes/shell/) --- */
+
+/** The PearNotes home route. Only live when the shell flag is on. */
+export function pearnotesHomeHash() {
+  return "#/learn";
+}
+
+/** `#/learn/path/<subjectId>` — the subject's right-hand path drawer. */
+export function pearnotesPathHash(subjectId: string) {
+  return `#/learn/path/${encodeURIComponent(subjectId)}`;
+}
+
+/** `#/learn/lesson/<lessonId>` — the full lesson canvas. */
+export function pearnotesLessonHash(lessonId: string) {
+  return `#/learn/lesson/${encodeURIComponent(lessonId)}`;
+}
+
 /** About remembers the room you came from. A cold link returns to the
  *  crew at its explicit `#/space/crew` address. */
 const LAST_SPACE_KEY = "ourspaces:last-space";

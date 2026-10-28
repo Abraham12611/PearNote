@@ -107,6 +107,7 @@ import {
 import { flushSync } from "react-dom";
 import { flyWidgetIn } from "./lib/flipLanding";
 import { DEFAULT_SPACE_SLUG, knowsHash, lastSpaceSlug, normalSpaceHash, rememberSpaceSlug, slugOfSpaceHash } from "./lib/routes";
+import { pearnotesShellRequested } from "./pearnotes/shell/featureFlag";
 import { pileInsideFrame, widgetIsInsideFrame } from "./lib/frameMembership";
 import {
   linkReplyCounts,
@@ -163,6 +164,13 @@ const WidgetWall = lazy(() =>
 const Welcome = lazy(() => import("./pages/Welcome"));
 const AboutPage = lazy(() =>
   import("./pages/About").then((module) => ({ default: module.About })),
+);
+/* PearNotes shell — feature-gated `#/learn*` experience (src/pearnotes/shell/).
+   Lazy so the flag-off path never pays for it. */
+const PearNotesCanvasShell = lazy(() =>
+  import("./pearnotes/shell").then((module) => ({
+    default: module.PearNotesCanvasShell,
+  })),
 );
 
 function DeferredRoute({ children }: { children: ReactNode }) {
@@ -2093,6 +2101,13 @@ export default function App() {
     ) : (
       <DeferredRoute><Admin /></DeferredRoute>
     );
+  }
+
+  /* The PearNotes shell claims `#/learn*` while its flag is on. Flag off →
+     this is false for every hash and the space route behaves exactly as
+     before, in both live and mock modes (issue #4: no big-bang rewrite). */
+  if (route === "space" && pearnotesShellRequested()) {
+    return <DeferredRoute><PearNotesCanvasShell /></DeferredRoute>;
   }
 
   if (route === "live" && !mockModeRequested()) {
