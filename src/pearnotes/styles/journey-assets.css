@@ -1,0 +1,182 @@
+/* ------------------------------------------------------------------
+ * Journey asset pack styles (P00 — "journey interaction asset pack")
+ * pjn-*  tactile 2.5D journey nodes   (JourneyNode.tsx)
+ * pjs-*  decorative stickers/doodles  (JourneySticker.tsx)
+ *
+ * Tactility is pure SVG+CSS: a ground shadow, a darker extruded skirt
+ * and a top face that lifts on hover and squashes into the skirt on
+ * press — no bitmaps, no shadows-of-shadows, all token-driven.
+ * ------------------------------------------------------------------ */
+
+/* ---------- journey node ------------------------------------------ */
+
+.pjn {
+  --jnode-face: var(--pn-paper);
+  --jnode-ink: var(--pn-on-paper);
+  --jnode-hue: var(--pn-subject-general, #a3c26a);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--jnode-ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pjn-art { display: block; overflow: visible; }
+
+.pjn-shadow { fill: rgba(0, 0, 0, 0.38); transition: opacity 160ms ease, transform 160ms ease; }
+
+/* the skirt sits 8px lower — that lip is the 2.5D extrusion */
+.pjn-skirt { fill: color-mix(in srgb, var(--jnode-face) 42%, #000); transition: fill 160ms ease; }
+
+.pjn-face {
+  color: var(--jnode-ink);
+  transition: translate var(--pn-dur-quick, 160ms) var(--pn-ease-glide, ease-out);
+}
+
+.pjn-top { fill: var(--jnode-face); transition: fill 160ms ease; }
+.pjn-rim {
+  fill: none;
+  stroke: color-mix(in srgb, var(--jnode-ink) 18%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 0;
+}
+.pjn-sheen { stroke: rgba(255, 255, 255, 0.28); }
+.pjn-glyph { font-family: var(--pn-font-display); }
+.pjn-num { font-size: 30px; font-weight: 800; }
+
+.pjn-progress {
+  fill: none;
+  stroke: var(--pn-lime);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.pjn-tag {
+  position: absolute;
+  z-index: 2;
+  top: 2px;
+  right: -6px;
+  rotate: 4deg;
+  border-radius: 999px;
+  background: var(--pn-lime);
+  color: var(--pn-sticker);
+  padding: 3px 9px;
+  font-family: var(--pn-font-display);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* --- interaction ----------------------------------------------------
+ * hover lifts the face off the skirt; press drives it down into the
+ * skirt (the visible lip shrinks — it reads as a real squash). */
+.pjn:not(.pjn-inert):not(:disabled):hover .pjn-face { translate: 0 -3px; }
+.pjn:not(.pjn-inert):not(:disabled):hover .pjn-shadow { transform: scaleX(1.08); opacity: 0.5; }
+.pjn:not(.pjn-inert):not(:disabled):active .pjn-face { translate: 0 5px; transition-duration: 60ms; }
+.pjn:not(.pjn-inert):not(:disabled):active .pjn-shadow { transform: scaleX(0.92); opacity: 0.55; }
+
+.pjn:focus-visible {
+  outline: 3px solid var(--pn-lime);
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
+/* --- states ---------------------------------------------------------- */
+
+.pjn.is-demonstrated { --jnode-face: var(--jnode-hue); --jnode-ink: #ffffff; }
+.pjn.is-in_progress { --jnode-face: var(--pn-lime); --jnode-ink: var(--pn-sticker); }
+.pjn.is-practicing,
+.pjn.kind-practice { --jnode-face: var(--pn-amber); --jnode-ink: var(--pn-sticker); }
+.pjn.kind-checkpoint { --jnode-face: #6d5acd; --jnode-ink: #ffffff; }
+.pjn.is-needs_review { --jnode-face: var(--pn-amber); --jnode-ink: var(--pn-sticker); }
+.pjn.is-needs_review .pjn-rim { stroke-dasharray: 5 6; }
+
+/* locked is inert: no lift, no hover reward, dimmed everything */
+.pjn.is-locked {
+  --jnode-face: #232329;
+  --jnode-ink: #63636d;
+  cursor: default;
+}
+.pjn.is-locked .pjn-sheen { stroke: rgba(255, 255, 255, 0.08); }
+
+/* current node breathes — the only ambient motion on the trail */
+.pjn.is-in_progress .pjn-face { animation: pjn-bob 2.6s var(--pn-ease-glide, ease-in-out) infinite; }
+@keyframes pjn-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -3px; }
+}
+
+.pjn.is-loading { --jnode-face: #2a2a31; --jnode-ink: transparent; cursor: progress; }
+.pjn.is-loading .pjn-top { animation: pjn-pulse 1.6s ease-in-out infinite; }
+@keyframes pjn-pulse { 50% { opacity: 0.55; } }
+
+.pjn.is-disabled { opacity: 0.45; cursor: not-allowed; }
+.pjn.is-remedial .pjn-art { scale: 0.8; }
+
+/* ---------- decorative stickers / doodles / notes ------------------- */
+
+.pjs-sticker {
+  display: block;
+  border-radius: 14%;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.45));
+  user-select: none;
+  pointer-events: none;
+}
+
+.pjs-doodle {
+  display: block;
+  color: var(--pn-faint-on-dark, rgba(255, 255, 255, 0.52));
+  stroke: currentColor;
+  pointer-events: none;
+}
+.pjs-sparkle { color: var(--pn-lime); stroke: none; }
+.pjs-tape { color: var(--pn-paper-deep); opacity: 0.75; stroke: none; }
+
+.pjs-note {
+  position: relative;
+  display: inline-block;
+  border-radius: 4px;
+  background: var(--pn-paper);
+  box-shadow: 0 10px 18px -8px rgba(23, 16, 25, 0.65);
+  color: var(--pn-on-paper);
+  padding: 10px 14px 11px;
+  font-family: var(--pn-font-display);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  line-height: 1.25;
+  pointer-events: none;
+}
+.pjs-note::before {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 44px;
+  height: 13px;
+  rotate: -3deg;
+  background: var(--pn-paper-deep);
+  content: "";
+  transform: translateX(-50%);
+}
+.pjs-note.tone-lime { background: var(--pn-lime); color: var(--pn-sticker); }
+
+/* ---------- reduced motion ------------------------------------------
+ * pjn-/pjs- classes aren't covered by the global pn-* rule, so the
+ * pack carries its own: bob, pulse and transitions collapse. */
+@media (prefers-reduced-motion: reduce) {
+  .pjn,
+  .pjn *,
+  .pjs-sticker,
+  .pjs-note {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .pjn.is-in_progress .pjn-face { animation: none; }
+}

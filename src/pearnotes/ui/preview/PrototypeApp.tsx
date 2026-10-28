@@ -11,6 +11,7 @@ import {
   PROTOTYPE_FIXTURE_LABEL,
 } from "../fixtures";
 import type { LearningPath, LessonMode } from "../types";
+import { JourneyAssetGallery } from "./JourneyAssetGallery";
 
 /* ------------------------------------------------------------------
  * Isolated prototype harness (Issue #5, P00.3).
@@ -41,6 +42,7 @@ const SCENES = [
   { id: "drawer-error", label: "drawer · error" },
   { id: "lesson-guided", label: "lesson · guided" },
   { id: "lesson-explore", label: "lesson · explore" },
+  { id: "journey-assets", label: "journey asset pack" },
 ] as const;
 
 type SceneId = (typeof SCENES)[number]["id"];
@@ -155,6 +157,7 @@ export function PearNotesPrototypeApp() {
   const isPicker = scene.startsWith("picker");
   const isDrawer = scene.startsWith("drawer");
   const isLesson = scene.startsWith("lesson");
+  const isAssets = scene === "journey-assets";
   const emptyAccount = scene === "home-empty" || scene === "picker-empty" || scene === "picker-loading";
   const homeSubjects = emptyAccount ? [] : FIXTURE_SUBJECTS;
   const homeFixture = emptyAccount ? undefined : PROTOTYPE_FIXTURE_LABEL;
@@ -213,6 +216,8 @@ export function PearNotesPrototypeApp() {
         onBrowseSources={() => action("→ subject sources")}
         onRetry={() => action("retry curricula.getPath")}
       />
+
+      {isAssets && <JourneyAssetGallery />}
 
       {isLesson && (
         <LessonShell

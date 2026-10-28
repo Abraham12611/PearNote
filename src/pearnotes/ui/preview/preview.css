@@ -146,3 +146,107 @@
 @media (max-width: 767px) {
   .pnh-note { display: none; }
 }
+
+/* ---------- journey asset gallery ----------------------------------- */
+
+.pnh-assets {
+  position: relative;
+  min-height: 100dvh;
+  background: var(--pn-ink);
+  color: var(--pn-on-dark);
+  padding: 28px 36px 64px;
+}
+
+.pnh-assets-head { max-width: 560px; margin-bottom: 40px; }
+
+.pnh-assets-title {
+  margin: 6px 0 8px;
+  font-family: var(--pn-font-display);
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.pnh-assets-sub {
+  margin: 0;
+  color: var(--pn-muted-on-dark);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.pnh-assets-block { margin: 0 0 48px; }
+.pnh-assets-block > .pn-kicker { display: block; margin-bottom: 18px; }
+
+.pnh-node-grid {
+  display: grid;
+  max-width: 960px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 22px 12px;
+}
+
+.pnh-node-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  text-align: center;
+}
+
+.pnh-node-cell figcaption {
+  color: var(--pn-muted-on-dark);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.pnh-trail-demo {
+  position: relative;
+  max-width: 720px;
+  height: 190px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+}
+
+.pnh-trail-step { position: absolute; translate: -50% -50%; }
+
+.pnh-trail-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.pnh-trail-svg path {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 1.2;
+  stroke-dasharray: 2.4 3.4;
+  stroke-linecap: round;
+}
+
+.pnh-size-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 48px;
+  margin-top: 22px;
+}
+
+.pnh-sticker-wall {
+  display: grid;
+  max-width: 1000px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 20px 14px;
+}
+
+.pnh-doodle-row {
+  display: flex;
+  align-items: center;
+  gap: 34px;
+  padding: 18px 0;
+}
+
+@media (max-width: 767px) {
+  .pnh-assets { padding: 20px 18px 56px; }
+  .pnh-node-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pnh-sticker-wall { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pnh-doodle-row { flex-wrap: wrap; gap: 22px; }
+}
