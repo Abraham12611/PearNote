@@ -74,12 +74,12 @@ function slot<P extends object>(
   };
 }
 
-/** `?journey=v2` opts the live app into the JourneyDrawer redesign
- *  (docs/phase00/JOURNEY_REDESIGN.md) while keeping LearningPathDrawer as
- *  the default — read once at module init; both builds stay in the bundle. */
+/** PearNotes defaults to the redesigned compact Journey. 
+ * Use `?journey=legacy` solely as a temporary owner-review rollback.
+ * Query is read once at load; a new URL load switches the renderer. */
 const preferJourney =
   typeof window !== "undefined" &&
-  new URLSearchParams(window.location.search).get("journey") === "v2";
+  new URLSearchParams(window.location.search).get("journey") !== "legacy";
 
 const drawerSources: SlotSource[] = [
   ...(preferJourney ? [{ file: "JourneyDrawer.tsx", exportName: "JourneyDrawer" }] : []),
