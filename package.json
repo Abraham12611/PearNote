@@ -8,6 +8,7 @@
     "dev": "vite",
     "dev:backend": "convex dev",
     "build": "tsc -b && vite build",
+    "test": "vitest run",
     "preview": "vite preview",
     "deploy": "echo 'ERROR: deploy disabled. The inherited Netlify target (site 3b6e9f86-…, --prod) pointed at the upstream OurSpaces infrastructure. PearNotes deploys via Vercel previews only — see docs/phase00/DEPLOYMENT.md.' && exit 1",
     "deploy:convex": "echo 'ERROR: deploy:convex disabled. static-hosting deploy would push to whatever CONVEX_DEPLOYMENT resolves to, including upstream deployments. Provision a PearNotes deployment first — see docs/phase00/DEPLOYMENT.md.' && exit 1",
@@ -51,11 +52,13 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",
+    "convex-test": "^0.0.63",
     "imagetracerjs": "^1.2.6",
     "jpeg-js": "^0.4.4",
     "oxlint": "^1.79.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^5.0.5"
   }
 }
