@@ -27,3 +27,17 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# MCP server config — can carry API keys in headers. Never commit.
+.mcp.json
+
+# TypeScript incremental build cache — build artifact, not source.
+*.tsbuildinfo
+
+# Netlify CLI local state (upstream tooling; PearNotes targets Vercel).
+.netlify/
+
+# Local working notes and private scratch (restored from upstream hygiene).
+.private/
+.context/
+docs/local/
