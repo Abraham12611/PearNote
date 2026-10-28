@@ -23,11 +23,7 @@ export { JourneyNode } from "./JourneyNode";
 export type { JourneyNodeProps, JourneyNodeKind } from "./JourneyNode";
 export { JourneySticker, JourneyDoodle, JourneyNote } from "./JourneySticker";
 export type { JourneyStickerProps } from "./JourneySticker";
-export {
-  JOURNEY_STICKERS,
-  pickSticker,
-  stickerUrl,
-} from "./journeyAssets";
+export { JOURNEY_STICKERS, pickSticker, stickerUrl } from "./journeyAssets";
 export type { JourneyStickerAsset, JourneyStickerTheme } from "./journeyAssets";
 export { PearNotesHome } from "./HomeShell";
 export type { PearNotesHomeProps } from "./HomeShell";
@@ -35,6 +31,8 @@ export { SubjectPicker } from "./SubjectPicker";
 export type { SubjectPickerProps } from "./SubjectPicker";
 export { LearningPathDrawer } from "./LearningPathDrawer";
 export type { LearningPathDrawerProps } from "./LearningPathDrawer";
+export { JourneyDrawer } from "./JourneyDrawer";
+export type { JourneyDrawerProps, JourneyMode } from "./JourneyDrawer";
 export { LessonShell } from "./LessonShell";
 export type { LessonShellProps } from "./LessonShell";
 export { useDialogA11y, usePrefersReducedMotion } from "./a11y";

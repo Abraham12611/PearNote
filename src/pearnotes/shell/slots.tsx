@@ -74,6 +74,18 @@ function slot<P extends object>(
   };
 }
 
+/** PearNotes defaults to the redesigned compact Journey. 
+ * Use `?journey=legacy` solely as a temporary owner-review rollback.
+ * Query is read once at load; a new URL load switches the renderer. */
+const preferJourney =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("journey") !== "legacy";
+
+const drawerSources: SlotSource[] = [
+  ...(preferJourney ? [{ file: "JourneyDrawer.tsx", exportName: "JourneyDrawer" }] : []),
+  { file: "LearningPathDrawer.tsx", exportName: "LearningPathDrawer" },
+];
+
 export const pearnotesSlots: PearNotesSlots = {
   Home: slot<PearNotesHomeProps>(
     [
@@ -87,7 +99,7 @@ export const pearnotesSlots: PearNotesSlots = {
     SubjectPickerPlaceholder,
   ),
   LearningPathDrawer: slot<LearningPathDrawerProps>(
-    [{ file: "LearningPathDrawer.tsx", exportName: "LearningPathDrawer" }],
+    drawerSources,
     LearningPathDrawerPlaceholder,
     /* A null path = no data yet: the placeholder's honest "nothing here"
        beats a perpetual skeleton on the real drawer. */

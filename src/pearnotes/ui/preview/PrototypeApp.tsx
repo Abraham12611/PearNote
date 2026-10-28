@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PearNotesHome } from "../HomeShell";
 import { SubjectPicker } from "../SubjectPicker";
 import { LearningPathDrawer } from "../LearningPathDrawer";
+import { JourneyDrawer } from "../JourneyDrawer";
 import { LessonShell } from "../LessonShell";
 import {
   FIXTURE_LESSON,
@@ -40,9 +41,12 @@ const SCENES = [
   { id: "drawer-empty", label: "drawer · no material" },
   { id: "drawer-loading", label: "drawer · loading" },
   { id: "drawer-error", label: "drawer · error" },
+  { id: "journey-compact", label: "journey · compact" },
+  { id: "journey-expanded", label: "journey · expanded" },
+  { id: "journey-empty", label: "journey · no material" },
+  { id: "journey-assets", label: "journey asset pack" },
   { id: "lesson-guided", label: "lesson · guided" },
   { id: "lesson-explore", label: "lesson · explore" },
-  { id: "journey-assets", label: "journey asset pack" },
 ] as const;
 
 type SceneId = (typeof SCENES)[number]["id"];
@@ -67,6 +71,9 @@ const DRAWER_PATHS: Record<string, LearningPath | null> = {
     sections: [],
     error: { message: "the connection dropped mid-sketch.", retryable: true },
   },
+  "journey-compact": FIXTURE_PATH,
+  "journey-expanded": FIXTURE_PATH,
+  "journey-empty": { subjectId: "fixture-manual", status: "needs_material", sections: [] },
 };
 
 /** Decorative lesson board standing in for the real canvas slot — zones
@@ -156,8 +163,9 @@ export function PearNotesPrototypeApp() {
 
   const isPicker = scene.startsWith("picker");
   const isDrawer = scene.startsWith("drawer");
-  const isLesson = scene.startsWith("lesson");
+  const isJourney = scene.startsWith("journey") && scene !== "journey-assets";
   const isAssets = scene === "journey-assets";
+  const isLesson = scene.startsWith("lesson");
   const emptyAccount = scene === "home-empty" || scene === "picker-empty" || scene === "picker-loading";
   const homeSubjects = emptyAccount ? [] : FIXTURE_SUBJECTS;
   const homeFixture = emptyAccount ? undefined : PROTOTYPE_FIXTURE_LABEL;
@@ -165,10 +173,11 @@ export function PearNotesPrototypeApp() {
   const drawerPath = useMemo(() => DRAWER_PATHS[scene] ?? null, [scene]);
   const drawerSubject =
     scene === "drawer-empty" ? MANUAL_SUBJECT : isDrawer ? FIXTURE_SUBJECTS[0] : null;
+  const journeySubject = scene === "journey-empty" ? MANUAL_SUBJECT : FIXTURE_SUBJECTS[0];
 
   return (
     <>
-      {(isPicker || isDrawer || scene.startsWith("home")) && (
+      {(isPicker || isDrawer || isJourney || scene.startsWith("home")) && (
         <PearNotesHome
           learnerName="alex"
           subjects={homeSubjects}
@@ -215,6 +224,26 @@ export function PearNotesPrototypeApp() {
         onAddMaterials={() => action("→ add resources wizard")}
         onBrowseSources={() => action("→ subject sources")}
         onRetry={() => action("retry curricula.getPath")}
+      />
+
+      {/* Journey redesign (JOURNEY_REDESIGN.md) — same contract, hybrid
+          * compact/expanded modes; `key` resets internal state per scene. */}
+      <JourneyDrawer
+        key={scene}
+        open={isJourney}
+        defaultMode={scene === "journey-expanded" ? "expanded" : "compact"}
+        subject={isJourney ? journeySubject : null}
+        path={isJourney ? drawerPath : null}
+        selectedLessonId={selectedLesson}
+        fixtureLabel={isJourney ? PROTOTYPE_FIXTURE_LABEL : undefined}
+        onSelectLesson={setSelectedLesson}
+        onStartLesson={() => go("lesson-guided")}
+        onBack={() => go("picker-populated")}
+        onClose={() => go("home-populated")}
+        onAddMaterials={() => action("→ add resources wizard")}
+        onBrowseSources={() => action("→ subject sources")}
+        onRetry={() => action("retry curricula.getPath")}
+        onInviteCrew={() => action("→ invite friends to this unit")}
       />
 
       {isAssets && <JourneyAssetGallery />}
