@@ -45,6 +45,11 @@ export const FIXTURE_SUBJECTS: PearSubject[] = [
 export const FIXTURE_PATH: LearningPath = {
   subjectId: "fixture-bio",
   status: "ready",
+  social: {
+    friendsStudied: 3,
+    friendsLearning: 4,
+    names: ["Maya", "Jules", "Sam"],
+  },
   sections: [
     {
       id: "fixture-s1",
@@ -59,6 +64,8 @@ export const FIXTURE_PATH: LearningPath = {
               id: "fixture-l1",
               title: "The lipid bilayer",
               state: "demonstrated",
+              durationMin: 5,
+              social: { completed: 3, friends: ["Maya", "Jules", "Sam"] },
               objectives: [
                 "describe what a phospholipid bilayer is",
                 "spot hydrophilic vs hydrophobic regions",
@@ -72,6 +79,8 @@ export const FIXTURE_PATH: LearningPath = {
               state: "in_progress",
               progress: 0.5,
               recommended: true,
+              durationMin: 8,
+              social: { studyingNow: 2, friends: ["Jules", "Kenji"] },
               objectives: [
                 "describe how concentration gradients drive diffusion",
                 "compare diffusion and osmosis across a membrane",
@@ -83,13 +92,36 @@ export const FIXTURE_PATH: LearningPath = {
             {
               id: "fixture-l3",
               title: "Active transport and ATP",
-              state: "available",
+              state: "locked",
+              durationMin: 7,
               objectives: [
                 "explain why cells pay ATP to move molecules uphill",
                 "name a transport protein and what it carries",
               ],
               activityCount: 4,
               sourceCount: 1,
+            },
+            {
+              id: "fixture-l3b",
+              title: "Practice — diffusion vs. active transport",
+              kind: "practice",
+              state: "locked",
+              durationMin: 5,
+              objectives: [
+                "tell facilitated diffusion from active transport in new cases",
+              ],
+              activityCount: 2,
+              sourceCount: 1,
+            },
+            {
+              id: "fixture-l3c",
+              title: "Unit 1 quiz",
+              kind: "checkpoint",
+              state: "locked",
+              durationMin: 6,
+              objectives: ["check what you know across membranes"],
+              activityCount: 6,
+              sourceCount: 0,
             },
           ],
         },
@@ -100,8 +132,10 @@ export const FIXTURE_PATH: LearningPath = {
             {
               id: "fixture-l4",
               title: "Practice — diffusion vs active transport",
+              kind: "practice",
               state: "practicing",
               remedial: true,
+              durationMin: 5,
               objectives: [
                 "tell facilitated diffusion from active transport in new cases",
               ],
@@ -112,6 +146,7 @@ export const FIXTURE_PATH: LearningPath = {
               id: "fixture-l5",
               title: "Transport proteins",
               state: "needs_review",
+              durationMin: 6,
               objectives: [
                 "match channel, carrier and pump to their cargo",
               ],

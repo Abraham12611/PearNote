@@ -24,6 +24,8 @@ export { SubjectPicker } from "./SubjectPicker";
 export type { SubjectPickerProps } from "./SubjectPicker";
 export { LearningPathDrawer } from "./LearningPathDrawer";
 export type { LearningPathDrawerProps } from "./LearningPathDrawer";
+export { JourneyDrawer } from "./JourneyDrawer";
+export type { JourneyDrawerProps, JourneyMode } from "./JourneyDrawer";
 export { LessonShell } from "./LessonShell";
 export type { LessonShellProps } from "./LessonShell";
 export { useDialogA11y, usePrefersReducedMotion } from "./a11y";

@@ -1,0 +1,726 @@
+/* ------------------------------------------------------------------
+ * JourneyDrawer — hybrid learning-path styles
+ * (docs/phase00/JOURNEY_REDESIGN.md)
+ *
+ * `.pnj*` rides on the .pn-drawer/.pn-* base chrome (tokens, icon buttons,
+ * fixture tag, slips). New classes use the `pnj`/`pnjx` prefixes; a local
+ * reduced-motion block covers them since the global rule only matches
+ * `pn-` prefixes.
+ * ------------------------------------------------------------------ */
+
+.pnj { position: relative; }
+
+/* ---------- widths: compact ≈26vw, expanded ≈48vw ------------------- */
+
+.pnj-compact {
+  width: clamp(340px, 26vw, 430px);
+  min-width: 0;
+  max-width: 430px;
+}
+
+.pnj-expanded {
+  width: clamp(560px, 48vw, 760px);
+  min-width: 0;
+  max-width: 760px;
+}
+
+/* ---------- header extras ------------------------------------------- */
+
+.pnj-mascot {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: -6px;
+  rotate: 4deg;
+  border-radius: 8px;
+  background: var(--pn-lime);
+  box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.55);
+  color: var(--pn-sticker);
+  padding: 4px 10px;
+  font-family: var(--pn-font-display);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.1;
+  max-width: 76px;
+  text-align: center;
+}
+
+.pnj-mode-btn { font-size: 0; }
+
+/* the ~26vw header has no room for the sticker — the "next"/"jump in"
+ * tags carry the personality in compact (spec: ≤1 decoration). */
+.pnj-compact .pnj-mascot { display: none; }
+.pnj-compact .pn-drawer-title { font-size: 1.2rem; }
+.pnj-compact .pn-drawer-head { gap: 10px; }
+
+/* ---------- header social strip -------------------------------------- */
+
+.pnj-social-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 22px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pn-muted-on-dark);
+  padding: 9px 14px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.pnj-social-strip strong {
+  color: var(--pn-on-dark);
+  font-weight: 700;
+}
+
+.pnj-faces {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.pnj-face {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid var(--pn-ink);
+  border-radius: 50%;
+  background: var(--subject-hue, var(--pn-subject-general));
+  color: var(--pn-on-paper);
+  font-size: 0.625rem;
+  font-weight: 800;
+}
+
+.pnj-face + .pnj-face { margin-left: -7px; }
+.pnj-face-more { background: var(--pn-panel); color: var(--pn-muted-on-dark); }
+
+/* ---------- compact mode --------------------------------------------- */
+
+.pnj-body { position: relative; }
+
+.pnj-units {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin: 0;
+  padding: 14px 0 0;
+  list-style: none;
+}
+
+/* unit progress bar card (mockup 1) */
+.pnj-unit-progress {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 14px;
+}
+
+.pnj-unit-glyph {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--subject-hue, var(--pn-subject-general));
+  color: var(--pn-on-paper);
+}
+
+.pnj-unit-progress-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pnj-unit-bar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.pnj-unit-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pn-lime);
+  transition: width var(--pn-dur-base) var(--pn-ease-glide);
+}
+
+.pnj-unit-count {
+  flex: 0 0 auto;
+  color: var(--pn-muted-on-dark);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the numbered rail — a vertical dashed spine behind the dots */
+.pnj-rows {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 2px 0 0;
+  list-style: none;
+}
+
+.pnj-rows::before {
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  left: 30px;
+  width: 0;
+  border-left: 3px dashed rgba(255, 255, 255, 0.16);
+  content: "";
+}
+
+.pnj-rows > li { position: relative; }
+
+.pnj-row {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--pn-on-dark);
+  padding: 8px 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--pn-dur-quick) ease-out;
+}
+
+.pnj-row:hover:not(:disabled) { background: rgba(255, 255, 255, 0.055); }
+.pnj-row:disabled { cursor: not-allowed; }
+
+.pnj-row.is-selected { background: rgba(255, 255, 255, 0.08); }
+
+.pnj-dot {
+  position: relative;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #1d1d23;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12);
+  color: var(--pn-muted-on-dark);
+  font-family: var(--pn-font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.pnj-row.is-in_progress .pnj-dot {
+  background: var(--pn-lime);
+  box-shadow: 0 0 0 5px rgba(201, 255, 61, 0.14);
+  color: var(--pn-sticker);
+}
+
+.pnj-row.is-demonstrated .pnj-dot {
+  background: var(--subject-hue, var(--pn-subject-general));
+  box-shadow: none;
+  color: var(--pn-on-paper);
+}
+
+.pnj-row.is-available .pnj-dot,
+.pnj-row.is-not_started .pnj-dot {
+  background: var(--pn-paper);
+  box-shadow: none;
+  color: var(--pn-on-paper);
+}
+
+.pnj-row.is-practicing .pnj-dot,
+.pnj-row.kind-practice .pnj-dot:not([class*="is-locked"]) {
+  border: 2.5px dashed var(--pn-amber);
+  background: var(--pn-paper);
+  color: var(--pn-amber);
+}
+
+.pnj-row.kind-checkpoint:not(.is-locked) .pnj-dot {
+  background: #241f2e;
+  box-shadow: inset 0 0 0 2.5px var(--pn-amber);
+  color: var(--pn-amber);
+}
+
+.pnj-row.is-needs_review .pnj-dot {
+  border: 2.5px dashed var(--pn-amber);
+  background: #241f2e;
+  color: var(--pn-amber);
+}
+
+.pnj-row.is-locked .pnj-dot {
+  background: #15151a;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  color: var(--pn-faint-on-dark);
+}
+
+.pnj-ring {
+  position: absolute;
+  inset: -5px;
+  width: calc(100% + 10px);
+  height: calc(100% + 10px);
+  rotate: -90deg;
+}
+
+.pnj-ring-track { fill: none; stroke: rgba(255, 255, 255, 0.16); stroke-width: 3.4; }
+.pnj-ring-fill { fill: none; stroke: var(--pn-lime); stroke-width: 3.4; stroke-linecap: round; }
+
+.pnj-row-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pnj-row-text strong {
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pnj-row.is-locked .pnj-row-text strong { color: var(--pn-muted-on-dark); }
+
+.pnj-row-text small {
+  overflow: hidden;
+  color: var(--pn-muted-on-dark);
+  font-size: 0.71875rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pnj-row.is-locked .pnj-row-text small { color: var(--pn-faint-on-dark); }
+
+.pnj-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  color: var(--pn-muted-on-dark);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.pnj-row-meta {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.pnj-tag {
+  rotate: -4deg;
+  border-radius: 999px;
+  background: var(--pn-lime);
+  color: var(--pn-sticker);
+  padding: 2px 8px;
+  font-family: var(--pn-font-display);
+  font-size: 0.625rem;
+  font-weight: 800;
+}
+
+.pnj-meta {
+  color: var(--pn-faint-on-dark);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+/* selection card — sticky at the bottom of the scroll body, above CTA */
+.pnj-selection {
+  position: sticky;
+  z-index: 8;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0 0;
+  rotate: -0.5deg;
+  border-radius: 12px;
+  background: var(--pn-paper);
+  box-shadow: 0 18px 34px -14px var(--pn-paper-shadow);
+  color: var(--pn-on-paper);
+  padding: 15px 17px 16px;
+  animation: pn-preview-in var(--pn-dur-base) var(--pn-ease-pop) backwards;
+}
+
+.pnj-selection-title {
+  margin: 0;
+  font-family: var(--pn-font-display);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.pnj-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+/* ---------- sticky CTA footer ---------------------------------------- */
+
+.pnj-cta-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--pn-ink);
+}
+
+.pnj-continue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--pn-lime);
+  box-shadow: 0 10px 24px -10px rgba(201, 255, 61, 0.55);
+  color: var(--pn-sticker);
+  padding: 13px 16px;
+  font-family: var(--pn-font-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: translate var(--pn-dur-quick) var(--pn-ease-glide);
+}
+
+.pnj-continue:hover { translate: 0 -2px; }
+.pnj-continue:active { translate: 0 1px; }
+
+.pnj-continue-title {
+  max-width: 16ch;
+  overflow: hidden;
+  opacity: 0.72;
+  font-family: var(--pn-font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* crew strip (expanded footer) */
+.pnj-crew {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 14px;
+}
+
+.pnj-crew-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  font-size: 0.71875rem;
+}
+
+.pnj-crew-text strong { font-size: 0.75rem; }
+.pnj-crew-text span { color: var(--pn-muted-on-dark); }
+
+.pnj-invite {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pn-lime);
+  color: var(--pn-sticker);
+  padding: 7px 14px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* ---------- expanded mode -------------------------------------------- */
+
+.pnj-expanded .pn-drawer-body { padding-right: 30px; }
+
+.pnjx-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  margin: 0;
+  padding: 14px 0 0;
+  list-style: none;
+}
+
+/* hero unit banner — the paper card from mockups 2/3 */
+.pnjx-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  rotate: -0.5deg;
+  border-radius: 14px;
+  background: var(--pn-paper);
+  box-shadow: 0 18px 36px -16px var(--pn-paper-shadow);
+  color: var(--pn-on-paper);
+  padding: 16px 20px 18px;
+}
+
+.pnjx-hero .pn-kicker { color: var(--pn-muted-on-paper); }
+
+.pnjx-hero-title {
+  margin: 0;
+  font-family: var(--pn-font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.pnjx-hero-meta {
+  color: var(--pn-muted-on-paper);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.pnj-note {
+  display: inline-block;
+  align-self: flex-start;
+  rotate: -3deg;
+  border-radius: 3px 3px 8px 3px;
+  background: #fff2a8;
+  box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.45);
+  color: #4a3d12;
+  padding: 5px 10px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  max-width: 170px;
+}
+
+.pnj-note-hero {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  rotate: 5deg;
+  background: var(--pn-lime);
+  color: var(--pn-sticker);
+  font-family: var(--pn-font-display);
+  font-weight: 800;
+}
+
+.pnjx-units {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pnjx-unit-band {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.pnjx-unit-title {
+  margin: 0;
+  color: var(--pn-muted-on-dark);
+  font-family: var(--pn-font-display);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+/* the winding trail */
+.pnjx-trail {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pnjx-trail-line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pnjx-trail-line path {
+  fill: none;
+  stroke: rgba(245, 239, 223, 0.38);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-dasharray: 0.1 13;
+}
+
+.pnjx-row { position: absolute; right: 0; left: 0; }
+
+.pnjx-node-wrap {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  translate: -50% -50%;
+}
+
+.pnjx-node {
+  position: relative;
+  display: grid;
+  width: 84px;
+  height: 84px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--pn-paper);
+  box-shadow: 0 14px 28px -12px rgba(0, 0, 0, 0.65);
+  color: var(--pn-on-paper);
+  font-family: var(--pn-font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    translate var(--pn-dur-quick) var(--pn-ease-glide),
+    scale var(--pn-dur-quick) var(--pn-ease-glide),
+    box-shadow var(--pn-dur-quick) var(--pn-ease-glide);
+}
+
+.pnjx-node:hover:not(:disabled) { scale: 1.05; }
+.pnjx-node:disabled { cursor: not-allowed; }
+
+.pnjx-node.is-selected {
+  scale: 1.06;
+  box-shadow: 0 0 0 5px var(--pn-ink), 0 0 0 11px var(--pn-lime);
+}
+
+.pnjx-node.is-demonstrated {
+  background: var(--subject-hue, var(--pn-subject-general));
+  color: var(--pn-on-paper);
+}
+
+.pnjx-node.is-in_progress {
+  background: var(--subject-hue, var(--pn-subject-general));
+  color: var(--pn-on-paper);
+}
+
+.pnjx-node.is-locked {
+  background: #17171b;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.1);
+  color: var(--pn-faint-on-dark);
+}
+
+.pnjx-node.kind-practice:not(.is-locked),
+.pnjx-node.is-practicing {
+  border: 3px dashed var(--pn-amber);
+  color: var(--pn-amber);
+}
+
+.pnjx-node.kind-checkpoint:not(.is-locked) {
+  background: #241f2e;
+  box-shadow: inset 0 0 0 3px var(--pn-amber);
+  color: var(--pn-amber);
+}
+
+.pnjx-node.is-needs_review {
+  border: 3px dashed var(--pn-amber);
+  color: var(--pn-amber);
+}
+
+.pnjx-node.is-remedial { width: 64px; height: 64px; font-size: 1.1rem; }
+
+.pnj-tag-node {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  translate: -50% 0;
+  rotate: -5deg;
+  animation: pn-bob 1.8s ease-in-out infinite;
+}
+
+.pnjx-node-name {
+  display: none;
+}
+
+/* side cards — detail lives here so the trail itself stays clean */
+.pnjx-card {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  translate: 0 -50%;
+}
+
+.pnjx-card.on-right { left: 44%; right: 3%; }
+.pnjx-card.on-left { left: 3%; right: 44%; text-align: right; align-items: flex-end; }
+
+.pnjx-card-state {
+  color: var(--pn-faint-on-dark);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.pnjx-row .pnjx-card .pnjx-card-state { text-transform: lowercase; }
+
+.pnjx-card-title {
+  overflow: hidden;
+  font-family: var(--pn-font-display);
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.pnjx-row .pnjx-card.is-selected .pnjx-card-title { color: var(--pn-lime); }
+
+/* ---------- responsive ------------------------------------------------ */
+
+@media (max-width: 1199px) and (min-width: 768px) {
+  .pnj-compact { width: min(46vw, 460px); max-width: none; }
+  .pnj-expanded { width: min(72vw, 720px); max-width: none; }
+}
+
+@media (max-width: 767px) {
+  .pnj { width: 100vw; max-width: none; }
+  .pnj-social-strip { margin: 0 18px; }
+  .pnjx-card { display: none; }
+  .pnjx-node-wrap { position: absolute; }
+  .pnjx-node-name {
+    display: block;
+    max-width: 110px;
+    margin-top: 6px;
+    color: var(--pn-muted-on-dark);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+  }
+  .pnj-mascot { display: none; }
+}
+
+/* ---------- reduced motion ---------------------------------------------
+ * The global pearnotes.css rule matches `pn-` prefixes only; cover pnj here. */
+@media (prefers-reduced-motion: reduce) {
+  [class^="pnj"],
+  [class*=" pnj"] {
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
