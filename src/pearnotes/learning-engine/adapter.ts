@@ -50,7 +50,8 @@ export interface LearningEnginePort {
 
 /**
  * Validate a template selection before it reaches a proposal. Rejects
- * off-objective templates and templates citing unauthorized segments.
+ * off-objective templates and — hard rule — ANY template citing even one
+ * unauthorized segment. Unauthorized references are never silently dropped.
  */
 export function validateTemplateChoice(
   template: ValidatedActivityTemplate,
@@ -60,11 +61,17 @@ export function validateTemplateChoice(
   if (!template.objectiveIds.includes(objectiveId)) {
     return { ok: false, reason: `template ${template.templateId} is not allowlisted for objective ${objectiveId}` };
   }
-  const grounded = template.sourceSegmentIds.filter((s) => authorizedSegmentIds.includes(s));
-  if (grounded.length === 0) {
+  const unauthorized = template.sourceSegmentIds.filter((s) => !authorizedSegmentIds.includes(s));
+  if (unauthorized.length > 0) {
+    return {
+      ok: false,
+      reason: `template ${template.templateId} cites unauthorized segments: ${unauthorized.join(", ")}`,
+    };
+  }
+  if (template.sourceSegmentIds.length === 0) {
     return { ok: false, reason: `template ${template.templateId} cites no authorized segments` };
   }
-  return { ok: true, spec: template.spec, sourceSegmentIds: grounded };
+  return { ok: true, spec: template.spec, sourceSegmentIds: [...template.sourceSegmentIds] };
 }
 
 /** Convenience: run evaluation across a port (E4 calls this from a mutation/action). */

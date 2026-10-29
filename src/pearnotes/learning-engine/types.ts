@@ -184,6 +184,7 @@ export type AbstentionKind =
   | "uncertain_evidence" // needs_review verdicts — do not infer from ambiguity
   | "insufficient_citation" // no authorized source segments to ground a proposal
   | "already_proposed" // same trigger set already has a live proposal
+  | "previously_declined" // learner rejected this proposal; never re-emit it
   | "already_demonstrated"; // no gap: threshold already met
 
 export interface Abstention {

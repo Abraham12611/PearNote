@@ -28,7 +28,7 @@ export function deriveMastery(
   allEvidence: ObjectiveEvidence[],
   policy: EnginePolicy = DEFAULT_POLICY,
 ): ObjectiveMastery {
-  const evidence = relevantEvidence(allEvidence, objectiveId);
+  const evidence = relevantEvidence(allEvidence, userId, objectiveId);
   const incorrectCount = evidence.filter((e) => e.verdict === "incorrect").length;
   const partialCount = evidence.filter((e) => e.verdict === "partial").length;
   const correctActivities = new Set(

@@ -162,12 +162,17 @@ export function dedupeAttempts(evidence: ObjectiveEvidence[]): {
   return { unique, duplicates };
 }
 
-/** Evidence relevant to one objective, sorted by evaluation time. */
+/**
+ * Evidence relevant to one (learner, objective) pair, sorted by evaluation
+ * time. Mastery and remediation MUST be scoped to both — a foreign learner's
+ * attempts can never move someone else's state.
+ */
 export function relevantEvidence(
   evidence: ObjectiveEvidence[],
+  userId: string,
   objectiveId: string,
 ): ObjectiveEvidence[] {
   return evidence
-    .filter((e) => e.objectiveId === objectiveId)
+    .filter((e) => e.objectiveId === objectiveId && e.userId === userId)
     .sort((a, b) => a.evaluatedAt - b.evaluatedAt || a.attemptId.localeCompare(b.attemptId));
 }

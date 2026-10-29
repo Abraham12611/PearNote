@@ -20,6 +20,7 @@ import {
   intakeEvidence,
   projectJourney,
   validateEvidence,
+  validateTemplateChoice,
 } from "../../src/pearnotes/learning-engine";
 import type { ObjectiveEvidence, RemediationProposal } from "../../src/pearnotes/learning-engine";
 
@@ -113,6 +114,65 @@ describe("trigger policy", () => {
     if (first.kind !== "proposal") return;
     const second = evaluate(evidence, { existingProposals: [first.proposal] });
     expect(second).toMatchObject({ kind: "abstain", reason: "already_proposed" });
+  });
+
+  test("regression: a rejected proposal never reappears for the same evidence", () => {
+    const evidence = [ev({ verdict: "incorrect", attemptId: "a1" }), ev({ verdict: "incorrect", attemptId: "a2" })];
+    const first = evaluate(evidence);
+    expect(first.kind).toBe("proposal");
+    if (first.kind !== "proposal") return;
+    const rejected = { ...first.proposal, status: "rejected" as const };
+    const again = evaluate(evidence, { existingProposals: [rejected] });
+    expect(again).toMatchObject({ kind: "abstain", reason: "previously_declined" });
+    expect(again.kind === "proposal" ? again.proposal.status : null).not.toBe("pending");
+    // But NEW evidence (different trigger set) may still propose.
+    const newEvidence = [ev({ verdict: "incorrect", attemptId: "b1" }), ev({ verdict: "incorrect", attemptId: "b2" })];
+    const fresh = evaluate(newEvidence, { existingProposals: [rejected] });
+    expect(fresh.kind).toBe("proposal");
+  });
+
+  test("regression: evidence is scoped to learner AND objective", () => {
+    const foreign = [
+      ev({ verdict: "incorrect", attemptId: "a1", userId: "user-other" }),
+      ev({ verdict: "incorrect", attemptId: "a2", userId: "user-other" }),
+    ];
+    // Foreign learner's mistakes must not trigger a proposal for U.
+    expect(evaluate(foreign)).toMatchObject({ kind: "abstain", reason: "insufficient_evidence" });
+    // Nor move U's mastery.
+    expect(deriveMastery(OBJ, U, foreign).state).toBe("not_started");
+    // Mixed pool: only U's evidence counts.
+    const mixed = [...foreign, ev({ verdict: "incorrect", attemptId: "a3" })];
+    expect(evaluate(mixed)).toMatchObject({ kind: "abstain", reason: "insufficient_evidence" });
+  });
+});
+
+describe("template validation", () => {
+  const template = (segmentIds: string[]) => ({
+    templateId: "tpl-1",
+    spec: CELLS_REMEDIATION_SPEC,
+    objectiveIds: [OBJ],
+    sourceSegmentIds: segmentIds,
+  });
+
+  test("fully-authorized template accepted", () => {
+    const r = validateTemplateChoice(template([...AUTH]), OBJ, AUTH);
+    expect(r.ok).toBe(true);
+  });
+
+  test("regression: ANY unauthorized segment reference rejects the template", () => {
+    const r = validateTemplateChoice(template([AUTH[0], "seg-not-authorized"]), OBJ, AUTH);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toContain("unauthorized");
+  });
+
+  test("empty segment list rejected", () => {
+    const r = validateTemplateChoice(template([]), OBJ, AUTH);
+    expect(r.ok).toBe(false);
+  });
+
+  test("off-objective template rejected", () => {
+    const r = validateTemplateChoice(template([...AUTH]), FIX.otherObjectiveId, AUTH);
+    expect(r.ok).toBe(false);
   });
 });
 

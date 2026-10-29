@@ -63,7 +63,7 @@ export function evaluateForRemediation(opts: {
 }): EvaluationOutcome {
   const policy = opts.policy ?? DEFAULT_POLICY;
   const { unique } = dedupeAttempts(opts.evidence);
-  const evidence = relevantEvidence(unique, opts.objectiveId);
+  const evidence = relevantEvidence(unique, opts.userId, opts.objectiveId);
   const mastery = deriveMastery(opts.objectiveId, opts.userId, unique, policy);
 
   if (mastery.state === "demonstrated") {
@@ -94,11 +94,16 @@ export function evaluateForRemediation(opts: {
   const trigger = r1 ? incorrect.slice(0, policy.incorrectAttemptsToTrigger) : [incorrect[0], ...evidence.filter((e) => e.actionKind === "teachBack" && e.verdict !== "correct")];
   const proposalId = proposalIdFor(opts.objectiveId, trigger.map((e) => e.attemptId));
 
-  const live = (opts.existingProposals ?? []).find(
-    (p) => p.proposalId === proposalId && (p.status === "pending" || p.status === "accepted"),
-  );
-  if (live) {
-    return { kind: "abstain", reason: "already_proposed", detail: `proposal ${proposalId} is already ${live.status}` };
+  const prior = (opts.existingProposals ?? []).find((p) => p.proposalId === proposalId);
+  if (prior && (prior.status === "rejected" || prior.status === "superseded")) {
+    return {
+      kind: "abstain",
+      reason: "previously_declined",
+      detail: `proposal ${proposalId} was ${prior.status} by the learner — it is never re-emitted for the same evidence`,
+    };
+  }
+  if (prior && (prior.status === "pending" || prior.status === "accepted")) {
+    return { kind: "abstain", reason: "already_proposed", detail: `proposal ${proposalId} is already ${prior.status}` };
   }
 
   // Citations: only segments both authorized and present in the activity's
