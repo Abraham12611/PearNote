@@ -1,8 +1,13 @@
 # Phase 00.5 — Meta PoC contract (Engineer 4 → Engineer 2 handoff)
 
-**Status:** contract v1, 2026-10-29. Base `develop@5ee8130`. The functions below
-exist in code on branch `feature/7-meta-poc`; **not deployed** — Engineer 1 owns
-dev `keen-marten-701` until Issue #23 backend sync completes.
+**Status:** contract v1, 2026-10-29. Ingestion foundation deployed by Engineer 4
+to the *PearNotes development* Convex deployment `keen-marten-701` (reported
+`npx convex dev --once` succeeded; functions visible via `convex function-spec`).
+The implementation is being integrated into `develop` in PR #27. **Only
+`text/plain` extraction is supported server-side. The private Biology PDF
+cannot yet be imported through this pipeline. No live Muse call or learner
+approval mutation has been verified.** Issue #23's deployment handoff is
+complete; production `wooden-rat-386` must remain untouched.
 
 ## 1. Verified provider facts
 
@@ -40,7 +45,11 @@ the key, never callable from the client (invoked from internal actions only).
 | `subjects.createManual/listMine/get/rename/setStatus` | existing | see DATA_AUTH.md | owner |
 
 **Job states** (`importJobs.state`, STATE_AND_EVENTS.md):
-`created → uploaded → extracting → classifying → needs_review → accepted → building → ready`; `failed`/`cancelled` reachable from bounded states.
+`created`/`uploaded` are schema-reserved; this implementation starts an import at
+**`extracting`** (persisted and returned) → **`classifying`** → **`needs_review`**
+for a validated proposal. Unsupported PDFs, unavailable model credentials and
+invalid model outputs can yield **`failed`**, with an error shown to the learner.
+`accepted`/`building`/`ready` are reserved until review and materialization are implemented.
 
 **Error codes** (ConvexError `data.code`): `UNAUTHORIZED`, `INVALID_INPUT`,
 `UNSUPPORTED_SOURCE`; provider failures map to `needs_review`/`failed` job
@@ -61,8 +70,8 @@ proposal = {
 }
 ```
 
-Validation pipeline — three gates, any failure → `needs_review`, never
-auto-accepted:
+Validation pipeline — three gates; failures are explicit `failed` or
+`needs_review` states depending on the gate, **never auto-accepted**:
 1. `parseProposal` deep shape check (nested nulls, bounds, cardinality caps;
    evidence.segmentId must belong to the unit's sourceSegmentIds).
 2. `checkCitations` — every cited segment id exists in *this* job's source.
@@ -76,11 +85,15 @@ model re-check. Injection text in fields is stored as inert data only.
 ## 4. Review flow for Engineer 2's intake UI (Issue #24)
 
 1. `sources.createUploadUrl` → POST file → `sources.register` → `sourceId`.
-2. `learningImport.begin(sourceId, uuid)` → poll `getStatus` until `needs_review`.
+2. **For text/plain only:** `learningImport.begin(sourceId, uuid)` → subscribe to
+   `getStatus` for `extracting` → `classifying` → `needs_review` or `failed`.
+   **For application/pdf:** current action returns an honest `IMPORT_FAILED`
+   (PDF parser not yet integrated). Do not display AI proposal success for PDF.
 3. `getProposal` → render suggested subjects, segment evidence, warnings; user edits/approves.
 4. Approve/edit mutation is a **future PR** — contract reserved as
    `imports.review({jobId, edits, approval})` → accepted subject ids.
-5. No UI state may imply subjects exist before accept; `subjects` stay empty otherwise.
+5. The AI import must not create/alter subjects before approval. Separately,
+   users may already create their own manual subjects with `subjects.createManual`.
 
 ## 5. Local extraction evidence (Cell Biology PDF, kept out of repo)
 
@@ -112,6 +125,7 @@ Plus `tests/learning.privacy.test.ts` (14 cases) unchanged.
 
 - **BLOCKED: `MODEL_API_KEY` absent** — no live model call yet; owner sets it
   as a Convex env var on dev `keen-marten-701`. Endpoint confirmed reachable (401 w/o key).
-- Convex dev push gated on Engineer 1 (Issue #23 backend sync handoff).
+- Dev-only Convex push performed by Engineer 4 after Issue #23 handoff;
+  no production deploy or real model execution reported.
 - Server-side PDF parsing (pdfjs-in-action or chunked preprocess) is a
   Phase 01 decision; local extraction here is proof-of-fidelity only.
