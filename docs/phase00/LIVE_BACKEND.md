@@ -14,22 +14,27 @@ provisioned, the exact env surface, and the owner smoke checklist.
 | Site URL (HTTP/auth/files) | `https://keen-marten-701.convex.site` |
 | Dashboard | `https://dashboard.convex.dev/t/abraham-dahunsi/pearnote` |
 | Region | US East (N. Virginia) |
-| Functions pushed from | detached worktree at `chore/p00-deploy-isolation` = `367f74e` (committed code only — **not** the shared tree's uncommitted WIP) |
+| Functions pushed from | clean detached worktree at `origin/develop` = `5ee8130` — includes the P00.4 learning schema (22 learning indexes live) |
 | Components | 25 installed (presence, agent, RAG, firecrawl, agentMail, staticHosting, …) |
-| Seed state | `seed:seedCrew` run → space `the-crew`, 6 members, 21 widgets |
+| Seed state | `seed:seedCrew` → `the-crew` (21 widgets); `spaces:duplicateBySlug` → `crew` (21 widgets). Both slugs live — see incident note below |
 
 > ⚠️ **A prod deployment exists and must stay empty.** Convex auto-created
 > `wooden-rat-386` (prod) with the project. Nothing has been pushed to it.
 > `npx convex deploy` targets prod — do not run it. Convex MCP flags it
 > `readOnly`.
 
-
-> **Integration state note:** The dev backend was pushed from the earlier committed
-> baseline `367f74e`, BEFORE Phase 00.4's additive learning-domain schema was
-> merged to `develop`. The seeded crew/presence/auth flows can be tested, but
-> the new PearNotes learning tables/functions are **not yet deployed** here.
-> Any later codegen/dev push must explicitly verify `CONVEX_DEPLOYMENT=dev:keen-marten-701`
-> and must not run `npx convex deploy` (production target).
+> **Issue #23 fix (2026-10-29):** the owner hit "there's no space at this
+> link" in live mode — reproduced exactly: `#/space/crew` (the default
+> landing slug; bare `#/` redirects here) had no live space because the
+> seed uses `CREW_SLUG = "the-crew"`. Fixed data-side only:
+> `npx convex run spaces:duplicateBySlug '{"fromSlug":"the-crew","toSlug":"crew","name":"the crew"}'`
+> — additive, idempotent, no existing data touched. Both `#/space/crew`
+> and `#/space/the-crew` now render the live board.
+> **Incident note:** during diagnosis an empty probe directory briefly
+> pushed an empty function set to `keen-marten-701` (~26s, 11:34–11:35)
+> before the real code was re-pushed; data (spaces, widgets, members,
+> users) was unaffected. Lesson: only ever run `convex dev`/`push` from a
+> checkout that contains the real `convex/` directory.
 
 ## 2. Environment variable surface
 
@@ -70,7 +75,7 @@ needs the real key from the owner. Never commit real values.
 | Own cursor render | ✅ `live-cursor` nodes render locally |
 | Sound assets | ✅ `place/promote/tap.mp3` serve `audio/mpeg` 200 |
 | `?mock=1` regression | ✅ unaffected (client-side, no backend) |
-| `#/space/crew` | ⚠️ renders **demo fallback** — the live space slug is `the-crew`, not `crew` |
+| `#/space/crew` | ✅ live since 2026-10-29 — `crew` space initialized via `duplicateBySlug` (issue #23) |
 | MCP read tools | ✅ `status`, `tables`, `runOneoffQuery` work against `keen-marten-701` |
 
 Not verified headlessly (needs real input events): peer cursor visibility on
