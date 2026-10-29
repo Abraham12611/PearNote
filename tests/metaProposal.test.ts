@@ -159,7 +159,11 @@ describe("imports.begin/getStatus authorization", () => {
     // Same key is fine for a different source only if it never collided.
     const j3 = await asA.mutation(api.learningImport.begin, { sourceId: s2, idempotencyKey: "k2" });
     expect(j3.jobId).not.toBe(j1.jobId);
-    expect(await asA.query(api.learningImport.getStatus, { jobId: j1.jobId })).toMatchObject({ state: "uploaded" });
+    // Lifecycle: returned state must equal the stored row and getStatus.
+    const stored = await t.run(async (ctx) => ctx.db.get(j1.jobId));
+    expect(stored?.state).toBe(j1.state);
+    expect(j1.state).toBe("extracting");
+    expect(await asA.query(api.learningImport.getStatus, { jobId: j1.jobId })).toMatchObject({ state: "extracting" });
     expect(await asB.query(api.learningImport.getStatus, { jobId: j1.jobId })).toBeNull();
     expect(await t.query(api.learningImport.getStatus, { jobId: j1.jobId })).toBeNull();
     await expect(asB.mutation(api.learningImport.begin, { sourceId: s1, idempotencyKey: "x" }))

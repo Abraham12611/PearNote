@@ -45,7 +45,7 @@ export const begin = mutation({
     if (clash) throw err("CONFLICT", "idempotencyKey already used for a different source");
     const now = Date.now();
     const jobId = await ctx.db.insert("importJobs", {
-      ownerId, sourceId, idempotencyKey: key, state: "uploaded",
+      ownerId, sourceId, idempotencyKey: key, state: "extracting",
       createdAt: now, updatedAt: now,
     });
     // Kick the pipeline: extraction → Muse call → proposal/needs_review.

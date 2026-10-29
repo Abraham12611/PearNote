@@ -32,6 +32,7 @@ export const runJob = internalAction({
   handler: async (ctx, { jobId }) => {
     const job = await ctx.runQuery(internal.ingestMeta.jobDoc, { jobId });
     if (job === null) return { ok: false, detail: "job not found" };
+    await ctx.runMutation(internal.learningImport.setJobState, { jobId, state: "extracting" });
     let segments = await ctx.runQuery(internal.ingestMeta.jobSegments, { jobId });
     if (segments.length === 0) {
       // Bounded extraction: pasted/plain text only. Blob reads are action-
@@ -64,6 +65,7 @@ export const runJob = internalAction({
     }
 
     const payload = segments.map((s: Doc<"sourceSegments">) => ({ id: s._id, page: s.page ?? null, text: s.text.slice(0, SEGMENT_TEXT_CAP) }));
+    await ctx.runMutation(internal.learningImport.setJobState, { jobId, state: "classifying" });
     const res = await chat({
       system: SYSTEM,
       user: `SOURCE TITLE: ${job.sourceTitle}\nSEGMENTS (JSON):\n${JSON.stringify(payload)}`,
