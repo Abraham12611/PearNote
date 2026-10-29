@@ -1,77 +1,216 @@
 /* ------------------------------------------------------------------
- * JourneyDrawer — hybrid learning-path styles
- * (docs/phase00/JOURNEY_REDESIGN.md)
+ * JourneyDrawer — Issue #21 exact-mockup styles.
  *
- * `.pnj*` rides on the .pn-drawer/.pn-* base chrome (tokens, icon buttons,
- * fixture tag, slips). New classes use the `pnj`/`pnjx` prefixes; a local
- * reduced-motion block covers them since the global rule only matches
- * `pn-` prefixes.
+ * Reproduces 02_PIXEL_REFERENCE_TARGET_COPY_THIS.png:
+ *   flat dark panel → cream hero (badge, unit title, friend line,
+ *   mascot sticker) → dark body with raised social strip + raised
+ *   unit-progress card → centered lane of 2.5D pjn nodes joined by
+ *   uniform chevron connectors → fixed lime CTA capsule.
+ *
+ * Width contract (owner's explicit correction over the reference):
+ *   compact  25–30vw desktop        (.pn-drawer min-width:480px removed)
+ *   expanded ~45–50vw desktop
+ *   tablet 900–1199px: compact <40vw, expanded ≤70vw
+ *   ≤899px: full-width sheet
+ * Selectors are `.pn-drawer.pnj-*` so they beat the base drawer rule
+ * regardless of stylesheet order.
  * ------------------------------------------------------------------ */
 
-.pnj { position: relative; }
+.pnj {
+  position: relative;
+  /* flat dark body — the reference has no dot-grid texture */
+  background-image: none;
+}
 
-/* ---------- widths: compact ≈26vw, expanded ≈48vw ------------------- */
+/* ---------- widths --------------------------------------------------- */
 
-.pnj-compact {
-  width: clamp(340px, 26vw, 430px);
+.pn-drawer.pnj-compact {
+  width: 27vw;
   min-width: 0;
-  max-width: 430px;
+  max-width: 30vw;
 }
 
-.pnj-expanded {
-  width: clamp(560px, 48vw, 760px);
+.pn-drawer.pnj-expanded {
+  width: 48vw;
   min-width: 0;
-  max-width: 760px;
+  max-width: 50vw;
 }
 
-/* ---------- header extras ------------------------------------------- */
+/* ---------- fixture ribbon — pinned to the hero's bottom seam ---------- */
 
-.pnj-mascot {
-  flex: 0 0 auto;
-  align-self: flex-start;
-  margin-top: -6px;
-  rotate: 4deg;
-  border-radius: 8px;
-  background: var(--pn-lime);
-  box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.55);
-  color: var(--pn-sticker);
-  padding: 4px 10px;
-  font-family: var(--pn-font-display);
-  font-size: 0.6875rem;
-  font-weight: 800;
-  line-height: 1.1;
-  max-width: 76px;
-  text-align: center;
+.pnj-hero .pn-fixture-tag {
+  top: auto;
+  right: auto;
+  bottom: -11px;
+  left: 16px;
 }
 
-.pnj-mode-btn { font-size: 0; }
+/* ---------- hero: dark text block + cream mascot card -------------------
+ * Reference: "LEARN PATH" kicker, big subject title and tagline on the
+ * dark panel; the cream element is a detached mascot card top-right
+ * (scalloped corner) wearing the sticker + a lime sticky-note. */
 
-/* the ~26vw header has no room for the sticker — the "next"/"jump in"
- * tags carry the personality in compact (spec: ≤1 decoration). */
-.pnj-compact .pnj-mascot { display: none; }
-.pnj-compact .pn-drawer-title { font-size: 1.2rem; }
-.pnj-compact .pn-drawer-head { gap: 10px; }
-
-/* ---------- header social strip -------------------------------------- */
-
-.pnj-social-strip {
+.pnj-hero {
+  position: relative;
   display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--pn-on-dark);
+  padding: 18px 16px 20px;
+  animation: pnj-hero-in var(--pn-dur-arrive) var(--pn-ease-glide) backwards;
+}
+
+@keyframes pnj-hero-in {
+  from {
+    translate: 0 -14px;
+    opacity: 0.4;
+  }
+}
+
+.pnj-hero-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.pnj-hero-kicker {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 22px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
+  gap: 7px;
   color: var(--pn-muted-on-dark);
-  padding: 9px 14px;
-  font-size: 0.75rem;
+  font-family: var(--pn-font-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pnj-hero-kicker::before {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b985ff;
+  content: "";
+}
+
+.pnj-hero-title {
+  margin: 0;
+  color: var(--pn-on-dark);
+  font-family: var(--pn-font-display);
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.06;
+}
+
+.pnj-expanded .pnj-hero-title {
+  font-size: 1.9rem;
+}
+
+.pnj-hero-sub {
+  margin: 0;
+  max-width: 26ch;
+  color: var(--pn-muted-on-dark);
+  font-size: 0.78125rem;
+  font-weight: 500;
   line-height: 1.35;
 }
 
-.pnj-social-strip strong {
-  color: var(--pn-on-dark);
-  font-weight: 700;
+/* detached cream mascot card — scalloped bottom-left corner */
+.pnj-hero-card {
+  position: relative;
+  flex: 0 0 auto;
+  align-self: stretch;
+  margin-top: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px 14px 52px 14px;
+  background: var(--pn-paper);
+  box-shadow: 0 14px 28px -14px rgba(0, 0, 0, 0.75);
+  padding: 10px 12px;
+  rotate: 1.5deg;
 }
 
+.pnj-hero-mascot {
+  display: block;
+}
+
+.pnj-hero-note {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  left: -34px;
+  padding: 4px 9px 5px;
+  font-size: 0.6875rem;
+  white-space: nowrap;
+}
+
+.pnj-hero-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+/* icon buttons sit on the dark hero now — give them a hairline ring */
+.pnj-hero .pn-icon-btn {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.16);
+}
+
+/* ---------- dark body --------------------------------------------------- */
+
+.pnj-body {
+  padding: 30px 18px 40px;
+}
+
+.pnj-expanded .pnj-body {
+  padding-right: 26px;
+}
+
+/* ---------- raised social strip — dark card -------------------------------- */
+
+.pnj-strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 16px;
+  background: #1e1e26;
+  box-shadow:
+    0 14px 28px -16px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: var(--pn-on-dark);
+  padding: 11px 14px;
+}
+
+.pnj-strip-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  font-size: 0.78125rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.pnj-strip-text strong {
+  font-weight: 800;
+}
+
+.pnj-strip-text span {
+  color: var(--pn-muted-on-dark);
+  font-size: 0.71875rem;
+}
+
+/* face pile — pastel circles, overlapping */
 .pnj-faces {
   display: inline-flex;
   flex: 0 0 auto;
@@ -79,82 +218,80 @@
 
 .pnj-face {
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   place-items: center;
-  border: 2px solid var(--pn-ink);
+  border: 2px solid var(--pn-paper);
   border-radius: 50%;
-  background: var(--subject-hue, var(--pn-subject-general));
   color: var(--pn-on-paper);
   font-size: 0.625rem;
   font-weight: 800;
 }
 
-.pnj-face + .pnj-face { margin-left: -7px; }
-.pnj-face-more { background: var(--pn-panel); color: var(--pn-muted-on-dark); }
-
-/* ---------- compact mode --------------------------------------------- */
-
-.pnj-body { position: relative; }
-
-.pnj-units {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  margin: 0;
-  padding: 14px 0 0;
-  list-style: none;
+.pnj-face + .pnj-face {
+  margin-left: -8px;
 }
 
-/* unit progress bar card (mockup 1) */
-.pnj-unit-progress {
+.pnj-face-more {
+  background: var(--pn-sticker) !important;
+  border-color: #1e1e26;
+  color: var(--pn-on-dark);
+}
+
+/* ---------- raised unit-progress card ------------------------------------ */
+
+.pnj-card {
   display: flex;
   align-items: center;
-  gap: 11px;
-  margin-bottom: 10px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 10px 14px;
+  gap: 12px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 16px;
+  background: #1e1e26;
+  box-shadow:
+    0 14px 28px -16px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 12px 14px;
 }
 
-.pnj-unit-glyph {
+.pnj-card-glyph {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 9px;
-  background: var(--subject-hue, var(--pn-subject-general));
-  color: var(--pn-on-paper);
+  border-radius: 10px;
+  background: #6d5acd;
+  color: #ffffff;
 }
 
-.pnj-unit-progress-text {
+.pnj-card-text {
   display: flex;
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   font-size: 0.75rem;
   font-weight: 700;
 }
 
-.pnj-unit-bar {
+.pnj-card-bar {
   display: block;
-  height: 6px;
+  height: 7px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
 }
 
-.pnj-unit-bar-fill {
+.pnj-card-bar-fill {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--pn-lime);
+  background: linear-gradient(90deg, var(--subject-hue, var(--pn-subject-general)), var(--pn-lime));
   transition: width var(--pn-dur-base) var(--pn-ease-glide);
 }
 
-.pnj-unit-count {
+.pnj-card-count {
   flex: 0 0 auto;
   color: var(--pn-muted-on-dark);
   font-size: 0.6875rem;
@@ -162,182 +299,177 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* the numbered rail — a vertical dashed spine behind the dots */
-.pnj-rows {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 2px 0 0;
-  list-style: none;
-}
-
-.pnj-rows::before {
-  position: absolute;
-  top: 24px;
-  bottom: 24px;
-  left: 30px;
-  width: 0;
-  border-left: 3px dashed rgba(255, 255, 255, 0.16);
-  content: "";
-}
-
-.pnj-rows > li { position: relative; }
-
-.pnj-row {
-  position: relative;
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 12px;
-  border: 0;
-  border-radius: 16px;
-  background: transparent;
-  color: var(--pn-on-dark);
-  padding: 8px 8px;
-  text-align: left;
-  cursor: pointer;
-  transition: background var(--pn-dur-quick) ease-out;
-}
-
-.pnj-row:hover:not(:disabled) { background: rgba(255, 255, 255, 0.055); }
-.pnj-row:disabled { cursor: not-allowed; }
-
-.pnj-row.is-selected { background: rgba(255, 255, 255, 0.08); }
-
-.pnj-dot {
-  position: relative;
-  display: grid;
-  width: 46px;
-  height: 46px;
+.pnj-card-chev {
   flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  background: #1d1d23;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.12);
-  color: var(--pn-muted-on-dark);
-  font-family: var(--pn-font-display);
-  font-size: 1.05rem;
-  font-weight: 800;
-}
-
-.pnj-row.is-in_progress .pnj-dot {
-  background: var(--pn-lime);
-  box-shadow: 0 0 0 5px rgba(201, 255, 61, 0.14);
-  color: var(--pn-sticker);
-}
-
-.pnj-row.is-demonstrated .pnj-dot {
-  background: var(--subject-hue, var(--pn-subject-general));
-  box-shadow: none;
-  color: var(--pn-on-paper);
-}
-
-.pnj-row.is-available .pnj-dot,
-.pnj-row.is-not_started .pnj-dot {
-  background: var(--pn-paper);
-  box-shadow: none;
-  color: var(--pn-on-paper);
-}
-
-.pnj-row.is-practicing .pnj-dot,
-.pnj-row.kind-practice .pnj-dot:not([class*="is-locked"]) {
-  border: 2.5px dashed var(--pn-amber);
-  background: var(--pn-paper);
-  color: var(--pn-amber);
-}
-
-.pnj-row.kind-checkpoint:not(.is-locked) .pnj-dot {
-  background: #241f2e;
-  box-shadow: inset 0 0 0 2.5px var(--pn-amber);
-  color: var(--pn-amber);
-}
-
-.pnj-row.is-needs_review .pnj-dot {
-  border: 2.5px dashed var(--pn-amber);
-  background: #241f2e;
-  color: var(--pn-amber);
-}
-
-.pnj-row.is-locked .pnj-dot {
-  background: #15151a;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+  margin-left: 2px;
   color: var(--pn-faint-on-dark);
 }
 
-.pnj-ring {
-  position: absolute;
-  inset: -5px;
-  width: calc(100% + 10px);
-  height: calc(100% + 10px);
-  rotate: -90deg;
+/* ---------- compact: centered node lane ---------------------------------- */
+
+.pnj-lane {
+  position: relative;
 }
 
-.pnj-ring-track { fill: none; stroke: rgba(255, 255, 255, 0.16); stroke-width: 3.4; }
-.pnj-ring-fill { fill: none; stroke: var(--pn-lime); stroke-width: 3.4; stroke-linecap: round; }
-
-.pnj-row-text {
+.pnj-units {
   display: flex;
-  min-width: 0;
-  flex: 1;
   flex-direction: column;
-  gap: 1px;
+  gap: 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.pnj-row-text strong {
+/* art-directed margin decorations — pointer-events:none via .pjs-*, all
+   positioned in the lane margins so they never cover text or controls */
+.pnj-deco {
+  position: absolute;
+  z-index: 0;
+}
+
+.pnj-deco-steps { top: 34%; right: -4px; }
+.pnj-deco-momentum { top: 62%; left: -6px; }
+.pnj-deco-squig { top: 88%; left: 4px; color: #b985ff; }
+.pnj-deco-spark { top: 47%; right: 8%; }
+
+.pnj-steps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pnj-step-li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pnj-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  padding: 2px 0;
+}
+
+/* subtle cyclic stagger — the mockup's organic lane, still centered */
+.pnj-steps > .pnj-step-li:nth-child(4n + 1) > .pnj-step { translate: -12px 0; }
+.pnj-steps > .pnj-step-li:nth-child(4n + 3) > .pnj-step { translate: 12px 0; }
+
+.pnj-step.is-remedial {
+  translate: 34px 0;
+}
+
+/* lime "jump in!" tag above the current node */
+.pnj-jump {
+  position: absolute;
+  z-index: 2;
+  top: -12px;
+  right: 50%;
+  rotate: -5deg;
+  translate: 78% 0;
+  border-radius: 999px;
+  background: var(--pn-lime);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  color: var(--pn-sticker);
+  padding: 3px 10px;
+  font-family: var(--pn-font-display);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  white-space: nowrap;
+  animation: pn-bob 1.8s ease-in-out infinite;
+}
+
+/* the mockup's connector: one small down-chevron, uniform, centered */
+.pnj-link {
+  display: grid;
+  height: 20px;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.pnj-step-name {
+  max-width: 220px;
   overflow: hidden;
+  color: var(--pn-on-dark);
   font-size: 0.875rem;
   font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-.pnj-row.is-locked .pnj-row-text strong { color: var(--pn-muted-on-dark); }
+.pnj-step-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--pn-faint-on-dark);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
 
-.pnj-row-text small {
+.pnj-step-meta::before {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.pnj-step-meta.is-demonstrated { color: color-mix(in srgb, var(--subject-hue, var(--pn-lime)) 80%, #fff); }
+.pnj-step-meta.is-in_progress { color: var(--pn-lime); }
+.pnj-step-meta.is-locked { color: rgba(255, 255, 255, 0.35); }
+.pnj-step-meta.is-practicing,
+.pnj-step-meta.kind-practice { color: var(--pn-amber); }
+.pnj-step-meta.kind-checkpoint:not(.is-locked) { color: var(--pn-amber); }
+.pnj-step-meta.is-needs_review { color: var(--pn-amber); }
+
+/* grey descriptive subtitle under the numbered title */
+.pnj-step-sub {
+  max-width: 230px;
   overflow: hidden;
   color: var(--pn-muted-on-dark);
   font-size: 0.71875rem;
+  font-weight: 500;
   line-height: 1.3;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.pnj-row.is-locked .pnj-row-text small { color: var(--pn-faint-on-dark); }
-
+/* node social line under meta */
 .pnj-social {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 3px;
   color: var(--pn-muted-on-dark);
   font-size: 0.6875rem;
   font-weight: 600;
 }
 
-.pnj-row-meta {
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+.pnj-social .pnj-face {
+  width: 16px;
+  height: 16px;
+  border-width: 1.5px;
+  font-size: 0.5rem;
 }
 
-.pnj-tag {
-  rotate: -4deg;
-  border-radius: 999px;
-  background: var(--pn-lime);
-  color: var(--pn-sticker);
-  padding: 2px 8px;
-  font-family: var(--pn-font-display);
-  font-size: 0.625rem;
-  font-weight: 800;
-}
-
-.pnj-meta {
-  color: var(--pn-faint-on-dark);
-  font-size: 0.6875rem;
-  font-weight: 600;
+/* selected step — lime halo ring around the pjn face */
+.pnj-step .pjn.is-selected,
+.pnjx-node-wrap .pjn.is-selected {
+  outline: 3px solid var(--pn-lime);
+  outline-offset: 6px;
+  border-radius: 50%;
 }
 
 /* selection card — sticky at the bottom of the scroll body, above CTA */
@@ -348,7 +480,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 14px 0 0;
+  margin: 16px 0 0;
   rotate: -0.5deg;
   border-radius: 12px;
   background: var(--pn-paper);
@@ -372,28 +504,31 @@
   margin-top: 2px;
 }
 
-/* ---------- sticky CTA footer ---------------------------------------- */
+/* ---------- fixed lime CTA ------------------------------------------------ */
 
 .pnj-cta-bar {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 20px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: var(--pn-ink);
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
 }
 
 .pnj-continue {
   display: flex;
+  width: 100%;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
   gap: 9px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 999px;
   background: var(--pn-lime);
-  box-shadow: 0 10px 24px -10px rgba(201, 255, 61, 0.55);
+  box-shadow: 0 12px 26px -12px rgba(201, 255, 61, 0.55);
   color: var(--pn-sticker);
-  padding: 13px 16px;
+  padding: 12px 20px;
   font-family: var(--pn-font-display);
   font-size: 0.95rem;
   font-weight: 800;
@@ -405,14 +540,35 @@
 .pnj-continue:active { translate: 0 1px; }
 
 .pnj-continue-title {
-  max-width: 16ch;
+  max-width: 14ch;
   overflow: hidden;
-  opacity: 0.72;
+  opacity: 0.66;
   font-family: var(--pn-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* right-side arrow chip inside the lime capsule */
+.pnj-continue-chip {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(11, 11, 14, 0.16);
+}
+
+/* honest alternative when the path has nothing left to continue */
+.pnj-continue-done {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  color: var(--pn-muted-on-dark);
+  cursor: default;
+  font-size: 0.875rem;
 }
 
 /* crew strip (expanded footer) */
@@ -436,6 +592,8 @@
 .pnj-crew-text strong { font-size: 0.75rem; }
 .pnj-crew-text span { color: var(--pn-muted-on-dark); }
 
+.pnj-crew .pnj-face { border-color: var(--pn-ink); }
+
 .pnj-invite {
   flex: 0 0 auto;
   border: 0;
@@ -448,100 +606,31 @@
   cursor: pointer;
 }
 
-/* ---------- expanded mode -------------------------------------------- */
-
-.pnj-expanded .pn-drawer-body { padding-right: 30px; }
+/* ---------- expanded: guidebook trail -------------------------------------- */
 
 .pnjx-sections {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 34px;
   margin: 0;
-  padding: 14px 0 0;
+  padding: 0;
   list-style: none;
-}
-
-/* hero unit banner — the paper card from mockups 2/3 */
-.pnjx-hero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  rotate: -0.5deg;
-  border-radius: 14px;
-  background: var(--pn-paper);
-  box-shadow: 0 18px 36px -16px var(--pn-paper-shadow);
-  color: var(--pn-on-paper);
-  padding: 16px 20px 18px;
-}
-
-.pnjx-hero .pn-kicker { color: var(--pn-muted-on-paper); }
-
-.pnjx-hero-title {
-  margin: 0;
-  font-family: var(--pn-font-display);
-  font-size: 1.35rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.pnjx-hero-meta {
-  color: var(--pn-muted-on-paper);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.pnj-note {
-  display: inline-block;
-  align-self: flex-start;
-  rotate: -3deg;
-  border-radius: 3px 3px 8px 3px;
-  background: #fff2a8;
-  box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.45);
-  color: #4a3d12;
-  padding: 5px 10px;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  line-height: 1.25;
-  max-width: 170px;
-}
-
-.pnj-note-hero {
-  position: absolute;
-  top: 10px;
-  right: 14px;
-  rotate: 5deg;
-  background: var(--pn-lime);
-  color: var(--pn-sticker);
-  font-family: var(--pn-font-display);
-  font-weight: 800;
 }
 
 .pnjx-units {
   display: flex;
   flex-direction: column;
-  gap: 26px;
-  margin: 22px 0 0;
+  gap: 30px;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.pnjx-unit-band {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.pnjx-card-unit {
   margin-bottom: 8px;
 }
 
-.pnjx-unit-title {
-  margin: 0;
-  color: var(--pn-muted-on-dark);
-  font-family: var(--pn-font-display);
-  font-size: 0.875rem;
-  font-weight: 800;
-}
-
-/* the winding trail */
+/* winding trail — one continuous dashed spine */
 .pnjx-trail {
   position: relative;
   margin: 0;
@@ -558,7 +647,7 @@
 
 .pnjx-trail-line path {
   fill: none;
-  stroke: rgba(245, 239, 223, 0.38);
+  stroke: rgba(245, 239, 223, 0.34);
   stroke-width: 4.5;
   stroke-linecap: round;
   stroke-dasharray: 0.1 13;
@@ -575,81 +664,15 @@
   translate: -50% -50%;
 }
 
-.pnjx-node {
-  position: relative;
-  display: grid;
-  width: 84px;
-  height: 84px;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  background: var(--pn-paper);
-  box-shadow: 0 14px 28px -12px rgba(0, 0, 0, 0.65);
-  color: var(--pn-on-paper);
-  font-family: var(--pn-font-display);
-  font-size: 1.6rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition:
-    translate var(--pn-dur-quick) var(--pn-ease-glide),
-    scale var(--pn-dur-quick) var(--pn-ease-glide),
-    box-shadow var(--pn-dur-quick) var(--pn-ease-glide);
-}
-
-.pnjx-node:hover:not(:disabled) { scale: 1.05; }
-.pnjx-node:disabled { cursor: not-allowed; }
-
-.pnjx-node.is-selected {
-  scale: 1.06;
-  box-shadow: 0 0 0 5px var(--pn-ink), 0 0 0 11px var(--pn-lime);
-}
-
-.pnjx-node.is-demonstrated {
-  background: var(--subject-hue, var(--pn-subject-general));
-  color: var(--pn-on-paper);
-}
-
-.pnjx-node.is-in_progress {
-  background: var(--subject-hue, var(--pn-subject-general));
-  color: var(--pn-on-paper);
-}
-
-.pnjx-node.is-locked {
-  background: #17171b;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.1);
-  color: var(--pn-faint-on-dark);
-}
-
-.pnjx-node.kind-practice:not(.is-locked),
-.pnjx-node.is-practicing {
-  border: 3px dashed var(--pn-amber);
-  color: var(--pn-amber);
-}
-
-.pnjx-node.kind-checkpoint:not(.is-locked) {
-  background: #241f2e;
-  box-shadow: inset 0 0 0 3px var(--pn-amber);
-  color: var(--pn-amber);
-}
-
-.pnjx-node.is-needs_review {
-  border: 3px dashed var(--pn-amber);
-  color: var(--pn-amber);
-}
-
-.pnjx-node.is-remedial { width: 64px; height: 64px; font-size: 1.1rem; }
-
-.pnj-tag-node {
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  translate: -50% 0;
-  rotate: -5deg;
-  animation: pn-bob 1.8s ease-in-out infinite;
-}
-
 .pnjx-node-name {
   display: none;
+  max-width: 120px;
+  margin-top: 8px;
+  color: var(--pn-muted-on-dark);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
 }
 
 /* side cards — detail lives here so the trail itself stays clean */
@@ -658,12 +681,12 @@
   top: 50%;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   translate: 0 -50%;
 }
 
-.pnjx-card.on-right { left: 44%; right: 3%; }
-.pnjx-card.on-left { left: 3%; right: 44%; text-align: right; align-items: flex-end; }
+.pnjx-card.on-right { left: 46%; right: 3%; }
+.pnjx-card.on-left { left: 3%; right: 46%; text-align: right; align-items: flex-end; }
 
 .pnjx-card-state {
   color: var(--pn-faint-on-dark);
@@ -671,8 +694,6 @@
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-
-.pnjx-row .pnjx-card .pnjx-card-state { text-transform: lowercase; }
 
 .pnjx-card-title {
   overflow: hidden;
@@ -688,32 +709,64 @@
 
 .pnjx-row .pnjx-card.is-selected .pnjx-card-title { color: var(--pn-lime); }
 
-/* ---------- responsive ------------------------------------------------ */
+.pnjx-card-note { align-self: flex-start; }
+.pnjx-card.on-left .pnjx-card-note { align-self: flex-end; }
 
-@media (max-width: 1199px) and (min-width: 768px) {
-  .pnj-compact { width: min(46vw, 460px); max-width: none; }
-  .pnj-expanded { width: min(72vw, 720px); max-width: none; }
-}
+/* ---------- responsive ----------------------------------------------------- */
 
-@media (max-width: 767px) {
-  .pnj { width: 100vw; max-width: none; }
-  .pnj-social-strip { margin: 0 18px; }
-  .pnjx-card { display: none; }
-  .pnjx-node-wrap { position: absolute; }
-  .pnjx-node-name {
-    display: block;
-    max-width: 110px;
-    margin-top: 6px;
-    color: var(--pn-muted-on-dark);
-    font-size: 0.6875rem;
-    font-weight: 600;
-    line-height: 1.2;
-    text-align: center;
+/* tablet 900–1199px: compact stays comfortably under 40vw; expanded may
+ * widen to ~70vw only in its intentional mode */
+@media (max-width: 1199px) and (min-width: 900px) {
+  .pn-drawer.pnj-compact {
+    width: min(38vw, 430px);
+    max-width: 38vw;
   }
-  .pnj-mascot { display: none; }
+  .pn-drawer.pnj-expanded {
+    width: min(70vw, 720px);
+    max-width: 70vw;
+  }
 }
 
-/* ---------- reduced motion ---------------------------------------------
+/* mobile ≤899px: full-width sheet */
+@media (max-width: 899px) {
+  .pn-drawer.pnj-compact,
+  .pn-drawer.pnj-expanded {
+    width: 100vw;
+    min-width: 0;
+    max-width: 100vw;
+  }
+
+  .pnj-hero { padding: 16px 14px 18px; }
+  .pnj-hero-title { font-size: 1.35rem; }
+  .pnj-hero-card { padding: 7px 9px; }
+  .pnj-hero-mascot { width: 68px; height: 68px; }
+
+  /* 44px touch targets on the sheet */
+  .pnj .pn-icon-btn { width: 44px; height: 44px; }
+
+  .pnj-body { padding: 30px 16px 36px; }
+  .pnjx-card { display: none; }
+  .pnjx-node-name { display: block; }
+}
+
+/* short viewports (e.g. 390×667): hero and CTA must not eat the path */
+@media (max-height: 520px) {
+  .pnj-hero { padding: 12px 14px 14px; }
+  .pnj-hero-title { font-size: 1.15rem; }
+  .pnj-hero-sub { display: none; }
+  .pnj-hero-card { padding: 5px 7px; }
+  .pnj-hero-mascot { width: 48px; height: 48px; }
+  .pnj-hero-note { display: none; }
+  .pnj-hero-controls { top: 8px; }
+  .pnj .pn-icon-btn { width: 34px; height: 34px; }
+  .pnj-body { padding-top: 24px; }
+  .pnj-card { padding: 9px 12px; margin-bottom: 10px; }
+  .pnj-link { height: 14px; }
+  .pnj-step-name { font-size: 0.8125rem; }
+  .pnj-cta-bar { padding-top: 8px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ---------- reduced motion --------------------------------------------------
  * The global pearnotes.css rule matches `pn-` prefixes only; cover pnj here. */
 @media (prefers-reduced-motion: reduce) {
   [class^="pnj"],
@@ -723,4 +776,5 @@
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
   }
+  .pnj-hero { animation: none; }
 }
