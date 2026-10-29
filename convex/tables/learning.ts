@@ -298,3 +298,104 @@ export const mastery = defineTable({
 })
   .index("by_user_objective", ["userId", "objectiveId"])
   .index("by_user", ["userId"]);
+
+// STATE_AND_EVENTS.md — importJob lifecycle. Ingestion owns these rows end to
+// end; proposals stay separate from subjects until the learner approves.
+export const importJobState = v.union(
+  v.literal("created"),
+  v.literal("uploaded"),
+  v.literal("extracting"),
+  v.literal("classifying"),
+  v.literal("needs_review"),
+  v.literal("accepted"),
+  v.literal("building"),
+  v.literal("ready"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
+
+/**
+ * One ingestion run over one owned source. `idempotencyKey` makes a retried
+ * begin cheap instead of duplicating work (ARCHITECTURE invariant 6).
+ */
+export const importJobs = defineTable({
+  ownerId: v.id("users"),
+  sourceId: v.id("sources"),
+  idempotencyKey: v.string(),
+  state: importJobState,
+  error: v.optional(v.string()),
+  // Provider facts for audit/eval: model id + prompt version, never secrets.
+  model: v.optional(v.string()),
+  promptVersion: v.optional(v.number()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_owner", ["ownerId"])
+  .index("by_source", ["sourceId"])
+  .index("by_owner_key", ["ownerId", "idempotencyKey"])
+  .index("by_owner_source_key", ["ownerId", "sourceId", "idempotencyKey"]);
+
+/**
+ * The model's structured suggestion, held for review. `proposal` is the
+ * validated typed shape in convex/metaProposal.ts — never written into
+ * subjects until `state` becomes `accepted` via a learner's explicit action.
+ */
+// Evidence quotes live in the stored proposal too: each is a verbatim excerpt
+// from a cited segment, verified by checkEvidence in convex/metaProposal.ts.
+const evidenceQuote = v.object({ segmentId: v.id("sourceSegments"), quote: v.string() });
+
+export const importProposalShape = v.object({
+  suggestedSubjects: v.array(
+    v.object({
+      name: v.string(),
+      confidence: v.union(v.literal("high"), v.literal("medium"), v.literal("low")),
+      segmentIds: v.array(v.id("sourceSegments")),
+      explanation: v.optional(v.string()),
+    }),
+  ),
+  concepts: v.array(
+    v.object({
+      label: v.string(),
+      summary: v.optional(v.string()),
+      sourceSegmentIds: v.array(v.id("sourceSegments")),
+      evidence: v.array(evidenceQuote),
+    }),
+  ),
+  draftCurriculum: v.optional(
+    v.object({
+      sections: v.array(
+        v.object({
+          title: v.string(),
+          units: v.array(
+            v.object({
+              title: v.string(),
+              lessons: v.array(
+                v.object({
+                  title: v.string(),
+                  objectives: v.array(v.string()),
+                  sourceSegmentIds: v.array(v.id("sourceSegments")),
+                  evidence: v.array(evidenceQuote),
+                }),
+              ),
+            }),
+          ),
+        }),
+      ),
+    }),
+  ),
+  warnings: v.array(v.string()),
+});
+
+export const importProposals = defineTable({
+  jobId: v.id("importJobs"),
+  subjectId: v.optional(v.id("subjects")),
+  state: v.union(
+    v.literal("pending"),
+    v.literal("user_edited"),
+    v.literal("accepted"),
+    v.literal("rejected"),
+  ),
+  proposal: importProposalShape,
+  createdAt: v.number(),
+  updatedAt: v.number(),
+}).index("by_job", ["jobId"]);

@@ -65,4 +65,6 @@ export default defineSchema({
   activities: learning.activities, // typed specs, revised not mutated
   attempts: learning.attempts, // immutable personal answers — not widgets
   mastery: learning.mastery, // derived per-user objective state
+  importJobs: learning.importJobs, // one ingestion run over one owned source
+  importProposals: learning.importProposals, // reviewable model suggestions
 });
