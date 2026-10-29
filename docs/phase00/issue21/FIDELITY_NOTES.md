@@ -13,25 +13,28 @@ deviation the owner should be aware of: the ZIP README itself was never read.
 
 ## What was reproduced
 
-- **Cream hero**: `--pn-paper` block, dark `unit N` badge, unit title (display
-  font), friend sub-line, deterministic illustrated mascot
-  (`JourneySticker` → `pickSticker(theme, subject.id)`; biology → `bio` theme →
-  `sticker-bio-cell-mascot-01.png`, generic subjects → `you-got-this` pear).
-- **Dark layered body**: flat ink panel (dot-grid texture removed for `.pnj`),
-  raised cream **social strip** (face pile + "+N others are studying X right now"
-  + lime sparkle doodles — only when `path.social` exists, nothing fabricated),
-  raised dark **unit progress card** (subject-hue glyph, gradient lime bar,
-  `role="progressbar"`).
+- **Header**: dark `LEARN PATH` kicker (purple dot, letterspaced caps), big
+  subject title, social/progress sub-line; the cream element is a **detached
+  mascot card** top-right (scalloped corner) wearing a deterministic
+  illustrated mascot (`pickSticker(theme, subject.id)`; biology →
+  `cell-mascot`, generic → `you-got-this` pear) plus a lime `you got this!`
+  sticky note. Owner confirmed: mockup's dark header beats the issue text's
+  "cream header" wording.
+- **Dark layered body**: flat ink panel, raised **dark social strip**
+  (face pile + "N friends studied this" / "names are on this path." — only
+  when `path.social` exists, nothing fabricated), raised dark **unit progress
+  card** (purple glyph tile, gradient lime bar, `role="progressbar"`, `›`
+  affordance, "Unit N progress").
 - **Premium nodes**: `JourneyNode` (2.5D SVG — ground shadow, extruded skirt,
   squash-on-press) at 72px lesson / 60px practice / 84px checkpoint on a
-  centered lane; title + `{state} · {duration}` meta under each node; social
-  snippets per node where data exists.
-- **Fixed lime CTA**: `▶ continue lesson N` capsule, right-aligned chevron,
-  never scrolls; renders an honest non-lime "every lesson finished" state when
-  there is no open lesson.
-- **Decorations**: hero mascot + 2 sparkle doodles in the strip = 3 max per
-  viewport (compact). Expanded adds the sticker/notes layer but side cards carry
-  meaning, not the art.
+  centered lane with subtle cyclic stagger; **numbered titles + objective
+  subtitle + `{state} · {duration}` meta** under each node; lime `jump in!`
+  tag on the current node; per-node social lines where data exists.
+- **Fixed lime CTA**: `▶ Continue lesson N` capsule + dark arrow chip on the
+  right; honest "every lesson finished" state when no open lesson exists.
+- **Decorations** (owner approved adding them, margins only): mascot sticker
+  + `you got this!` note + `small-steps` + `momentum-arrow` + squiggle/sparkle
+  doodles, all deterministic + `aria-hidden`.
 
 ## Connector decision — Option A (the mockup's own connector)
 

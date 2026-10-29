@@ -45,19 +45,19 @@
   left: 16px;
 }
 
-/* ---------- cream hero ------------------------------------------------- */
+/* ---------- hero: dark text block + cream mascot card -------------------
+ * Reference: "LEARN PATH" kicker, big subject title and tagline on the
+ * dark panel; the cream element is a detached mascot card top-right
+ * (scalloped corner) wearing the sticker + a lime sticky-note. */
 
 .pnj-hero {
   position: relative;
   display: flex;
   flex: 0 0 auto;
   align-items: flex-start;
-  gap: 10px;
-  border-radius: 0 0 24px 0;
-  background: var(--pn-paper);
-  box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.7);
-  color: var(--pn-on-paper);
-  padding: 18px 16px 22px;
+  gap: 12px;
+  color: var(--pn-on-dark);
+  padding: 18px 16px 20px;
   animation: pnj-hero-in var(--pn-dur-arrive) var(--pn-ease-glide) backwards;
 }
 
@@ -73,31 +73,39 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 5px;
-  padding-right: 4px;
+  gap: 6px;
+  padding-top: 6px;
 }
 
-.pnj-hero-badge {
-  align-self: flex-start;
-  border-radius: 999px;
-  background: var(--pn-sticker);
-  color: var(--pn-paper);
-  padding: 3px 11px 4px;
+.pnj-hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--pn-muted-on-dark);
   font-family: var(--pn-font-sans);
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pnj-hero-kicker::before {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b985ff;
+  content: "";
 }
 
 .pnj-hero-title {
-  margin: 1px 0 0;
-  color: var(--pn-on-paper);
+  margin: 0;
+  color: var(--pn-on-dark);
   font-family: var(--pn-font-display);
-  font-size: 1.5rem;
+  font-size: 1.55rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.08;
+  line-height: 1.06;
 }
 
 .pnj-expanded .pnj-hero-title {
@@ -106,23 +114,51 @@
 
 .pnj-hero-sub {
   margin: 0;
-  color: var(--pn-muted-on-paper);
+  max-width: 26ch;
+  color: var(--pn-muted-on-dark);
   font-size: 0.78125rem;
-  font-weight: 600;
-  line-height: 1.3;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
-/* illustrated mascot — deterministic per subject, right side of hero */
-.pnj-hero-mascot {
+/* detached cream mascot card — scalloped bottom-left corner */
+.pnj-hero-card {
+  position: relative;
   flex: 0 0 auto;
-  align-self: flex-end;
-  margin: 26px 12px -6px 0;
+  align-self: stretch;
+  margin-top: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px 14px 52px 14px;
+  background: var(--pn-paper);
+  box-shadow: 0 14px 28px -14px rgba(0, 0, 0, 0.75);
+  padding: 10px 12px;
+  rotate: 1.5deg;
+}
+
+.pnj-hero-mascot {
+  display: block;
+}
+
+.pnj-hero-note {
+  position: absolute;
+  z-index: 2;
+  top: 16px;
+  left: -34px;
+  padding: 4px 9px 5px;
+  font-size: 0.6875rem;
+  white-space: nowrap;
 }
 
 .pnj-hero-controls {
   position: absolute;
   top: 12px;
   right: 12px;
+}
+
+/* icon buttons sit on the dark hero now — give them a hairline ring */
+.pnj-hero .pn-icon-btn {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.16);
 }
 
 /* ---------- dark body --------------------------------------------------- */
@@ -135,7 +171,7 @@
   padding-right: 26px;
 }
 
-/* ---------- raised social strip ------------------------------------------ */
+/* ---------- raised social strip — dark card -------------------------------- */
 
 .pnj-strip {
   position: relative;
@@ -143,16 +179,22 @@
   align-items: center;
   gap: 11px;
   margin: 0 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: 16px;
-  background: var(--pn-paper);
-  box-shadow: 0 12px 26px -14px rgba(0, 0, 0, 0.85);
-  color: var(--pn-on-paper);
+  background: #1e1e26;
+  box-shadow:
+    0 14px 28px -16px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: var(--pn-on-dark);
   padding: 11px 14px;
 }
 
 .pnj-strip-text {
+  display: flex;
   min-width: 0;
   flex: 1;
+  flex-direction: column;
+  gap: 1px;
   margin: 0;
   font-size: 0.78125rem;
   font-weight: 500;
@@ -163,11 +205,9 @@
   font-weight: 800;
 }
 
-.pnj-strip-sparks {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: flex-end;
-  gap: 2px;
+.pnj-strip-text span {
+  color: var(--pn-muted-on-dark);
+  font-size: 0.71875rem;
 }
 
 /* face pile — pastel circles, overlapping */
@@ -194,6 +234,7 @@
 
 .pnj-face-more {
   background: var(--pn-sticker) !important;
+  border-color: #1e1e26;
   color: var(--pn-on-dark);
 }
 
@@ -220,8 +261,8 @@
   flex: 0 0 auto;
   place-items: center;
   border-radius: 10px;
-  background: var(--subject-hue, var(--pn-subject-general));
-  color: var(--pn-on-paper);
+  background: #6d5acd;
+  color: #ffffff;
 }
 
 .pnj-card-text {
@@ -258,7 +299,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+.pnj-card-chev {
+  flex: 0 0 auto;
+  margin-left: 2px;
+  color: var(--pn-faint-on-dark);
+}
+
 /* ---------- compact: centered node lane ---------------------------------- */
+
+.pnj-lane {
+  position: relative;
+}
 
 .pnj-units {
   display: flex;
@@ -268,6 +319,18 @@
   padding: 0;
   list-style: none;
 }
+
+/* art-directed margin decorations — pointer-events:none via .pjs-*, all
+   positioned in the lane margins so they never cover text or controls */
+.pnj-deco {
+  position: absolute;
+  z-index: 0;
+}
+
+.pnj-deco-steps { top: 34%; right: -4px; }
+.pnj-deco-momentum { top: 62%; left: -6px; }
+.pnj-deco-squig { top: 88%; left: 4px; color: #b985ff; }
+.pnj-deco-spark { top: 47%; right: 8%; }
 
 .pnj-steps {
   display: flex;
@@ -285,6 +348,7 @@
 }
 
 .pnj-step {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -293,8 +357,32 @@
   padding: 2px 0;
 }
 
+/* subtle cyclic stagger — the mockup's organic lane, still centered */
+.pnj-steps > .pnj-step-li:nth-child(4n + 1) > .pnj-step { translate: -12px 0; }
+.pnj-steps > .pnj-step-li:nth-child(4n + 3) > .pnj-step { translate: 12px 0; }
+
 .pnj-step.is-remedial {
   translate: 34px 0;
+}
+
+/* lime "jump in!" tag above the current node */
+.pnj-jump {
+  position: absolute;
+  z-index: 2;
+  top: -12px;
+  right: 50%;
+  rotate: -5deg;
+  translate: 78% 0;
+  border-radius: 999px;
+  background: var(--pn-lime);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  color: var(--pn-sticker);
+  padding: 3px 10px;
+  font-family: var(--pn-font-display);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  white-space: nowrap;
+  animation: pn-bob 1.8s ease-in-out infinite;
 }
 
 /* the mockup's connector: one small down-chevron, uniform, centered */
@@ -345,6 +433,19 @@
 .pnj-step-meta.kind-practice { color: var(--pn-amber); }
 .pnj-step-meta.kind-checkpoint:not(.is-locked) { color: var(--pn-amber); }
 .pnj-step-meta.is-needs_review { color: var(--pn-amber); }
+
+/* grey descriptive subtitle under the numbered title */
+.pnj-step-sub {
+  max-width: 230px;
+  overflow: hidden;
+  color: var(--pn-muted-on-dark);
+  font-size: 0.71875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* node social line under meta */
 .pnj-social {
@@ -449,9 +550,16 @@
   white-space: nowrap;
 }
 
-.pnj-continue-chev {
+/* right-side arrow chip inside the lime capsule */
+.pnj-continue-chip {
+  display: grid;
+  width: 26px;
+  height: 26px;
   margin-left: auto;
   flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(11, 11, 14, 0.16);
 }
 
 /* honest alternative when the path has nothing left to continue */
@@ -628,9 +736,10 @@
     max-width: 100vw;
   }
 
-  .pnj-hero { padding: 16px 14px 20px; }
+  .pnj-hero { padding: 16px 14px 18px; }
   .pnj-hero-title { font-size: 1.35rem; }
-  .pnj-hero-mascot { width: 76px; height: 76px; margin-top: 28px; }
+  .pnj-hero-card { padding: 7px 9px; }
+  .pnj-hero-mascot { width: 68px; height: 68px; }
 
   /* 44px touch targets on the sheet */
   .pnj .pn-icon-btn { width: 44px; height: 44px; }
@@ -645,7 +754,9 @@
   .pnj-hero { padding: 12px 14px 14px; }
   .pnj-hero-title { font-size: 1.15rem; }
   .pnj-hero-sub { display: none; }
-  .pnj-hero-mascot { width: 56px; height: 56px; margin-top: 30px; }
+  .pnj-hero-card { padding: 5px 7px; }
+  .pnj-hero-mascot { width: 48px; height: 48px; }
+  .pnj-hero-note { display: none; }
   .pnj-hero-controls { top: 8px; }
   .pnj .pn-icon-btn { width: 34px; height: 34px; }
   .pnj-body { padding-top: 24px; }

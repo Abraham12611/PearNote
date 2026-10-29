@@ -185,12 +185,6 @@ function heroStickerName(subject: PearSubject | null): string {
   return picked?.name ?? "you-got-this";
 }
 
-function UnitBadge({ index }: { index: number | null }) {
-  return (
-    <span className="pnj-hero-badge">{index != null ? `unit ${index + 1}` : "learn path"}</span>
-  );
-}
-
 /* --- compact mode: the reference lane --------------------------------- */
 
 /** Small uniform chevron between node steps — the mockup's connector.
@@ -237,7 +231,7 @@ function CompactUnit({
           </svg>
         </span>
         <span className="pnj-card-text">
-          <strong>unit progress</strong>
+          <strong>Unit {unitIndex + 1} progress</strong>
           <span
             className="pnj-card-bar"
             role="progressbar"
@@ -255,6 +249,16 @@ function CompactUnit({
         <span className="pnj-card-count">
           {p.done} of {p.total} lessons
         </span>
+        <svg className="pnj-card-chev" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path
+            d="M9.5 7 14.5 12 9.5 17"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
 
       {/* centered node lane — chevron connectors, no visible spine */}
@@ -262,25 +266,36 @@ function CompactUnit({
         {unit.lessons.map((lesson, i) => {
           const kind = nodeKind(lesson);
           const locked = lesson.state === "locked";
+          const current = lesson.state === "in_progress";
           const size = kind === "checkpoint" ? 84 : kind === "practice" ? 60 : 72;
           return (
             <li key={lesson.id} className="pnj-step-li">
               <div className={`pnj-step${lesson.remedial ? " is-remedial" : ""}`}>
+                {current && (
+                  <span className="pnj-jump" aria-hidden="true">
+                    jump in!
+                  </span>
+                )}
                 <JourneyNode
                   state={lesson.state}
                   kind={kind}
                   order={i + 1}
                   progress={lesson.progress}
-                  recommended={lesson.recommended && lesson.state !== "in_progress"}
+                  recommended={lesson.recommended && !current}
                   remedial={lesson.remedial}
                   disabled={locked}
                   size={size}
                   hue={subjectHue}
-                  label={`${lesson.title} — ${NODE_STATE_LABEL[lesson.state]}${kind !== "lesson" ? `, ${kind}` : ""}`}
+                  label={`${i + 1}. ${lesson.title} — ${NODE_STATE_LABEL[lesson.state]}${kind !== "lesson" ? `, ${kind}` : ""}`}
                   onClick={() => onPick(lesson)}
                   className={lesson.id === selectedId ? "is-selected" : ""}
                 />
-                <span className="pnj-step-name">{lesson.title}</span>
+                <span className="pnj-step-name">
+                  {i + 1}. {lesson.title}
+                </span>
+                {lesson.objectives[0] && (
+                  <span className="pnj-step-sub">{lesson.objectives[0]}</span>
+                )}
                 <span className={`pnj-step-meta is-${lesson.state} kind-${kind}`}>
                   {stepMeta(lesson)}
                 </span>
@@ -513,17 +528,6 @@ export function JourneyDrawer({
 
   const continueTarget = useMemo(() => findContinue(path), [path]);
 
-  /** Unit that owns the continue target — drives the hero badge/title. */
-  const activeUnit = useMemo(() => {
-    const units = path?.sections.flatMap((s) => s.units) ?? [];
-    if (units.length === 0) return { unit: null as PathUnit | null, index: null as number | null };
-    const idx = continueTarget
-      ? units.findIndex((u) => u.lessons.some((l) => l.id === continueTarget.lesson.id))
-      : 0;
-    const i = idx >= 0 ? idx : 0;
-    return { unit: units[i], index: i };
-  }, [path, continueTarget]);
-
   const selectedLesson = useMemo(() => {
     if (!selectedId) return null;
     return (
@@ -535,17 +539,15 @@ export function JourneyDrawer({
 
   if (!open) return null;
 
-  const heroTitle = hasPath
-    ? activeUnit.unit?.title ?? subject?.name ?? "learning path"
-    : subject?.name ?? "learning path";
+  const heroTitle = subject?.name ?? "learning path";
   const heroSub = hasPath
     ? path?.social?.friendsLearning
       ? `${path.social.friendsLearning} friends are learning ${subject?.name ?? "this"}`
       : progress.total > 0
         ? `${progress.done} of ${progress.total} lessons completed`
-        : (subject?.name ?? "")
-    : (subject?.name ?? "");
-  const socialCount = path?.social?.friendsLearning ?? path?.social?.friendsStudied;
+        : "build your foundations, one step at a time."
+    : "build your foundations, one step at a time.";
+  const socialCount = path?.social?.friendsStudied ?? path?.social?.friendsLearning;
 
   return (
     <div className="pn-layer pn-layer-drawer">
@@ -559,20 +561,25 @@ export function JourneyDrawer({
         tabIndex={-1}
         style={{ "--subject-hue": subject?.color ?? "var(--pn-subject-general)" } as CSSProperties}
       >
-        {/* ---- cream hero ------------------------------------------------ */}
+        {/* ---- hero: dark text block + detached cream mascot card --------- */}
         <header className="pnj-hero">
           {fixtureLabel && <span className="pn-fixture-tag">{fixtureLabel}</span>}
           <div className="pnj-hero-text">
-            <UnitBadge index={hasPath ? activeUnit.index : null} />
+            <span className="pnj-hero-kicker">learn path</span>
             <h3 className="pnj-hero-title">{heroTitle}</h3>
-            {heroSub && <p className="pnj-hero-sub">{heroSub}</p>}
+            <p className="pnj-hero-sub">{heroSub}</p>
           </div>
-          <JourneySticker
-            name={heroStickerName(subject)}
-            size={resolvedMode === "compact" ? 92 : 110}
-            rotate={5}
-            className="pnj-hero-mascot"
-          />
+          <div className="pnj-hero-card">
+            <JourneyNote tone="lime" rotate={-7} className="pnj-hero-note">
+              you got this!
+            </JourneyNote>
+            <JourneySticker
+              name={heroStickerName(subject)}
+              size={resolvedMode === "compact" ? 84 : 104}
+              rotate={4}
+              className="pnj-hero-mascot"
+            />
+          </div>
           <div className="pn-drawer-controls pnj-hero-controls">
             <button
               type="button"
@@ -681,13 +688,17 @@ export function JourneyDrawer({
                 <div className="pnj-strip">
                   <FacePile names={path?.social?.names ?? []} />
                   <p className="pnj-strip-text">
-                    <strong>+{socialCount} others</strong> are studying{" "}
-                    {subject?.name?.toLowerCase() ?? "this"} right now
+                    <strong>
+                      {path?.social?.friendsStudied
+                        ? `${path.social.friendsStudied} friends studied this`
+                        : `${socialCount} friends are learning this`}
+                    </strong>
+                    <span>
+                      {path?.social?.names?.length
+                        ? `${path.social.names.join(", ")} are on this path.`
+                        : `+${socialCount} others are studying ${subject?.name?.toLowerCase() ?? "this"} right now`}
+                    </span>
                   </p>
-                  <span className="pnj-strip-sparks" aria-hidden="true">
-                    <JourneyDoodle kind="sparkle" size={18} />
-                    <JourneyDoodle kind="sparkle" size={12} />
-                  </span>
                 </div>
               ) : null}
 
@@ -711,20 +722,47 @@ export function JourneyDrawer({
                   ))}
                 </ol>
               ) : (
-                <ol className="pnj-units">
-                  {path?.sections.flatMap((section) =>
-                    section.units.map((unit, unitIndex) => (
-                      <CompactUnit
-                        key={unit.id}
-                        unit={unit}
-                        unitIndex={unitIndex}
-                        subjectHue={subject?.color}
-                        selectedId={selectedId}
-                        onPick={pick}
-                      />
-                    )),
-                  )}
-                </ol>
+                <div className="pnj-lane">
+                  {/* art-directed margin stickers — deterministic, margins
+                      only, never over text/controls (owner-approved density) */}
+                  <JourneySticker
+                    name="small-steps"
+                    size={86}
+                    rotate={7}
+                    className="pnj-deco pnj-deco-steps"
+                  />
+                  <JourneySticker
+                    name="momentum-arrow"
+                    size={62}
+                    rotate={-10}
+                    className="pnj-deco pnj-deco-momentum"
+                  />
+                  <JourneyDoodle
+                    kind="squiggle"
+                    size={42}
+                    rotate={14}
+                    className="pnj-deco pnj-deco-squig"
+                  />
+                  <JourneyDoodle
+                    kind="sparkle"
+                    size={20}
+                    className="pnj-deco pnj-deco-spark"
+                  />
+                  <ol className="pnj-units">
+                    {path?.sections.flatMap((section) =>
+                      section.units.map((unit, unitIndex) => (
+                        <CompactUnit
+                          key={unit.id}
+                          unit={unit}
+                          unitIndex={unitIndex}
+                          subjectHue={subject?.color}
+                          selectedId={selectedId}
+                          onPick={pick}
+                        />
+                      )),
+                    )}
+                  </ol>
+                </div>
               )}
 
               {selectedLesson && (
@@ -815,24 +853,20 @@ export function JourneyDrawer({
                 <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
                   <path d="M8 5.5v13l11-6.5z" fill="currentColor" />
                 </svg>
-                continue lesson {continueTarget.order}
+                Continue lesson {continueTarget.order}
                 <span className="pnj-continue-title">{continueTarget.lesson.title}</span>
-                <svg
-                  className="pnj-continue-chev"
-                  viewBox="0 0 24 24"
-                  width="16"
-                  height="16"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M7 9.5 12 14.5 17 9.5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                <span className="pnj-continue-chip" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="15" height="15">
+                    <path
+                      d="M6 12h11m-4.5 -5L18 12l-5.5 5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
               </button>
             ) : (
               <span className="pnj-continue pnj-continue-done" role="status">
