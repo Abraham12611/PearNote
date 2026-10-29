@@ -52,18 +52,26 @@ states, never silent.
 proposal = {
   suggestedSubjects: [{ name, confidence: "high"|"medium"|"low",
                         segmentIds: string[], explanation? }],
-  concepts: [{ label, summary?, sourceSegmentIds: string[] }],
+  concepts: [{ label, summary?, sourceSegmentIds: string[],
+               evidence: [{segmentId, quote}]  // quote = verbatim excerpt }],
   draftCurriculum?: { sections: [{ title, units: [{ title, lessons: [{
-                        title, objectives: string[], sourceSegmentIds: string[] }] }] }] },
+                        title, objectives: string[], sourceSegmentIds: string[],
+                        evidence: [{segmentId, quote}] }] }] }] },
   warnings: string[]
 }
 ```
 
-Validation pipeline: JSON parse (fences tolerated) → shape check →
-`checkCitations` — every cited segment id must exist in *this* job's source.
-Fabricated ids → `unknown_segment`; citation-free concepts → `no_citations`;
-both mark the proposal `needs_review`, never auto-accepted. Injection text in
-fields is stored as inert data only.
+Validation pipeline — three gates, any failure → `needs_review`, never
+auto-accepted:
+1. `parseProposal` deep shape check (nested nulls, bounds, cardinality caps;
+   evidence.segmentId must belong to the unit's sourceSegmentIds).
+2. `checkCitations` — every cited segment id exists in *this* job's source.
+3. `checkEvidence` — every quote appears verbatim in its cited segment.
+
+HONEST LIMIT: a verbatim quote proves the words exist in the source, NOT that
+the generated claim is scientifically correct or entailed. Semantic factual
+support is **not yet guaranteed** — it remains `needs_review` for human/
+model re-check. Injection text in fields is stored as inert data only.
 
 ## 4. Review flow for Engineer 2's intake UI (Issue #24)
 
@@ -102,8 +110,8 @@ Plus `tests/learning.privacy.test.ts` (14 cases) unchanged.
 
 ## 7. Blockers & next steps
 
-- **BLOCKED: `LLAMA_API_KEY` absent** — no live model call yet; owner sets it
-  on the isolated dev deployment. Endpoint confirmed reachable (401 w/o key).
+- **BLOCKED: `MODEL_API_KEY` absent** — no live model call yet; owner sets it
+  as a Convex env var on dev `keen-marten-701`. Endpoint confirmed reachable (401 w/o key).
 - Convex dev push gated on Engineer 1 (Issue #23 backend sync handoff).
 - Server-side PDF parsing (pdfjs-in-action or chunked preprocess) is a
   Phase 01 decision; local extraction here is proof-of-fidelity only.

@@ -83,7 +83,8 @@ export async function chat(opts: {
           { role: "user", content: opts.user },
         ],
         max_tokens: opts.maxTokens ?? 4000,
-        temperature: opts.temperature ?? 0,
+        // Muse reasoning default is 1.0 — only override when the caller asks.
+        ...(opts.temperature === undefined ? {} : { temperature: opts.temperature }),
         ...(opts.json ? { response_format: { type: "json_object" } } : {}),
       }),
     });

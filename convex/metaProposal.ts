@@ -92,7 +92,7 @@ function isProposalShape(x: unknown): x is MetaProposal {
     Array.isArray(a) &&
     a.every((e) => {
       const q = e as Record<string, unknown>;
-      return typeof e === "object" && e !== null && str(q.segmentId, 200) &&
+      return typeof e === "object" && e !== null && typeof q === "object" && q !== null && str(q.segmentId, 200) &&
         typeof q.quote === "string" && q.quote.length >= QUOTE_MIN && q.quote.length <= QUOTE_MAX;
     });
   const confOk = (c: unknown) => c === "high" || c === "medium" || c === "low";
@@ -109,23 +109,30 @@ function isProposalShape(x: unknown): x is MetaProposal {
   const conceptsOk = (p.concepts as unknown[]).every((c) => {
     const o = c as Record<string, unknown>;
     return typeof o === "object" && o !== null && str(o.label, LABEL_MAX) && optStr(o.summary) &&
-      idArr(o.sourceSegmentIds, 1) && evArr(o.evidence) && (o.evidence as unknown[]).length > 0;
+      idArr(o.sourceSegmentIds, 1) && evArr(o.evidence) && (o.evidence as unknown[]).length > 0 &&
+      (o.evidence as { segmentId: string }[]).every((e) => (o.sourceSegmentIds as string[]).includes(e.segmentId));
   });
   if (!subsOk || !conceptsOk) return false;
 
   if (p.draftCurriculum !== undefined) {
     const dc = p.draftCurriculum as Record<string, unknown>;
     if (typeof dc !== "object" || dc === null || !Array.isArray(dc.sections)) return false;
+    if ((dc.sections as unknown[]).length > MAX_ITEMS) return false;
     return (dc.sections as unknown[]).every((sec) => {
       const s = sec as Record<string, unknown>;
+      if (typeof s !== "object" || s === null) return false;
       if (!str(s.title, NAME_MAX) || !Array.isArray(s.units)) return false;
+      if ((s.units as unknown[]).length > MAX_ITEMS) return false;
       return (s.units as unknown[]).every((u) => {
         const un = u as Record<string, unknown>;
-        if (!str(un.title, NAME_MAX) || !Array.isArray(un.lessons) || un.lessons.length === 0) return false;
+        if (typeof un !== "object" || un === null) return false;
+        if (!str(un.title, NAME_MAX) || !Array.isArray(un.lessons) || un.lessons.length === 0 || un.lessons.length > MAX_ITEMS) return false;
         return (un.lessons as LessonDraft[]).every((l) =>
+          typeof l === "object" && l !== null &&
           str(l.title, NAME_MAX) &&
           Array.isArray(l.objectives) && l.objectives.length > 0 && l.objectives.every((ob) => str(ob, 300)) &&
-          idArr(l.sourceSegmentIds, 1) && evArr(l.evidence) && l.evidence.length > 0,
+          idArr(l.sourceSegmentIds, 1) && evArr(l.evidence) && l.evidence.length > 0 &&
+          l.evidence.every((e) => l.sourceSegmentIds.includes(e.segmentId)),
         );
       });
     });

@@ -6,6 +6,10 @@
  */
 import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query, type QueryCtx } from "./_generated/server";
+// _generated/api.d.ts predates these modules (codegen is deployment-gated);
+// internal resolves through the same anyApi proxy at runtime.
+import { anyApi } from "convex/server";
+const internal = anyApi;
 import { learnerId, requireLearnerId, requireOwnedSource } from "./learningAuth";
 import { importJobState, importProposalShape } from "./tables/learning";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -44,7 +48,9 @@ export const begin = mutation({
       ownerId, sourceId, idempotencyKey: key, state: "uploaded",
       createdAt: now, updatedAt: now,
     });
-    return { jobId, state: "uploaded" as const };
+    // Kick the pipeline: extraction → Muse call → proposal/needs_review.
+    await ctx.scheduler.runAfter(0, internal.ingestMeta.runJob, { jobId });
+    return { jobId, state: "extracting" as const };
   },
 });
 
