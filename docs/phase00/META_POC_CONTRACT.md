@@ -8,16 +8,16 @@ dev `keen-marten-701` until Issue #23 backend sync completes.
 
 | Fact | Value |
 |---|---|
-| Provider | **Meta Llama API** (official Meta inference API) |
-| Endpoint | `POST https://api.llama.com/v1/chat/completions` |
-| Auth | `Authorization: Bearer $LLAMA_API_KEY` |
-| Required env var | **`LLAMA_API_KEY`** — Convex server-side env only (`npx convex env set`), never `VITE_*` |
-| Key provisioning | Owner creates at `llama.developer.meta.com` → dashboard, sets via Convex dashboard |
-| PoC model | `Llama-4-Maverick-17B-128E-Instruct-FP8` |
-| Alt model | `Llama-4-Scout-17B-16E-Instruct-FP8` (cheaper/faster tier) |
-| Official SDK | `llama-api-client` (meta-llama/llama-api-typescript) — adapter uses raw `fetch` instead, matching `convex/nebius.ts` audit style |
-| Reachability | `GET https://api.llama.com/v1/models` without a key → HTTP 401 (endpoint live, auth-gated) |
-| Credential status | **BLOCKED — awaiting owner provisioning** |
+| Provider | **Meta Model API** (owner-confirmed primary, dev.meta.ai) |
+| Endpoint | `POST https://api.meta.ai/v1/chat/completions` |
+| Auth | `Authorization: Bearer $MODEL_API_KEY` |
+| Required env var | **`MODEL_API_KEY`** — Convex server-side env only (`npx convex env set` on dev `keen-marten-701`), never `VITE_*`, Vercel env, or git. NOTE: Vercel env vars are NOT shared with Convex actions. |
+| Key provisioning | Owner sets via the Convex dev deployment Environment Variables on `keen-marten-701` |
+| PoC model | `muse-spark-1.3` (Standard mode — NOT `-contributor`) |
+| Alt model | internal provider swap possible via `MetaProvider`; no silent fallback to Llama/other hosts |
+| Official SDK | adapter uses raw `fetch`, matching `convex/nebius.ts` audit style |
+| Reachability | `GET https://api.meta.ai/v1/models` and `POST /v1/chat/completions` without a key → HTTP 401 (endpoint live, auth-gated) |
+| Credential status | **BLOCKED — awaiting `MODEL_API_KEY` on `keen-marten-701` Convex env** |
 
 Adapter: `convex/metaClient.ts` — typed `MetaChatResult`, 45s timeout,
 `no_credential | http | timeout | network | invalid_json` error mapping,
