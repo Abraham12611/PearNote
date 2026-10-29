@@ -1,0 +1,109 @@
+# Phase 00.5 — Meta PoC contract (Engineer 4 → Engineer 2 handoff)
+
+**Status:** contract v1, 2026-10-29. Base `develop@5ee8130`. The functions below
+exist in code on branch `feature/7-meta-poc`; **not deployed** — Engineer 1 owns
+dev `keen-marten-701` until Issue #23 backend sync completes.
+
+## 1. Verified provider facts
+
+| Fact | Value |
+|---|---|
+| Provider | **Meta Llama API** (official Meta inference API) |
+| Endpoint | `POST https://api.llama.com/v1/chat/completions` |
+| Auth | `Authorization: Bearer $LLAMA_API_KEY` |
+| Required env var | **`LLAMA_API_KEY`** — Convex server-side env only (`npx convex env set`), never `VITE_*` |
+| Key provisioning | Owner creates at `llama.developer.meta.com` → dashboard, sets via Convex dashboard |
+| PoC model | `Llama-4-Maverick-17B-128E-Instruct-FP8` |
+| Alt model | `Llama-4-Scout-17B-16E-Instruct-FP8` (cheaper/faster tier) |
+| Official SDK | `llama-api-client` (meta-llama/llama-api-typescript) — adapter uses raw `fetch` instead, matching `convex/nebius.ts` audit style |
+| Reachability | `GET https://api.llama.com/v1/models` without a key → HTTP 401 (endpoint live, auth-gated) |
+| Credential status | **BLOCKED — awaiting owner provisioning** |
+
+Adapter: `convex/metaClient.ts` — typed `MetaChatResult`, 45s timeout,
+`no_credential | http | timeout | network | invalid_json` error mapping,
+records `model` + `promptVersion` on the job row. Never throws, never logs
+the key, never callable from the client (invoked from internal actions only).
+
+## 2. Function surface (actual names, `api.*`/`internal.*`)
+
+| Function | Kind | Args → Returns | Auth |
+|---|---|---|---|
+| `sources.createUploadUrl` | mutation (existing) | `{}` → `{uploadUrl}` | signed in |
+| `sources.register` | mutation (existing) | `storageId,title,mime,sizeBytes,sha256` → `{sourceId,deduplicated}` | signed in, claim-checked |
+| `sources.get` | query (existing) | `sourceId` → meta+short-lived url \| null | owner only |
+| `sources.listSegments` | query (existing) | `sourceId` → `Segment[]` (≤500) | owner only |
+| `learningImport.begin` | mutation | `sourceId, idempotencyKey` → `{jobId, state}` | source owner; idempotent retry returns same job |
+| `learningImport.getStatus` | query | `jobId` → `{_id, sourceId, state, error?, createdAt}` \| null | job owner only |
+| `learningImport.getProposal` | query | `jobId` → `{_id, state, proposal}` \| null | job owner only |
+| `learningImport.recordSegments` | internalMutation | `sourceId, segments[{segmentNo,page?,text,kind?}]` → `segmentIds` | internal only |
+| `learningImport.setJobState` | internalMutation | `jobId, state, error?, model?, promptVersion?` | internal only |
+| `subjects.createManual/listMine/get/rename/setStatus` | existing | see DATA_AUTH.md | owner |
+
+**Job states** (`importJobs.state`, STATE_AND_EVENTS.md):
+`created → uploaded → extracting → classifying → needs_review → accepted → building → ready`; `failed`/`cancelled` reachable from bounded states.
+
+**Error codes** (ConvexError `data.code`): `UNAUTHORIZED`, `INVALID_INPUT`,
+`UNSUPPORTED_SOURCE`; provider failures map to `needs_review`/`failed` job
+states, never silent.
+
+## 3. Proposal shape (validated in `convex/metaProposal.ts`)
+
+```ts
+proposal = {
+  suggestedSubjects: [{ name, confidence: "high"|"medium"|"low",
+                        segmentIds: string[], explanation? }],
+  concepts: [{ label, summary?, sourceSegmentIds: string[] }],
+  draftCurriculum?: { sections: [{ title, units: [{ title, lessons: [{
+                        title, objectives: string[], sourceSegmentIds: string[] }] }] }] },
+  warnings: string[]
+}
+```
+
+Validation pipeline: JSON parse (fences tolerated) → shape check →
+`checkCitations` — every cited segment id must exist in *this* job's source.
+Fabricated ids → `unknown_segment`; citation-free concepts → `no_citations`;
+both mark the proposal `needs_review`, never auto-accepted. Injection text in
+fields is stored as inert data only.
+
+## 4. Review flow for Engineer 2's intake UI (Issue #24)
+
+1. `sources.createUploadUrl` → POST file → `sources.register` → `sourceId`.
+2. `learningImport.begin(sourceId, uuid)` → poll `getStatus` until `needs_review`.
+3. `getProposal` → render suggested subjects, segment evidence, warnings; user edits/approves.
+4. Approve/edit mutation is a **future PR** — contract reserved as
+   `imports.review({jobId, edits, approval})` → accepted subject ids.
+5. No UI state may imply subjects exist before accept; `subjects` stay empty otherwise.
+
+## 5. Local extraction evidence (Cell Biology PDF, kept out of repo)
+
+Owner-supplied `9781107614505_excerpt.pdf` (Cambridge O Level Biology Revision
+Guide, Ian J. Burton — 10 pages, selectable text, ~15k chars total):
+
+| Page | Extracted chars | Topic (verified) |
+|---|---|---|
+| 1 | 2402 | cell structure & organisation |
+| 2 | 1412 | cell wall / membrane structures |
+| 3–4 | 1370/1639 | observing animal & plant cells |
+| 5–8 | 1185/1298/950/1183 | specialised cells: xylem, red blood cells |
+| 9 | 1592 | tissues → organs → systems |
+| 10 | 2208 | diffusion + examples |
+
+Term hits: diffusion×4, membrane×9, nucleus×8, osmosis×2, specialised×1.
+Extracted with pypdf locally — stable `page`/`segmentNo` mapping will port to
+the server parser; image-only pages would flag `needs_review`, not fake text.
+
+## 6. Test evidence (all MOCK-labelled; no live calls)
+
+`tests/metaProposal.test.ts` — parse rejects invalid/empty/wrong-shape;
+fabricated segment ids rejected; cross-user segment ids rejected;
+citation-free concepts flagged; injection stored as data; `begin` idempotent +
+owner-scoped; B cannot read A's job; internals not public-callable.
+Plus `tests/learning.privacy.test.ts` (14 cases) unchanged.
+
+## 7. Blockers & next steps
+
+- **BLOCKED: `LLAMA_API_KEY` absent** — no live model call yet; owner sets it
+  on the isolated dev deployment. Endpoint confirmed reachable (401 w/o key).
+- Convex dev push gated on Engineer 1 (Issue #23 backend sync handoff).
+- Server-side PDF parsing (pdfjs-in-action or chunked preprocess) is a
+  Phase 01 decision; local extraction here is proof-of-fidelity only.
