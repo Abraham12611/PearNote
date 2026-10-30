@@ -43,11 +43,19 @@ async function seed() {
           { name: "Cell Biology", confidence: "high", segmentIds: [s1], explanation: "core topic" },
           { name: "Transport", confidence: "low", segmentIds: [s2] },
         ],
-        concepts: [{ label: "Diffusion", summary: "net movement down gradient", sourceSegmentIds: [s2],
-          evidence: [{ segmentId: s2, quote: "diffusion moves molecules" }] }],
+        concepts: [
+          { label: "Diffusion", summary: "net movement down gradient", sourceSegmentIds: [s2],
+            evidence: [{ segmentId: s2, quote: "diffusion moves molecules" }] },
+          // Boundary concept: cites segments across BOTH subjects — under the
+          // strict-subject rule it must be skipped, never re-homed.
+          { label: "BoundaryConcept", summary: "spans both", sourceSegmentIds: [s1, s2],
+            evidence: [{ segmentId: s1, quote: "cells are the unit of life" }, { segmentId: s2, quote: "diffusion moves molecules" }] },
+        ],
         draftCurriculum: { sections: [{ title: "Cells", units: [{ title: "Structure", lessons: [
           { title: "Membranes", objectives: ["describe diffusion"], sourceSegmentIds: [s2],
-            evidence: [{ segmentId: s2, quote: "diffusion moves molecules" }] }] }] }] },
+            evidence: [{ segmentId: s2, quote: "diffusion moves molecules" }] },
+          { title: "CrossSubject", objectives: ["cross ref"], sourceSegmentIds: [s1, s2],
+            evidence: [{ segmentId: s1, quote: "cells are the unit of life" }] }] }] }] },
         warnings: [],
       },
       revision: 0, createdAt: 1, updatedAt: 1,
@@ -125,14 +133,22 @@ describe("learningReview.review", () => {
       await ctx.db.get(r.curriculumVersionIds[1]) as Doc<"curriculumVersions"> | null,
     ]);
     // Diffusion concept cites s2 → must attach to the s2 subject, not both
-    expect(concepts).toHaveLength(1);
+    expect(concepts).toHaveLength(1); // BoundaryConcept skipped — no silent re-home
     expect(concepts[0].subjectId).toBe(r.subjectIds[1]);
     // Sections only under the version whose subject cites the lesson segments
     const secsUnder = async (v: Doc<"curriculumVersions"> | null) =>
       v === null ? 0 : (await t.run(async (ctx) =>
         ctx.db.query("sections").withIndex("by_version_order", (q) => q.eq("versionId", v._id)).collect())).length;
-    expect(await secsUnder(v0)).toBe(0);  // s1 subject: no lesson cites s1
-    expect(await secsUnder(v1)).toBe(1);  // s2 subject owns the diffusion lesson
+    expect(await secsUnder(v0)).toBe(0);  // s1 subject: no lesson fully cites s1
+    expect(await secsUnder(v1)).toBe(1);  // s2 subject owns the strict-subset lesson
+    const lessons = await t.run(async (ctx) => ctx.db.query("lessons").collect() as Doc<"lessons">[]);
+    expect(lessons).toHaveLength(1);      // CrossSubject lesson dropped from BOTH
+    expect(lessons[0].title).toBe("Membranes");
+  });
+  test("getProposal exposes revision for optimistic concurrency", async () => {
+    const { asA, jobId } = await seed();
+    const row = await asA.query(api.learningImport.getProposal, { jobId });
+    expect(row?.revision).toBe(0);
   });
   test("stale revision → CONFLICT", async () => {
     const { asA, jobId } = await seed();

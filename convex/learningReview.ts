@@ -184,14 +184,15 @@ export const review = mutation({
       }
     }
 
-    // Per-subject concepts: a concept attaches to a target only when its
-    // verified segments intersect that subject's assigned segments — never
-    // a cross-subject conceptId. Concepts matching no subject still ground
-    // in the source; they attach to the primary target (documented v1 rule).
+    // Per-subject concepts: STRICT boundary — a concept materializes under a
+    // target only when ALL its cited segments are inside that subject's
+    // approved assignment. A concept that partially or fully falls outside
+    // every target is skipped, never silently re-homed to the primary.
     const conceptIdsBySubject = new Map<Id<"subjects">, Id<"concepts">[]>();
     for (const c of proposal.proposal.concepts) {
       const cSegs = new Set(c.sourceSegmentIds.map(String));
-      const home = targets.find((t) => [...t.segIds].some((id) => cSegs.has(id))) ?? targets[0];
+      const home = targets.find((t) => [...cSegs].every((id) => t.segIds.has(id)));
+      if (home === undefined) continue;
       const cid = await ctx.db.insert("concepts", {
         subjectId: home.subjectId, label: c.label, summary: c.summary,
         provenance: "ai_proposal",
@@ -220,8 +221,10 @@ export const review = mutation({
       for (const sec of dc.sections) {
         const keptUnits: { title: string; lessons: typeof sec.units[number]["lessons"] }[] = [];
         for (const u of sec.units) {
+          // STRICT subset: a lesson materializes only when every cited
+          // segment is inside this subject's approved assignment.
           const keptLessons = u.lessons.filter((l) =>
-            l.sourceSegmentIds.some((id) => t.segIds.has(String(id))),
+            l.sourceSegmentIds.every((id) => t.segIds.has(String(id))),
           );
           if (keptLessons.length > 0) keptUnits.push({ title: u.title, lessons: keptLessons });
         }

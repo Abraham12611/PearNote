@@ -164,6 +164,11 @@ review({
   `INVALID_INPUT`, `CONFLICT`. Not-owner is indistinguishable from missing.
 - UI flow: getProposal → learner edits → review({jobId, approve, edits,
   expectedProposalRevision}) → subjects.listMine shows new drafts.
-- v1 limits documented: concepts attach to the primary/target subject;
-  unsupported edit kinds (merge/split beyond index ops) are rejected by arg
-  validation — do not pretend they save.
+- `getProposal` now returns `revision` — the UI must echo it as
+  `expectedProposalRevision` on any non-terminal review call.
+- STRICT citation boundary: a concept or lesson materializes under a subject
+  ONLY when ALL its cited segments fall inside that subject's approved
+  assignment. Boundary-crossing items are skipped — never re-homed to the
+  primary subject, never trimmed silently.
+- v1 limits documented: unsupported edit kinds (merge/split beyond index
+  ops) are rejected by arg validation — do not pretend they save.

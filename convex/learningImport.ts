@@ -95,6 +95,8 @@ export const getProposal = query({
         v.literal("rejected"),
       ),
       proposal: importProposalShape,
+      // The concurrency token review() requires — the UI must echo it back.
+      revision: v.optional(v.number()),
     }),
     v.null(),
   ),
@@ -104,7 +106,7 @@ export const getProposal = query({
       .query("importProposals")
       .withIndex("by_job", (q) => q.eq("jobId", jobId))
       .first();
-    return row === null ? null : { _id: row._id, state: row.state, proposal: row.proposal };
+    return row === null ? null : { _id: row._id, state: row.state, proposal: row.proposal, revision: row.revision };
   },
 });
 
