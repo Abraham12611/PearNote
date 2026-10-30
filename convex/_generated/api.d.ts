@@ -31,6 +31,7 @@ import type * as inboxRouting from "../inboxRouting.js";
 import type * as ingestMeta from "../ingestMeta.js";
 import type * as learningAuth from "../learningAuth.js";
 import type * as learningImport from "../learningImport.js";
+import type * as learningReview from "../learningReview.js";
 import type * as leases from "../leases.js";
 import type * as links from "../links.js";
 import type * as mailArrival from "../mailArrival.js";
@@ -107,6 +108,7 @@ declare const fullApi: ApiFromModules<{
   ingestMeta: typeof ingestMeta;
   learningAuth: typeof learningAuth;
   learningImport: typeof learningImport;
+  learningReview: typeof learningReview;
   leases: typeof leases;
   links: typeof links;
   mailArrival: typeof mailArrival;

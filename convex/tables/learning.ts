@@ -396,6 +396,17 @@ export const importProposals = defineTable({
     v.literal("rejected"),
   ),
   proposal: importProposalShape,
+  // Optimistic concurrency token — bump on user edits; review() requires a
+  // match so a stale UI can't approve content the learner never saw.
+  revision: v.optional(v.number()),
+  // Stable ids created by an accepted proposal — makes repeat approvals
+  // idempotent returns instead of duplicate materialization.
+  materialized: v.optional(
+    v.object({
+      subjectIds: v.array(v.id("subjects")),
+      curriculumVersionIds: v.array(v.id("curriculumVersions")),
+    }),
+  ),
   createdAt: v.number(),
   updatedAt: v.number(),
 }).index("by_job", ["jobId"]);

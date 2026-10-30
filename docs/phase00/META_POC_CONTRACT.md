@@ -129,3 +129,51 @@ Plus `tests/learning.privacy.test.ts` (14 cases) unchanged.
   no production deploy or real model execution reported.
 - Server-side PDF parsing (pdfjs-in-action or chunked preprocess) is a
   Phase 01 decision; local extraction here is proof-of-fidelity only.
+
+## 9. Contract v2 — learner review API (Issue #33, Engineer 2 handoff)
+
+`learningReview.review` — public mutation, authenticated owner only:
+
+```ts
+review({
+  jobId: Id<"importJobs">,
+  action: "approve" | "reject",
+  expectedProposalRevision?: number,  // must equal proposal.revision ?? 0
+  edits?: {
+    renameSubjects?: [{ index, name }],        // index into suggestedSubjects
+    discardSubjects?: number[],                 // drop proposed subjects
+    attachToSubjectId?: Id<"subjects">,         // attach to existing OWNED subject
+    acceptOmissions?: boolean,                  // consent to drop cross-subject items
+  },
+}) → {
+  proposalId: Id<"importProposals">,
+  state: "accepted" | "rejected",
+  subjectIds: Id<"subjects">[],
+  curriculumVersionIds: Id<"curriculumVersions">[],
+}
+```
+
+- Transitions: `needs_review` job + `pending|user_edited` proposal only.
+  Reject is terminal (job→cancelled). Repeat of same action = idempotent
+  same-ids return; opposite action → `CONFLICT`.
+- Every cited segmentId is re-verified against the job's source at approval.
+- Approve materializes (atomically): subjects (`status:"draft"`),
+  subjectSources, concepts, objectives, `curriculumVersions` (`state:"draft"`),
+  sections/units/lessons (specVersion 1, no canvasSpaceId). Nothing is ever
+  published here; no attempts/mastery/XP are created.
+- Errors (ConvexError data.code): `UNAUTHORIZED`, `INVALID_STATE`,
+  `INVALID_INPUT`, `CONFLICT`, `NEEDS_REVIEW` (ambiguous cross-subject
+  citations without `acceptOmissions` — reassign or resubmit with consent).
+  Not-owner is indistinguishable from missing.
+- `storeProposal` initializes `revision: 0` and bumps it when re-storing a
+  still-pending proposal; `getProposal` returns `revision ?? 0` for legacy rows.
+- UI flow: getProposal → learner edits → review({jobId, approve, edits,
+  expectedProposalRevision}) → subjects.listMine shows new drafts.
+- `getProposal` now returns `revision` — the UI must echo it as
+  `expectedProposalRevision` on any non-terminal review call.
+- STRICT citation boundary: a concept or lesson materializes under a subject
+  ONLY when ALL its cited segments fall inside that subject's approved
+  assignment. Boundary-crossing items are skipped — never re-homed to the
+  primary subject, never trimmed silently.
+- v1 limits documented: unsupported edit kinds (merge/split beyond index
+  ops) are rejected by arg validation — do not pretend they save.
