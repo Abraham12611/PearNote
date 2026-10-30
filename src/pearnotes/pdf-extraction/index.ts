@@ -100,45 +100,51 @@ export async function extractPdfSegments(
   let emptyPages = 0;
   let anyText = false;
 
-  for (let page = 1; page <= pagesToRead && !truncated; page++) {
-    const pg = await doc.getPage(page);
-    const content = await pg.getTextContent({ includeMarkedContent: false });
-    const items = (content.items as unknown[]).filter(
-      (i): i is PdfTextItem => typeof (i as PdfTextItem).str === "string" && (i as PdfTextItem).str.trim().length > 0,
-    );
-    pg.cleanup();
+  try {
+    for (let page = 1; page <= pagesToRead && !truncated; page++) {
+      const pg = await doc.getPage(page);
+      const content = await pg.getTextContent({ includeMarkedContent: false });
+      const items = (content.items as unknown[]).filter(
+        (i): i is PdfTextItem => typeof (i as PdfTextItem).str === "string" && (i as PdfTextItem).str.trim().length > 0,
+      );
+      pg.cleanup();
 
-    if (items.length === 0) {
-      emptyPages++;
-      warnings.push({ page, code: "empty_page", message: `page ${page} has no selectable text (scanned/image content — no OCR performed)` });
-      continue;
-    }
-    anyText = true;
-
-    const { paragraphs, uncertainOrder } = paragraphsOfPage(items);
-    if (uncertainOrder) {
-      warnings.push({ page, code: "uncertain_order", message: `text order on page ${page} could not be recovered confidently` });
-    }
-
-    for (const p of paragraphs) {
-      if (textChars + p.text.length > options.maxTextChars) {
-        warnings.push({ code: "text_limit", message: `extracted text exceeds ${options.maxTextChars} chars; later content dropped` });
-        truncated = true;
-        break;
+      if (items.length === 0) {
+        emptyPages++;
+        warnings.push({ page, code: "empty_page", message: `page ${page} has no selectable text (scanned/image content — no OCR performed)` });
+        continue;
       }
-      segmentNo++;
-      if (segmentNo > options.maxSegments) {
-        warnings.push({ code: "segment_limit", message: `more than ${options.maxSegments} paragraphs; remainder dropped` });
-        truncated = true;
-        break;
+      anyText = true;
+
+      const { paragraphs, uncertainOrder } = paragraphsOfPage(items);
+      if (uncertainOrder) {
+        warnings.push({ page, code: "uncertain_order", message: `text order on page ${page} could not be recovered confidently` });
       }
-      textChars += p.text.length;
-      const seg: PdfSegment = { segmentNo, page, text: p.text };
-      if (p.kind === "heading") seg.kind = "heading";
-      seg.quoteStart = p.quoteStart;
-      seg.quoteEnd = p.quoteEnd;
-      segments.push(seg);
+
+      for (const p of paragraphs) {
+        if (textChars + p.text.length > options.maxTextChars) {
+          warnings.push({ code: "text_limit", message: `extracted text exceeds ${options.maxTextChars} chars; later content dropped` });
+          truncated = true;
+          break;
+        }
+        segmentNo++;
+        if (segmentNo > options.maxSegments) {
+          warnings.push({ code: "segment_limit", message: `more than ${options.maxSegments} paragraphs; remainder dropped` });
+          truncated = true;
+          break;
+        }
+        textChars += p.text.length;
+        const seg: PdfSegment = { segmentNo, page, text: p.text };
+        if (p.kind === "heading") seg.kind = "heading";
+        seg.quoteStart = p.quoteStart;
+        seg.quoteEnd = p.quoteEnd;
+        segments.push(seg);
+      }
     }
+  } finally {
+    // Release the document even when a page parse throws — pdf.js holds
+    // worker memory per open document.
+    await doc.destroy();
   }
 
   if (!anyText) {
@@ -151,6 +157,5 @@ export async function extractPdfSegments(
     warnings.push({ code: "layout_complex", message: `${emptyPages} page(s) contained no extractable text` });
   }
 
-  await doc.destroy();
   return { pageCount, segments, warnings, truncated };
 }

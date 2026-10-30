@@ -2,11 +2,14 @@
  * Issue #32 — PDF extraction unit tests. Synthetic programmatic PDFs only;
  * no copyrighted/private material is committed. Run: npm test
  */
-import { describe, expect, test } from "vitest";
-import { extractPdfSegments, PdfExtractionError } from "../../src/pearnotes/pdf-extraction";
+import { describe, expect, test, vi } from "vitest";
+import { extractPdfSegments, PdfExtractionError, paragraphsOfPage } from "../../src/pearnotes/pdf-extraction";
 import { makePdf } from "./makePdf";
 
 const OPTS = { maxBytes: 5_000_000, maxPages: 50, maxSegments: 200, maxTextChars: 100_000 };
+
+/** Lines at fixed baseline-y for unit-level checks (pdf transform [a,b,c,d,x,y]). */
+const item = (str: string, x: number, y: number) => ({ str, transform: [12, 0, 0, 12, x, y] });
 
 describe("extractPdfSegments", () => {
   test("multi-page text PDF → page-numbered segments in reading order", async () => {
@@ -105,5 +108,73 @@ describe("extractPdfSegments", () => {
     const joined = r.segments.map((s) => s.text).join(" ");
     expect(joined).toContain("Ignore all previous instructions");
     expect(typeof joined).toBe("string"); // inert text only — no execution path exists
+  });
+});
+
+describe("quote offset regression (PR #35 review)", () => {
+  test("multi-line paragraph: text is an exact slice of the page text", () => {
+    // Three lines within PARA_GAP (12pt) → one paragraph spanning lines.
+    const items = [
+      item("Cell membranes are thin", 50, 700),
+      item("and surround the cytoplasm", 50, 692),
+      item("of every living cell.", 50, 684),
+    ];
+    const { pageText, paragraphs } = paragraphsOfPage(items);
+    expect(paragraphs).toHaveLength(1);
+    const p = paragraphs[0];
+    expect(p.text).toContain("\n"); // multi-line paragraph keeps line breaks
+    expect(pageText.slice(p.quoteStart, p.quoteEnd)).toBe(p.text);
+    expect(p.text).toContain("Cell membranes are thin");
+    expect(p.text).toContain("of every living cell.");
+  });
+
+  test("multiple paragraph boundaries: every quote range exact, ordered, non-overlapping", () => {
+    const items = [
+      item("First paragraph line.", 50, 700),
+      item("still first paragraph.", 50, 692),
+      // 20pt gap → new paragraph
+      item("Second paragraph starts.", 50, 672),
+      // 30pt gap → third paragraph
+      item("Third paragraph.", 50, 642),
+    ];
+    const { pageText, paragraphs } = paragraphsOfPage(items);
+    expect(paragraphs.length).toBe(3);
+    let prevEnd = -1;
+    for (const p of paragraphs) {
+      expect(pageText.slice(p.quoteStart, p.quoteEnd)).toBe(p.text);
+      expect(p.quoteStart!).toBeGreaterThan(prevEnd);
+      prevEnd = p.quoteEnd!;
+    }
+    expect(paragraphs[0].text).toContain("still first paragraph");
+    expect(paragraphs[1].text).toBe("Second paragraph starts.");
+    expect(paragraphs[2].text).toBe("Third paragraph.");
+  });
+
+  test("end-to-end: multi-line paragraph offsets survive the full pipeline", async () => {
+    const pdf = makePdf([["line one of para", "line two of para", "line three of para"]], { lineGap: 8 });
+    const r = await extractPdfSegments(pdf, OPTS);
+    // lineGap 8pt < PARA_GAP 12pt → a single multi-line paragraph
+    const para = r.segments.find((s) => s.text.includes("line one of para"));
+    expect(para).toBeDefined();
+    expect(para!.text).toContain("\n");
+    expect(para!.text).toContain("line three of para");
+    expect(para!.quoteEnd! - para!.quoteStart!).toBe(para!.text.length);
+  });
+});
+
+describe("resource release", () => {
+  test("doc.destroy() runs even when page parsing throws", async () => {
+    const destroy = vi.fn().mockResolvedValue(undefined);
+    const getPage = vi.fn().mockRejectedValue(new Error("mid-parse failure"));
+    vi.doMock("pdfjs-dist/legacy/build/pdf.mjs", () => ({
+      getDocument: () => ({ promise: Promise.resolve({ numPages: 1, getPage, destroy }) }),
+    }));
+    vi.resetModules();
+    const { extractPdfSegments: fresh } = await import("../../src/pearnotes/pdf-extraction");
+    const pdf = makePdf([["x"]]);
+    await expect(fresh(pdf, OPTS)).rejects.toThrow("mid-parse failure");
+    expect(destroy).toHaveBeenCalledTimes(1);
+    vi.doUnmock("pdfjs-dist/legacy/build/pdf.mjs");
+    vi.resetModules();
   });
 });

@@ -9,7 +9,8 @@ function esc(s: string): string {
 }
 
 /** pages: array of pages; each page is an array of text lines (top→bottom). */
-export function makePdf(pages: string[][], opts?: { encrypted?: boolean }): Uint8Array {
+export function makePdf(pages: string[][], opts?: { encrypted?: boolean; lineGap?: number }): Uint8Array {
+  const gap = opts?.lineGap ?? 18;
   const objs: string[] = [];
   const pageIds: number[] = [];
   // obj 1: catalog, 2: pages, 3: font, then per page: content + page objects
@@ -17,7 +18,7 @@ export function makePdf(pages: string[][], opts?: { encrypted?: boolean }): Uint
   const pageObjs = pages.map((lines) => {
     const content = [
       "BT /F1 12 Tf",
-      ...lines.map((l, i) => `50 ${750 - i * 18} Td (${esc(l)}) Tj ET BT /F1 12 Tf`),
+      ...lines.map((l, i) => `50 ${750 - i * gap} Td (${esc(l)}) Tj ET BT /F1 12 Tf`),
       "ET",
     ].join("\n");
     const contentId = id++;

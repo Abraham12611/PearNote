@@ -86,7 +86,11 @@ export function paragraphsOfPage(items: PdfTextItem[]): {
   let cur: { start: number; parts: string[]; lastY: number | null } = { start: 0, parts: [], lastY: null };
 
   const flush = () => {
-    const text = cur.parts.join(" ").replace(/[ \t]+/g, " ").trim();
+    // Paragraph text must be an exact slice of the page text it cites —
+    // lines are joined with the same "\n" used to build pageText so
+    // `pageText.slice(quoteStart, quoteEnd) === text` always holds,
+    // including for multi-line paragraphs.
+    const text = cur.parts.join("\n").replace(/[ \t]+/g, " ").trim();
     if (!text) {
       cur = { start: pageText.length, parts: [], lastY: null };
       return;
