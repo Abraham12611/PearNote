@@ -60,7 +60,7 @@ async function seed() {
 describe("learningReview.review", () => {
   test("approve materializes subjects + draft curriculum, all private & draft", async () => {
     const { t, asA, jobId } = await seed();
-    const r = await asA.mutation(api.learningReview.review, { jobId, action: "approve" });
+    const r = await asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" });
     expect(r.subjectIds).toHaveLength(2);
     expect(r.curriculumVersionIds).toHaveLength(2);
     const [sub, ver, lessons] = await t.run(async (ctx) => [
@@ -79,8 +79,8 @@ describe("learningReview.review", () => {
 
   test("repeat approve is idempotent — identical ids, no duplicates", async () => {
     const { t, asA, jobId } = await seed();
-    const r1 = await asA.mutation(api.learningReview.review, { jobId, action: "approve" });
-    const r2 = await asA.mutation(api.learningReview.review, { jobId, action: "approve" });
+    const r1 = await asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" });
+    const r2 = await asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" });
     expect(r2).toEqual(r1);
     const subs = await t.run(async (ctx) => ctx.db.query("subjects").collect());
     expect(subs).toHaveLength(2); // not 4
@@ -88,49 +88,83 @@ describe("learningReview.review", () => {
 
   test("B cannot review A's job (guessed id → UNAUTHORIZED, not null leak)", async () => {
     const { asB, jobId } = await seed();
-    await expect(asB.mutation(api.learningReview.review, { jobId, action: "approve" }))
+    await expect(asB.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" }))
       .rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
-    await expect(asB.mutation(api.learningReview.review, { jobId, action: "reject" }))
+    await expect(asB.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "reject" }))
       .rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
   });
 
   test("anonymous review denied", async () => {
     const { t, jobId } = await seed();
-    await expect(t.mutation(api.learningReview.review, { jobId, action: "approve" }))
+    await expect(t.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" }))
       .rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
   });
 
+  test("missing revision on non-terminal action → INVALID_INPUT", async () => {
+    const { asA, jobId } = await seed();
+    await expect(asA.mutation(api.learningReview.review, { jobId, action: "approve" }))
+      .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+    await expect(asA.mutation(api.learningReview.review, { jobId, action: "reject" }))
+      .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+  });
+  test("discard-first + rename-second keeps original indices", async () => {
+    const { t, asA, jobId } = await seed();
+    const r = await asA.mutation(api.learningReview.review, {
+      jobId, expectedProposalRevision: 0, action: "approve",
+      edits: { discardSubjects: [0], renameSubjects: [{ index: 1, name: "Renamed Transport" }] },
+    });
+    const s0 = await t.run(async (ctx) => ctx.db.get(r.subjectIds[0]));
+    expect(s0?.name).toBe("Renamed Transport");
+  });
+  test("per-subject grounding: concepts/lessons only attach where segments intersect", async () => {
+    const { t, asA, jobId } = await seed();
+    const r = await asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" });
+    const [concepts, v0, v1] = await t.run(async (ctx) => [
+      await ctx.db.query("concepts").collect() as Doc<"concepts">[],
+      await ctx.db.get(r.curriculumVersionIds[0]) as Doc<"curriculumVersions"> | null,
+      await ctx.db.get(r.curriculumVersionIds[1]) as Doc<"curriculumVersions"> | null,
+    ]);
+    // Diffusion concept cites s2 → must attach to the s2 subject, not both
+    expect(concepts).toHaveLength(1);
+    expect(concepts[0].subjectId).toBe(r.subjectIds[1]);
+    // Sections only under the version whose subject cites the lesson segments
+    const secsUnder = async (v: Doc<"curriculumVersions"> | null) =>
+      v === null ? 0 : (await t.run(async (ctx) =>
+        ctx.db.query("sections").withIndex("by_version_order", (q) => q.eq("versionId", v._id)).collect())).length;
+    expect(await secsUnder(v0)).toBe(0);  // s1 subject: no lesson cites s1
+    expect(await secsUnder(v1)).toBe(1);  // s2 subject owns the diffusion lesson
+  });
   test("stale revision → CONFLICT", async () => {
     const { asA, jobId } = await seed();
-    await expect(asA.mutation(api.learningReview.review, { jobId, action: "approve", expectedProposalRevision: 7 }))
+    await expect(asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve", expectedProposalRevision: 7 }))
       .rejects.toMatchObject({ data: { code: "CONFLICT" } });
-    await asA.mutation(api.learningReview.review, { jobId, action: "approve", expectedProposalRevision: 0 });
+    await asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve", expectedProposalRevision: 0 });
   });
 
   test("reject is terminal; approve-after-reject → CONFLICT; re-reject idempotent", async () => {
     const { asA, jobId } = await seed();
-    const r = await asA.mutation(api.learningReview.review, { jobId, action: "reject" });
+    const r = await asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "reject" });
     expect(r.state).toBe("rejected");
-    await expect(asA.mutation(api.learningReview.review, { jobId, action: "approve" }))
+    await expect(asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" }))
       .rejects.toMatchObject({ data: { code: "CONFLICT" } });
-    const r2 = await asA.mutation(api.learningReview.review, { jobId, action: "reject" });
+    const r2 = await asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "reject" });
     expect(r2.state).toBe("rejected");
   });
 
   test("edits whitelist: discard-all → INVALID; rename applies; attach to foreign subject → UNAUTHORIZED", async () => {
     const { t, aId, bId, asA, jobId } = await seed();
     await expect(asA.mutation(api.learningReview.review, {
-      jobId, action: "approve", edits: { discardSubjects: [0, 1] },
+      jobId, expectedProposalRevision: 0, action: "approve", edits: { discardSubjects: [0, 1] },
     })).rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
     // Attach to B's subject — ownership re-checked
     const bSub = await t.run(async (ctx) =>
       ctx.db.insert("subjects", { ownerId: bId, name: "b's", status: "manual_empty", createdAt: 1, updatedAt: 1 }));
     await expect(asA.mutation(api.learningReview.review, {
-      jobId, action: "approve", edits: { attachToSubjectId: bSub },
+      jobId, expectedProposalRevision: 0, action: "approve", edits: { attachToSubjectId: bSub },
     })).rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
     // Rename works
     const r = await asA.mutation(api.learningReview.review, {
-      jobId, action: "approve", edits: { renameSubjects: [{ index: 0, name: "My Bio" }], discardSubjects: [1] },
+      jobId, expectedProposalRevision: 0, action: "approve", edits: { renameSubjects: [{ index: 0, name: "My Bio" }], discardSubjects: [1] },
     });
     const s0 = await t.run(async (ctx) => ctx.db.get(r.subjectIds[0]));
     expect(s0?.name).toBe("My Bio");
@@ -152,7 +186,7 @@ describe("learningReview.review", () => {
       p.suggestedSubjects[0].segmentIds = [evil];
       await ctx.db.patch(prop!._id, { proposal: p });
     });
-    await expect(asA.mutation(api.learningReview.review, { jobId, action: "approve" }))
+    await expect(asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" }))
       .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
   });
 });

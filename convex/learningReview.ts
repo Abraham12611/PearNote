@@ -8,14 +8,18 @@
  * Trust model: the proposal is untrusted data the learner saw and chose.
  * Every segmentId is re-verified against THIS job's source at approval time;
  * ownership is never taken from the client; edits are whitelisted fields.
+ * Per-subject grounding: concepts, subjectSources links and draft lessons
+ * are filtered to segments actually assigned to each subject — nothing
+ * cross-subject is ever fabricated or shared.
  */
 import { ConvexError, v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, type MutationCtx } from "./_generated/server";
 import { requireLearnerId } from "./learningAuth";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 
 const err = (code: string, message: string) => new ConvexError({ code, message });
 const NAME_MAX = 120;
+const MAX_VERSION_SCAN = 50; // bounded head-version check; subjects need far fewer
 
 const reviewEdit = v.object({
   /** New display names, keyed by suggestedSubjects array index. */
@@ -41,7 +45,7 @@ export const review = mutation({
   args: {
     jobId: v.id("importJobs"),
     action: v.union(v.literal("approve"), v.literal("reject")),
-    /** Optimistic concurrency — must equal proposal.revision ?? 0. */
+    /** Optimistic concurrency — required for non-terminal transitions. */
     expectedProposalRevision: v.optional(v.number()),
     edits: v.optional(reviewEdit),
   },
@@ -58,14 +62,9 @@ export const review = mutation({
       .first();
     if (proposal === null) throw err("INVALID_STATE", "no proposal for job");
 
-    // 2) Optimistic concurrency — a stale UI can't approve unseen content.
-    if (expectedProposalRevision !== undefined && expectedProposalRevision !== (proposal.revision ?? 0)) {
-      throw err("CONFLICT", "proposal changed since you viewed it; reload and re-review");
-    }
-
-    // 3) Transitions: needs_review + pending|user_edited → accepted|rejected.
-    //    Repeat of the same terminal action = idempotent return; opposite
-    //    action on a terminal proposal = CONFLICT.
+    // 2) Terminal proposals: exact repeat of the same action is an idempotent
+    //    no-op; the opposite action is a conflict. No revision needed here —
+    //    nothing can change underneath the caller.
     const now = Date.now();
     if (proposal.state === "accepted") {
       if (action !== "approve") throw err("CONFLICT", "proposal already accepted");
@@ -75,6 +74,15 @@ export const review = mutation({
     if (proposal.state === "rejected") {
       if (action !== "reject") throw err("CONFLICT", "proposal already rejected");
       return { proposalId: proposal._id, state: "rejected" as const, subjectIds: [], curriculumVersionIds: [] };
+    }
+
+    // 3) Non-terminal transition requires the revision the learner saw —
+    //    a stale UI can't approve unseen content.
+    if (expectedProposalRevision === undefined) {
+      throw err("INVALID_INPUT", "expectedProposalRevision required");
+    }
+    if (expectedProposalRevision !== (proposal.revision ?? 0)) {
+      throw err("CONFLICT", "proposal changed since you viewed it; reload and re-review");
     }
     if (job.state !== "needs_review") {
       throw err("INVALID_STATE", `job is ${job.state}, not needs_review`);
@@ -86,7 +94,8 @@ export const review = mutation({
       return { proposalId: proposal._id, state: "rejected" as const, subjectIds: [], curriculumVersionIds: [] };
     }
 
-    // 4) APPROVE — validate edits against a whitelist.
+    // 4) APPROVE — validate edits against a whitelist, keeping ORIGINAL
+    //    suggestedSubjects indices so discards can't shift renames.
     const subjectsIn = proposal.proposal.suggestedSubjects;
     const discarded = new Set(edits?.discardSubjects ?? []);
     for (const i of discarded) {
@@ -99,15 +108,19 @@ export const review = mutation({
       if (name.length === 0 || name.length > NAME_MAX) throw err("INVALID_INPUT", "subject name must be 1-120 chars");
       renames.set(r.index, name);
     }
-    const kept = subjectsIn.filter((_, i) => !discarded.has(i));
+    const kept = subjectsIn
+      .map((s, idx) => ({ s, idx }))
+      .filter(({ idx }) => !discarded.has(idx));
+    if (kept.length === 0) {
+      throw err("INVALID_INPUT", "nothing to approve: all suggested subjects discarded");
+    }
 
-    let attachTarget: Id<"subjects"> | null = null;
+    let attachTarget: Doc<"subjects"> | null = null;
     if (edits?.attachToSubjectId !== undefined) {
       const existing = await ctx.db.get(edits.attachToSubjectId);
       if (existing === null || existing.ownerId !== ownerId) throw err("UNAUTHORIZED", "attach target subject not found");
-      attachTarget = existing._id;
+      attachTarget = existing;
     }
-    if (kept.length === 0 && attachTarget === null) throw err("INVALID_INPUT", "nothing to approve: all suggested subjects discarded");
 
     // 5) Re-verify EVERY cited segment belongs to this job's source.
     const segs = await ctx.db
@@ -116,7 +129,7 @@ export const review = mutation({
       .take(500);
     const allowed = new Set(segs.map((s) => String(s._id)));
     const cited: string[] = [];
-    for (const s of kept) cited.push(...s.segmentIds);
+    for (const { s } of kept) cited.push(...s.segmentIds);
     for (const c of proposal.proposal.concepts) cited.push(...c.sourceSegmentIds);
     for (const sec of proposal.proposal.draftCurriculum?.sections ?? [])
       for (const u of sec.units)
@@ -126,84 +139,103 @@ export const review = mutation({
     }
 
     // 6) Materialize — atomic. Draft only: no published path, no activities,
-    //    no canvas, no attempts/mastery.
+    //    no canvas, no attempts/mastery. Everything filtered per subject.
     const mkRef = (segId: Id<"sourceSegments">) => ({ sourceId: job.sourceId, segmentId: segId });
     const subjectIds: Id<"subjects">[] = [];
     const versionIds: Id<"curriculumVersions">[] = [];
 
-    const primarySubject: Id<"subjects"> = attachTarget ?? await ctx.db.insert("subjects", {
-      ownerId,
-      name: renames.get(0) ?? kept[0].name,
-      status: "draft",
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    const targetIds: { subjectId: Id<"subjects">; segIds: Id<"sourceSegments">[]; name: string }[] = [];
+    // Targets: either the single attach subject, or one new subject per
+    // kept suggestion (original index preserved for renames).
+    const targets: { subjectId: Id<"subjects">; segIds: Set<string> }[] = [];
     if (attachTarget !== null) {
-      targetIds.push({ subjectId: attachTarget, segIds: kept.flatMap((s) => s.segmentIds), name: "" });
+      subjectIds.push(attachTarget._id);
+      targets.push({ subjectId: attachTarget._id, segIds: new Set(kept.flatMap(({ s }) => s.segmentIds.map(String))) });
     } else {
-      subjectIds.push(primarySubject);
-      targetIds.push({ subjectId: primarySubject, segIds: kept[0].segmentIds, name: kept[0].name });
-      for (const s of kept.slice(1)) {
+      for (const { s, idx } of kept) {
         const sid = await ctx.db.insert("subjects", {
-          ownerId, name: renames.get(subjectsIn.indexOf(s)) ?? s.name,
-          status: "draft", createdAt: now, updatedAt: now,
+          ownerId,
+          name: renames.get(idx) ?? s.name,
+          status: "draft",
+          createdAt: now,
+          updatedAt: now,
         });
         subjectIds.push(sid);
-        targetIds.push({ subjectId: sid, segIds: s.segmentIds, name: s.name });
+        targets.push({ subjectId: sid, segIds: new Set(s.segmentIds.map(String)) });
+      }
+    }
+    const primarySubject = targets[0].subjectId;
+
+    // subjectSources links — deduped segment list, and deduped row: never
+    // create a second link when the pair already exists (e.g. attach re-run).
+    for (const t of targets) {
+      const segIds = [...new Set([...t.segIds])] as Id<"sourceSegments">[];
+      const existing = await ctx.db
+        .query("subjectSources")
+        .withIndex("by_subject_source", (q) => q.eq("subjectId", t.subjectId).eq("sourceId", job.sourceId))
+        .first();
+      if (existing === null) {
+        await ctx.db.insert("subjectSources", {
+          subjectId: t.subjectId, sourceId: job.sourceId, segmentIds: segIds,
+          origin: "ai_proposal", createdAt: now,
+        });
+      } else {
+        const merged = [...new Set([...existing.segmentIds, ...segIds])];
+        await ctx.db.patch(existing._id, { segmentIds: merged });
       }
     }
 
-    // subjectSources links (deduped segment list per subject).
-    for (const t of targetIds) {
-      await ctx.db.insert("subjectSources", {
-        subjectId: t.subjectId, sourceId: job.sourceId,
-        segmentIds: [...new Set(t.segIds)], origin: "ai_proposal", createdAt: now,
-      });
-    }
-
-    // Concepts attach to the primary/target subject (documented v1 limit).
-    const conceptIds: Id<"concepts">[] = [];
+    // Per-subject concepts: a concept attaches to a target only when its
+    // verified segments intersect that subject's assigned segments — never
+    // a cross-subject conceptId. Concepts matching no subject still ground
+    // in the source; they attach to the primary target (documented v1 rule).
+    const conceptIdsBySubject = new Map<Id<"subjects">, Id<"concepts">[]>();
     for (const c of proposal.proposal.concepts) {
-      conceptIds.push(await ctx.db.insert("concepts", {
-        subjectId: primarySubject, label: c.label, summary: c.summary,
+      const cSegs = new Set(c.sourceSegmentIds.map(String));
+      const home = targets.find((t) => [...t.segIds].some((id) => cSegs.has(id))) ?? targets[0];
+      const cid = await ctx.db.insert("concepts", {
+        subjectId: home.subjectId, label: c.label, summary: c.summary,
         provenance: "ai_proposal",
         sourceRefs: c.sourceSegmentIds.map((id) => mkRef(id)),
         createdAt: now,
-      }));
+      });
+      const list = conceptIdsBySubject.get(home.subjectId) ?? [];
+      list.push(cid);
+      conceptIdsBySubject.set(home.subjectId, list);
     }
 
-    // DRAFT curriculum version per target subject — version = next number.
-    for (const t of targetIds) {
-      const prior = await ctx.db
-        .query("curriculumVersions")
-        .withIndex("by_subject", (q) => q.eq("subjectId", t.subjectId))
-        .collect();
+    // DRAFT curriculum version per target — hierarchy filtered to lessons
+    // whose cited segments intersect the subject's assigned segments.
+    // Empty units/sections are dropped rather than faking coverage.
+    const dc = proposal.proposal.draftCurriculum;
+    for (const t of targets) {
+      const nextVersion = await nextVersionNo(ctx, t.subjectId);
       const versionId = await ctx.db.insert("curriculumVersions", {
-        subjectId: t.subjectId,
-        version: prior.length === 0 ? 1 : Math.max(...prior.map((v0) => v0.version)) + 1,
-        state: "draft",
-        generatedFromJobId: String(jobId),
-        createdAt: now,
+        subjectId: t.subjectId, version: nextVersion, state: "draft",
+        generatedFromJobId: String(jobId), createdAt: now,
       });
       versionIds.push(versionId);
-      const dc = proposal.proposal.draftCurriculum;
       if (dc === undefined) continue;
+      const myConcepts = conceptIdsBySubject.get(t.subjectId) ?? [];
       let sOrder = 0;
       for (const sec of dc.sections) {
+        const keptUnits: { title: string; lessons: typeof sec.units[number]["lessons"] }[] = [];
+        for (const u of sec.units) {
+          const keptLessons = u.lessons.filter((l) =>
+            l.sourceSegmentIds.some((id) => t.segIds.has(String(id))),
+          );
+          if (keptLessons.length > 0) keptUnits.push({ title: u.title, lessons: keptLessons });
+        }
+        if (keptUnits.length === 0) continue;
         const sectionId = await ctx.db.insert("sections", { versionId, order: sOrder++, title: sec.title });
         let uOrder = 0;
-        for (const u of sec.units) {
+        for (const u of keptUnits) {
           const unitId = await ctx.db.insert("units", { sectionId, order: uOrder++, title: u.title });
           let lOrder = 0;
           for (const l of u.lessons) {
-            // Each lesson objective string → objective row carrying the
-            // lesson's verified segment refs; lesson pins those ids.
             const objectiveIds: Id<"objectives">[] = [];
             for (const stmt of l.objectives) {
               objectiveIds.push(await ctx.db.insert("objectives", {
-                subjectId: t.subjectId, conceptIds, statement: stmt, createdAt: now,
+                subjectId: t.subjectId, conceptIds: myConcepts, statement: stmt, createdAt: now,
               }));
             }
             await ctx.db.insert("lessons", {
@@ -226,3 +258,13 @@ export const review = mutation({
     return { proposalId: proposal._id, state: "accepted" as const, subjectIds, curriculumVersionIds: versionIds };
   },
 });
+
+/** Next curriculum version for a subject — bounded take, not full collect. */
+async function nextVersionNo(ctx: MutationCtx, subjectId: Id<"subjects">): Promise<number> {
+  const recent = await ctx.db
+    .query("curriculumVersions")
+    .withIndex("by_subject", (q) => q.eq("subjectId", subjectId))
+    .order("desc")
+    .take(MAX_VERSION_SCAN);
+  return recent.length === 0 ? 1 : Math.max(...recent.map((v0) => v0.version)) + 1;
+}
