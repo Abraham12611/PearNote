@@ -96,7 +96,7 @@ export const getProposal = query({
       ),
       proposal: importProposalShape,
       // The concurrency token review() requires — the UI must echo it back.
-      revision: v.optional(v.number()),
+      revision: v.number(),
     }),
     v.null(),
   ),
