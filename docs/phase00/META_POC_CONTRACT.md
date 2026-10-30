@@ -143,6 +143,7 @@ review({
     renameSubjects?: [{ index, name }],        // index into suggestedSubjects
     discardSubjects?: number[],                 // drop proposed subjects
     attachToSubjectId?: Id<"subjects">,         // attach to existing OWNED subject
+    acceptOmissions?: boolean,                  // consent to drop cross-subject items
   },
 }) → {
   proposalId: Id<"importProposals">,
@@ -161,7 +162,11 @@ review({
   sections/units/lessons (specVersion 1, no canvasSpaceId). Nothing is ever
   published here; no attempts/mastery/XP are created.
 - Errors (ConvexError data.code): `UNAUTHORIZED`, `INVALID_STATE`,
-  `INVALID_INPUT`, `CONFLICT`. Not-owner is indistinguishable from missing.
+  `INVALID_INPUT`, `CONFLICT`, `NEEDS_REVIEW` (ambiguous cross-subject
+  citations without `acceptOmissions` — reassign or resubmit with consent).
+  Not-owner is indistinguishable from missing.
+- `storeProposal` initializes `revision: 0` and bumps it when re-storing a
+  still-pending proposal; `getProposal` returns `revision ?? 0` for legacy rows.
 - UI flow: getProposal → learner edits → review({jobId, approve, edits,
   expectedProposalRevision}) → subjects.listMine shows new drafts.
 - `getProposal` now returns `revision` — the UI must echo it as

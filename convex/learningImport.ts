@@ -106,7 +106,7 @@ export const getProposal = query({
       .query("importProposals")
       .withIndex("by_job", (q) => q.eq("jobId", jobId))
       .first();
-    return row === null ? null : { _id: row._id, state: row.state, proposal: row.proposal, revision: row.revision };
+    return row === null ? null : { _id: row._id, state: row.state, proposal: row.proposal, revision: row.revision ?? 0 };
   },
 });
 
@@ -167,13 +167,14 @@ export const storeProposal = internalMutation({
       .withIndex("by_job", (q) => q.eq("jobId", jobId))
       .first();
     if (existing) {
-      // A re-run replaces a still-pending proposal; a user-edited one is kept.
+      // A re-run replaces a still-pending proposal and bumps its revision —
+      // any UI holding the old revision correctly fails review().
       if (existing.state === "pending") {
-        await ctx.db.patch(existing._id, { proposal, updatedAt: now });
+        await ctx.db.patch(existing._id, { proposal, revision: (existing.revision ?? 0) + 1, updatedAt: now });
         return existing._id;
       }
       return existing._id;
     }
-    return await ctx.db.insert("importProposals", { jobId, state: "pending", proposal, createdAt: now, updatedAt: now });
+    return await ctx.db.insert("importProposals", { jobId, state: "pending", proposal, revision: 0, createdAt: now, updatedAt: now });
   },
 });

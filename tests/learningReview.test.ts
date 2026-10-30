@@ -18,7 +18,7 @@ const modules = import.meta.glob([
 type T = ReturnType<typeof convexTest>;
 type Segs = { s1: Id<"sourceSegments">; s2: Id<"sourceSegments"> };
 
-async function seed() {
+async function seed(opts: { withBoundary?: boolean } = {}) {
   const t = convexTest(schema, modules);
   const [aId, bId] = await t.run(async (ctx) => [
     await ctx.db.insert("users", { name: "ada" }),
@@ -46,16 +46,18 @@ async function seed() {
         concepts: [
           { label: "Diffusion", summary: "net movement down gradient", sourceSegmentIds: [s2],
             evidence: [{ segmentId: s2, quote: "diffusion moves molecules" }] },
-          // Boundary concept: cites segments across BOTH subjects — under the
-          // strict-subject rule it must be skipped, never re-homed.
-          { label: "BoundaryConcept", summary: "spans both", sourceSegmentIds: [s1, s2],
-            evidence: [{ segmentId: s1, quote: "cells are the unit of life" }, { segmentId: s2, quote: "diffusion moves molecules" }] },
+          ...(opts.withBoundary ? [{
+            label: "BoundaryConcept", summary: "spans both", sourceSegmentIds: [s1, s2],
+            evidence: [{ segmentId: s1, quote: "cells are the unit of life" }, { segmentId: s2, quote: "diffusion moves molecules" }],
+          }] : []),
         ],
         draftCurriculum: { sections: [{ title: "Cells", units: [{ title: "Structure", lessons: [
           { title: "Membranes", objectives: ["describe diffusion"], sourceSegmentIds: [s2],
             evidence: [{ segmentId: s2, quote: "diffusion moves molecules" }] },
-          { title: "CrossSubject", objectives: ["cross ref"], sourceSegmentIds: [s1, s2],
-            evidence: [{ segmentId: s1, quote: "cells are the unit of life" }] }] }] }] },
+          ...(opts.withBoundary ? [{
+            title: "CrossSubject", objectives: ["cross ref"], sourceSegmentIds: [s1, s2],
+            evidence: [{ segmentId: s1, quote: "cells are the unit of life" }],
+          }] : [])] }] }] },
         warnings: [],
       },
       revision: 0, createdAt: 1, updatedAt: 1,
@@ -124,9 +126,13 @@ describe("learningReview.review", () => {
     const s0 = await t.run(async (ctx) => ctx.db.get(r.subjectIds[0]));
     expect(s0?.name).toBe("Renamed Transport");
   });
-  test("per-subject grounding: concepts/lessons only attach where segments intersect", async () => {
-    const { t, asA, jobId } = await seed();
-    const r = await asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" });
+  test("ambiguous cross-subject items → NEEDS_REVIEW without consent; skipped with consent", async () => {
+    const { t, asA, jobId } = await seed({ withBoundary: true });
+    await expect(asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve" }))
+      .rejects.toMatchObject({ data: { code: "NEEDS_REVIEW" } });
+    const r = await asA.mutation(api.learningReview.review, {
+      jobId, expectedProposalRevision: 0, action: "approve", edits: { acceptOmissions: true },
+    });
     const [concepts, v0, v1] = await t.run(async (ctx) => [
       await ctx.db.query("concepts").collect() as Doc<"concepts">[],
       await ctx.db.get(r.curriculumVersionIds[0]) as Doc<"curriculumVersions"> | null,
@@ -145,16 +151,23 @@ describe("learningReview.review", () => {
     expect(lessons).toHaveLength(1);      // CrossSubject lesson dropped from BOTH
     expect(lessons[0].title).toBe("Membranes");
   });
-  test("getProposal exposes revision for optimistic concurrency", async () => {
-    const { asA, jobId } = await seed();
+  test("getProposal exposes revision; re-store bumps it and stale review conflicts", async () => {
+    const { t, asA, jobId } = await seed();
     const row = await asA.query(api.learningImport.getProposal, { jobId });
     expect(row?.revision).toBe(0);
+    // Real storage path: a second storeProposal on the pending row bumps revision.
+    await t.mutation(api.learningImport.storeProposal, { jobId, proposal: row!.proposal });
+    const row2 = await asA.query(api.learningImport.getProposal, { jobId });
+    expect(row2?.revision).toBe(1);
+    await expect(asA.mutation(api.learningReview.review, { jobId, action: "approve", expectedProposalRevision: 0 }))
+      .rejects.toMatchObject({ data: { code: "CONFLICT" } });
+    await asA.mutation(api.learningReview.review, { jobId, action: "approve", expectedProposalRevision: 1 });
   });
   test("stale revision → CONFLICT", async () => {
     const { asA, jobId } = await seed();
-    await expect(asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve", expectedProposalRevision: 7 }))
+    await expect(asA.mutation(api.learningReview.review, { jobId, action: "approve", expectedProposalRevision: 7 }))
       .rejects.toMatchObject({ data: { code: "CONFLICT" } });
-    await asA.mutation(api.learningReview.review, { jobId, expectedProposalRevision: 0, action: "approve", expectedProposalRevision: 0 });
+    await asA.mutation(api.learningReview.review, { jobId, action: "approve", expectedProposalRevision: 0 });
   });
 
   test("reject is terminal; approve-after-reject → CONFLICT; re-reject idempotent", async () => {
@@ -180,7 +193,7 @@ describe("learningReview.review", () => {
     })).rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
     // Rename works
     const r = await asA.mutation(api.learningReview.review, {
-      jobId, expectedProposalRevision: 0, action: "approve", edits: { renameSubjects: [{ index: 0, name: "My Bio" }], discardSubjects: [1] },
+      jobId, expectedProposalRevision: 0, action: "approve", edits: { renameSubjects: [{ index: 0, name: "My Bio" }], discardSubjects: [1], acceptOmissions: true },
     });
     const s0 = await t.run(async (ctx) => ctx.db.get(r.subjectIds[0]));
     expect(s0?.name).toBe("My Bio");

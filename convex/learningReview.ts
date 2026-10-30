@@ -32,6 +32,9 @@ const reviewEdit = v.object({
    * create new subjects — never a silent merge/overwrite.
    */
   attachToSubjectId: v.optional(v.id("subjects")),
+  /** Explicit learner consent to omit concepts/lessons whose citations
+   *  cross subject boundaries. Without it, ambiguous approval is refused. */
+  acceptOmissions: v.optional(v.boolean()),
 });
 
 const reviewResult = v.object({
@@ -164,6 +167,24 @@ export const review = mutation({
       }
     }
     const primarySubject = targets[0].subjectId;
+
+    // Ambiguity gate: count items the strict rule would drop. Without
+    // explicit acceptOmissions consent, refuse BEFORE writing any draft.
+    const skippedConcepts = proposal.proposal.concepts.filter((c) =>
+      !targets.some((t) => c.sourceSegmentIds.every((id) => t.segIds.has(String(id)))),
+    );
+    const skippedLessons: string[] = [];
+    for (const sec of proposal.proposal.draftCurriculum?.sections ?? [])
+      for (const u of sec.units)
+        for (const l of u.lessons)
+          if (!targets.some((t) => l.sourceSegmentIds.every((id) => t.segIds.has(String(id)))))
+            skippedLessons.push(l.title);
+    if ((skippedConcepts.length > 0 || skippedLessons.length > 0) && edits?.acceptOmissions !== true) {
+      throw err(
+        "NEEDS_REVIEW",
+        `${skippedConcepts.length + skippedLessons.length} items cite segments outside every approved subject — reassign segments or consent to omissions`,
+      );
+    }
 
     // subjectSources links — deduped segment list, and deduped row: never
     // create a second link when the pair already exists (e.g. attach re-run).
