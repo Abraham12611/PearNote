@@ -327,6 +327,9 @@ export const importJobs = defineTable({
   error: v.optional(v.string()),
   // Extraction warnings (codes/messages — never document text).
   extractionWarnings: v.optional(v.array(v.string())),
+  // Explicit per-job owner consent for a paid model call — the deployment
+  // PDF_MODEL_AUTHORIZED flag alone is never sufficient.
+  modelAuthorized: v.optional(v.boolean()),
   // Provider facts for audit/eval: model id + prompt version, never secrets.
   model: v.optional(v.string()),
   promptVersion: v.optional(v.number()),

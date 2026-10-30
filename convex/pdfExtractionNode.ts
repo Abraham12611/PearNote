@@ -36,8 +36,16 @@ export const extractAndStore = internalAction({
     if (job === null) return { ok: false, detail: "job not found", segments: 0, warnings: [] };
     if (job.mime !== "application/pdf") return { ok: false, detail: `not a pdf: ${job.mime}`, segments: 0, warnings: [] };
 
+    // Dedupe: segments already persisted → no re-extract, no double insert.
+    const existing = await ctx.runQuery(internal.ingestMeta.jobSegments, { jobId });
+    if (existing.length > 0) return { ok: true, detail: "already_extracted", segments: existing.length, warnings: [] };
+
     const blob = await ctx.storage.get(job.storageId as Id<"_storage">);
     if (blob === null) return { ok: false, detail: "source blob missing", segments: 0, warnings: [] };
+    // Bound BEFORE reading bytes into memory — never pull an oversized blob.
+    if (blob.size > LIMITS.maxBytes) {
+      return { ok: false, detail: `oversized: ${blob.size}B exceeds limit ${LIMITS.maxBytes}B`, segments: 0, warnings: [] };
+    }
     const bytes = new Uint8Array(await blob.arrayBuffer());
 
     try {

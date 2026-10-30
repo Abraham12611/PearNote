@@ -127,6 +127,13 @@ export const recordSegments = internalMutation({
   },
   returns: v.array(v.id("sourceSegments")),
   handler: async (ctx, { sourceId, segments }) => {
+    // Idempotent: a source that already has segments is never re-populated —
+    // duplicate extraction runs cannot create duplicate rows.
+    const existing = await ctx.db
+      .query("sourceSegments")
+      .withIndex("by_source_number", (q) => q.eq("sourceId", sourceId))
+      .first();
+    if (existing !== null) return [];
     const now = Date.now();
     const ids: Id<"sourceSegments">[] = [];
     for (const s of segments) {
@@ -137,6 +144,22 @@ export const recordSegments = internalMutation({
 });
 
 /** Ingestion-internal: advance the job state machine, recording model facts. */
+/**
+ * `imports.authorizeModelCall` — explicit per-job owner consent for the paid
+ * provider step (PDF sources). Deployment env flag alone never suffices.
+ */
+export const authorizeModelCall = mutation({
+  args: { jobId: v.id("importJobs") },
+  returns: v.object({ ok: v.boolean() }),
+  handler: async (ctx, { jobId }) => {
+    const ownerId = await requireLearnerId(ctx);
+    const job = await ctx.db.get(jobId);
+    if (job === null || job.ownerId !== ownerId) throw err("UNAUTHORIZED", "job not found");
+    await ctx.db.patch(jobId, { modelAuthorized: true, updatedAt: Date.now() });
+    return { ok: true };
+  },
+});
+
 export const setJobState = internalMutation({
   args: {
     jobId: v.id("importJobs"),
