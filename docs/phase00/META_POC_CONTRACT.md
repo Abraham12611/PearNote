@@ -177,3 +177,19 @@ review({
   primary subject, never trimmed silently.
 - v1 limits documented: unsupported edit kinds (merge/split beyond index
   ops) are rejected by arg validation — do not pretend they save.
+
+## 10. PDF ingestion path (Issue #36)
+
+- `application/pdf` jobs: `runJob` routes to Node-runtime
+  `internal.pdfExtractionNode.extractAndStore` → `extractPdfSegments`
+  (Engineer 1 parser) → `recordSegments` → then proceeds.
+- Persisted per segment: `{segmentNo, page, text, kind?}` — `quoteStart/
+  quoteEnd` intentionally NOT stored (offsets reference parser-internal
+  pageText; option (B) per PDF_EXTRACTION_CONTRACT.md).
+- Caps: 20MB / 50 pages / 200 segments / 120k chars; warnings stored on
+  `importJobs.extractionWarnings` (codes/messages, never doc text).
+- New job state `awaiting_model`: PDF jobs park here after extraction when
+  `PDF_MODEL_AUTHORIZED` env ≠ "1" on the deployment — durable cost gate,
+  no silent paid call. Re-running runJob resumes when authorized.
+- Idempotency: `runJob` returns `already_<state>` for terminal jobs —
+  retries can't duplicate segments or re-trigger a paid call.

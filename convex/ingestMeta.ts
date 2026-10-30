@@ -12,6 +12,8 @@ import { internalAction, internalQuery } from "./_generated/server";
 import { anyApi } from "convex/server";
 const internal = anyApi;
 import { chat, META_PROMPT_VERSION, META_SPARK } from "./metaClient";
+import { importJobState } from "./tables/learning";
+declare const process: { env: Record<string, string | undefined> };
 import { checkCitations, checkEvidence, parseProposal, resolveSegmentIds } from "./metaProposal";
 import type { Doc } from "./_generated/dataModel";
 
@@ -32,19 +34,42 @@ export const runJob = internalAction({
   handler: async (ctx, { jobId }) => {
     const job = await ctx.runQuery(internal.ingestMeta.jobDoc, { jobId });
     if (job === null) return { ok: false, detail: "job not found" };
+    // Idempotency: a completed/terminal job is never re-processed — a retry
+    // can never trigger a second paid model call or duplicate segments.
+    if (["needs_review", "accepted", "building", "ready", "cancelled"].includes(job.state)) {
+      return { ok: true, detail: `already_${job.state}` };
+    }
     await ctx.runMutation(internal.learningImport.setJobState, { jobId, state: "extracting" });
     let segments = await ctx.runQuery(internal.ingestMeta.jobSegments, { jobId });
     if (segments.length === 0) {
-      // Bounded extraction: pasted/plain text only. Blob reads are action-
-      // only (ctx.storage.get), so this runs here, not in a mutation. PDF
-      // parsing is a Phase 01 decision — flag it honestly, never fake text.
-      if (job.mime !== "text/plain") {
+      if (job.mime === "application/pdf") {
+        // Node-runtime parser path — segments appear via recordSegments.
+        const res = await ctx.runAction(internal.pdfExtractionNode.extractAndStore, { jobId });
+        if (!res.ok) {
+          await ctx.runMutation(internal.learningImport.setJobState, {
+            jobId, state: "failed", error: `IMPORT_FAILED: ${res.detail}`,
+            extractionWarnings: res.warnings,
+          });
+          return { ok: false, detail: res.detail };
+        }
+        segments = await ctx.runQuery(internal.ingestMeta.jobSegments, { jobId });
+        // COST GATE: PDF→model step stays parked until the owner authorizes
+        // spend on this deployment (PDF_MODEL_AUTHORIZED=1). Extraction
+        // results are real and reviewable; no silent paid call ever runs.
+        if (segments.length > 0 && process.env.PDF_MODEL_AUTHORIZED !== "1") {
+          await ctx.runMutation(internal.learningImport.setJobState, {
+            jobId, state: "awaiting_model",
+            error: "PDF extracted; model step awaiting owner billing authorization",
+          });
+          return { ok: true, detail: "awaiting_model" };
+        }
+      } else if (job.mime !== "text/plain") {
         await ctx.runMutation(internal.learningImport.setJobState, {
-          jobId, state: "failed", error: "IMPORT_FAILED: server-side extraction for " + job.mime + " not yet implemented",
+          jobId, state: "failed", error: "IMPORT_FAILED: server-side extraction for " + job.mime + " not supported",
         });
         return { ok: false, detail: "unsupported_mime" };
       }
-      const blob = await ctx.storage.get(job.storageId);
+      const blob = job.mime === "text/plain" ? await ctx.storage.get(job.storageId) : null;
       const text = blob === null ? "" : await blob.text();
       const paras = text
         .split(/\n\s*\n|\r\n\s*\r\n/)
@@ -141,6 +166,7 @@ export const jobDoc = internalQuery({
       sourceTitle: v.string(),
       mime: v.string(),
       storageId: v.id("_storage"),
+      state: importJobState,
     }),
     v.null(),
   ),
@@ -150,7 +176,7 @@ export const jobDoc = internalQuery({
     const source = await ctx.db.get(job.sourceId);
     return source === null
       ? null
-      : { sourceId: job.sourceId, sourceTitle: source.title, mime: source.mime, storageId: source.storageId };
+      : { sourceId: job.sourceId, sourceTitle: source.title, mime: source.mime, storageId: source.storageId, state: job.state };
   },
 });
 

@@ -144,6 +144,7 @@ export const setJobState = internalMutation({
     error: v.optional(v.string()),
     model: v.optional(v.string()),
     promptVersion: v.optional(v.number()),
+    extractionWarnings: v.optional(v.array(v.string())),
   },
   returns: v.null(),
   handler: async (ctx, args) => {

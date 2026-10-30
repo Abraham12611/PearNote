@@ -312,6 +312,7 @@ export const importJobState = v.union(
   v.literal("ready"),
   v.literal("failed"),
   v.literal("cancelled"),
+  v.literal("awaiting_model"), // extracted; paid model step gated on owner auth
 );
 
 /**
@@ -324,6 +325,8 @@ export const importJobs = defineTable({
   idempotencyKey: v.string(),
   state: importJobState,
   error: v.optional(v.string()),
+  // Extraction warnings (codes/messages — never document text).
+  extractionWarnings: v.optional(v.array(v.string())),
   // Provider facts for audit/eval: model id + prompt version, never secrets.
   model: v.optional(v.string()),
   promptVersion: v.optional(v.number()),

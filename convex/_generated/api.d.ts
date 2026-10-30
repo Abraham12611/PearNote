@@ -42,6 +42,7 @@ import type * as migrations from "../migrations.js";
 import type * as nebius from "../nebius.js";
 import type * as otp from "../otp.js";
 import type * as paint from "../paint.js";
+import type * as pdfExtractionNode from "../pdfExtractionNode.js";
 import type * as photos from "../photos.js";
 import type * as pilot from "../pilot.js";
 import type * as playLab from "../playLab.js";
@@ -119,6 +120,7 @@ declare const fullApi: ApiFromModules<{
   nebius: typeof nebius;
   otp: typeof otp;
   paint: typeof paint;
+  pdfExtractionNode: typeof pdfExtractionNode;
   photos: typeof photos;
   pilot: typeof pilot;
   playLab: typeof playLab;
