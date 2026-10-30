@@ -44,8 +44,7 @@ export const runJob = internalAction({
     if (["needs_review", "accepted", "building", "ready", "cancelled"].includes(job.state)) {
       return { ok: true, detail: `already_${job.state}` };
     }
-    // In-flight guard: a job already classifying is being processed by a
-    // concurrent run — never let two runs race into the paid call.
+    // Fast-path in-flight check (the atomic claim below is the real guard).
     if (job.state === "classifying") return { ok: false, detail: "already_classifying" };
 
     await ctx.runMutation(internal.learningImport.setJobState, { jobId, state: "extracting" });
@@ -110,10 +109,20 @@ export const runJob = internalAction({
       .map((s: Doc<"sourceSegments">) => ({ id: s._id, page: s.page ?? null, text: s.text.slice(0, SEGMENT_TEXT_CAP) }))
       .slice(0, PROMPT_SEGMENT_CAP);
     const payloadText = JSON.stringify(payload).slice(0, PROMPT_TOTAL_CAP);
-    await ctx.runMutation(internal.learningImport.setJobState, { jobId, state: "classifying" });
+    // Atomic claim: exactly one permitted paid dispatch per source — two
+    // concurrent runs cannot both pass, and an ambiguous provider failure
+    // can never silently re-spend.
+    const claim = await ctx.runMutation(internal.learningImport.claimModelDispatch, { jobId });
+    if (!claim.claimed) {
+      await ctx.runMutation(internal.learningImport.setJobState, {
+        jobId, state: "awaiting_model",
+        error: `provider dispatch not permitted: ${claim.reason}`,
+      });
+      return { ok: false, detail: `model_not_claimed:${claim.reason}` };
+    }
     const res = await _deps.chat({
       system: SYSTEM,
-      user: `SOURCE TITLE: ${job.sourceTitle}\nSEGMENTS (JSON):\n${JSON.stringify(payload)}`,
+      user: `SOURCE TITLE: ${job.sourceTitle}\nSEGMENTS (JSON):\n${payloadText}`,
       json: true,
     });
 

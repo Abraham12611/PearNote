@@ -330,6 +330,10 @@ export const importJobs = defineTable({
   // Explicit per-job owner consent for a paid model call — the deployment
   // PDF_MODEL_AUTHORIZED flag alone is never sufficient.
   modelAuthorized: v.optional(v.boolean()),
+  // Set atomically by claimModelDispatch the instant a provider call is
+  // dispatched — once claimed it can NEVER be re-claimed, so a retry after
+  // an ambiguous provider failure can never silently re-spend.
+  modelClaimed: v.optional(v.boolean()),
   // Provider facts for audit/eval: model id + prompt version, never secrets.
   model: v.optional(v.string()),
   promptVersion: v.optional(v.number()),

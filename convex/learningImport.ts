@@ -59,6 +59,7 @@ const jobShape = {
   sourceId: v.id("sources"),
   state: importJobState,
   error: v.optional(v.string()),
+  extractionWarnings: v.optional(v.array(v.string())),
   createdAt: v.number(),
 };
 
@@ -77,8 +78,8 @@ export const getStatus = query({
   handler: async (ctx, { jobId }) => {
     const job = await ownedJob(ctx, jobId);
     if (job === null) return null;
-    const { _id, sourceId, state, error, createdAt } = job;
-    return { _id, sourceId, state, error, createdAt };
+    const { _id, sourceId, state, error, extractionWarnings, createdAt } = job;
+    return { _id, sourceId, state, error, extractionWarnings, createdAt };
   },
 });
 
@@ -155,8 +156,39 @@ export const authorizeModelCall = mutation({
     const ownerId = await requireLearnerId(ctx);
     const job = await ctx.db.get(jobId);
     if (job === null || job.ownerId !== ownerId) throw err("UNAUTHORIZED", "job not found");
+    // Only eligible jobs: a parked awaiting_model PDF job — nothing else.
+    const source = await ctx.db.get(job.sourceId);
+    if (source === null || source.mime !== "application/pdf" || job.state !== "awaiting_model") {
+      throw err("INVALID_INPUT", "job is not an eligible PDF job awaiting authorization");
+    }
     await ctx.db.patch(jobId, { modelAuthorized: true, updatedAt: Date.now() });
     return { ok: true };
+  },
+});
+
+/**
+ * Atomically claims the single permitted provider dispatch. Mutations are
+ * serialized per document, so two concurrent runs cannot both pass. Once
+ * `modelClaimed` is set it is never cleared — an ambiguous provider failure
+ * therefore cannot silently trigger a second paid call. Also refuses when a
+ * sibling job for the SAME source already claimed (one paid call per source).
+ */
+export const claimModelDispatch = internalMutation({
+  args: { jobId: v.id("importJobs") },
+  returns: v.object({ claimed: v.boolean(), reason: v.optional(v.string()) }),
+  handler: async (ctx, { jobId }) => {
+    const job = await ctx.db.get(jobId);
+    if (job === null) return { claimed: false, reason: "not_found" };
+    if (job.modelClaimed === true) return { claimed: false, reason: "already_claimed" };
+    const siblings = await ctx.db
+      .query("importJobs")
+      .withIndex("by_source", (q) => q.eq("sourceId", job.sourceId))
+      .collect();
+    if (siblings.some((j) => j._id !== jobId && j.modelClaimed === true)) {
+      return { claimed: false, reason: "sibling_claimed" };
+    }
+    await ctx.db.patch(jobId, { modelClaimed: true, state: "classifying", updatedAt: Date.now() });
+    return { claimed: true };
   },
 });
 
