@@ -224,8 +224,38 @@ describe("learningRuntime", () => {
       });
       await ctx.db.patch(obj._id, { conceptIds: [cid] });
     });
+    // Seed the lesson's own persisted approved citations (as approval does).
+    await t.run(async (ctx) => {
+      const segs = await ctx.db.query("sourceSegments").collect();
+      await ctx.db.patch(lessonId, {
+        sourceRefs: segs.map((sg) => ({ sourceId: sg.sourceId, segmentId: sg._id })),
+      });
+    });
+    // Without attestation → abstain (no scored activity).
+    const pre = await t.mutation(api.learningRuntime.materializeScoredActivity, { lessonId });
+    expect(pre.activityId).toBeNull();
+    // Reviewer attestation: each item→bucket bound to lesson-approved segs.
+    const segs = await t.run(async (ctx) => ctx.db.query("sourceSegments").collect());
+    await asA.mutation(api.learningRuntime.attestClassificationFacts, {
+      templateId: "cells_classify_v1", lessonId,
+      items: [
+        { itemId: "f-wall", bucketId: "plant", segmentIds: [segs[0]._id] },
+        { itemId: "f-chloroplast", bucketId: "plant", segmentIds: [segs[0]._id] },
+        { itemId: "f-bigvac", bucketId: "plant", segmentIds: [segs[0]._id] },
+        { itemId: "f-membrane", bucketId: "shared", segmentIds: [segs[1]._id] },
+        { itemId: "f-nucleus", bucketId: "shared", segmentIds: [segs[1]._id] },
+        { itemId: "f-cytoplasm", bucketId: "shared", segmentIds: [segs[1]._id] },
+      ],
+    });
     const { activityId } = await t.mutation(api.learningRuntime.materializeScoredActivity, { lessonId });
     expect(activityId).not.toBeNull();
+    // Attestation with a foreign/out-of-lesson segment must be rejected.
+    const foreignSeg = await t.run(async (ctx) =>
+      ctx.db.insert("sourceSegments", { sourceId: segs[0].sourceId, segmentNo: 9, page: 9, text: "cell wall chloroplast", createdAt: 1 }));
+    await expect(asA.mutation(api.learningRuntime.attestClassificationFacts, {
+      templateId: "cells_classify_v1", lessonId,
+      items: [{ itemId: "f-wall", bucketId: "plant", segmentIds: [foreignSeg] }],
+    })).rejects.toThrow(/outside lesson-approved/);
     // Spec is genuinely gradable; key never readable; sourceRefs real.
     const lesson = await asA.query(api.learningRuntime.getLesson, { lessonId });
     const act = lesson!.activities.find((a) => a._id === activityId);
@@ -361,15 +391,17 @@ describe("learningRuntime", () => {
     // Foreign-owned source → internal compiler rejects.
     const foreign = await t.run(async (ctx) => {
       const b = await ctx.db.insert("users", { name: "other" });
-      return ctx.db.insert("sources", {
+      const src = await ctx.db.insert("sources", {
         ownerId: b, storageId: await ctx.storage.store(new Blob(["x"])), title: "f",
         mime: "application/pdf", sizeBytes: 1, sha256: "1".repeat(64), status: "indexed", createdAt: 1, updatedAt: 1,
       });
+      const seg = await ctx.db.insert("sourceSegments", { sourceId: src, segmentNo: 1, page: 1, text: "f", createdAt: 1 });
+      return { sourceId: src, segmentId: seg };
     });
     await expect(t.mutation(api.learningRuntime.internalCompileScoredActivity, {
       ownerId: aId, lessonId,
       spec: { kind: "lessonCard" as const, heading: "h", body: "b" },
-      objectiveIds: [], sourceRefs: [{ sourceId: foreign }],
+      objectiveIds: [], sourceRefs: [{ sourceId: foreign.sourceId, segmentId: foreign.segmentId }],
     })).rejects.toThrow(/foreign-owned/);
   });
 
@@ -415,8 +447,23 @@ describe("learningRuntime", () => {
     expect(lesson).not.toBeNull();
     // Scheduler is a no-op in convex-test — invoke the scheduled mutation
     // directly, exactly as the deployed scheduler would.
+    // Real approval alone still abstains — attestation is required.
+    const abstain = await t.mutation(api.learningRuntime.materializeScoredActivity, { lessonId: lesson!._id });
+    expect(abstain.activityId).toBeNull();
+    const segs = await t.run(async (ctx) => ctx.db.query("sourceSegments").collect());
+    await asA.mutation(api.learningRuntime.attestClassificationFacts, {
+      templateId: "cells_classify_v1", lessonId: lesson!._id,
+      items: [
+        { itemId: "f-wall", bucketId: "plant", segmentIds: [segs[0]._id] },
+        { itemId: "f-chloroplast", bucketId: "plant", segmentIds: [segs[0]._id] },
+        { itemId: "f-bigvac", bucketId: "plant", segmentIds: [segs[0]._id] },
+        { itemId: "f-membrane", bucketId: "shared", segmentIds: [segs[1]._id] },
+        { itemId: "f-nucleus", bucketId: "shared", segmentIds: [segs[1]._id] },
+        { itemId: "f-cytoplasm", bucketId: "shared", segmentIds: [segs[1]._id] },
+      ],
+    });
     const m = await t.mutation(api.learningRuntime.materializeScoredActivity, { lessonId: lesson!._id });
-    expect(m.activityId).not.toBeNull();             // real approval → grounded activity
+    expect(m.activityId).not.toBeNull();             // attested → grounded activity
     const found = await asA.query(api.learningRuntime.getLesson, { lessonId: lesson!._id });
     const spec = found?.activities.find((a) => a._id === m.activityId)?.spec as Record<string, unknown>;
     expect(spec.kind).toBe("classify");
