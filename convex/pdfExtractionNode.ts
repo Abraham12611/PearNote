@@ -14,6 +14,13 @@ import { internalAction } from "./_generated/server";
 import { anyApi } from "convex/server";
 const internal = anyApi;
 import { extractPdfSegments, PdfExtractionError } from "../src/pearnotes/pdf-extraction/index";
+// pdf.js needs its worker code for the fake-worker fallback. In a bundled
+// server action there is no filesystem path to node_modules — importing the
+// worker eagerly and registering it on globalThis lets pdf.js find
+// WorkerMessageHandler in-bundle instead of resolving "pdf.worker" by path.
+// @ts-expect-error pdfjs ships no types for the worker entry point
+import * as pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
+(globalThis as Record<string, unknown>).pdfjsWorker = pdfWorker;
 import type { Id } from "./_generated/dataModel";
 
 const LIMITS = {
