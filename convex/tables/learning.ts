@@ -169,6 +169,7 @@ export const curriculumVersions = defineTable({
   publishedAt: v.optional(v.number()),
 })
   .index("by_subject", ["subjectId"])
+  .index("by_subject_version", ["subjectId", "version"])
   .index("by_subject_state", ["subjectId", "state"]);
 
 export const sections = defineTable({
