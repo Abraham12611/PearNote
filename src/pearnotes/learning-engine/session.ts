@@ -23,6 +23,7 @@ import type {
   ConsentDecision,
   ConsentResult,
   EvaluationOutcome,
+  EvidenceRejection,
   JourneyState,
   ObjectiveEvidence,
   ObjectiveMastery,
@@ -79,25 +80,73 @@ export class AssessmentSession {
     this.policy = init.policy ?? DEFAULT_POLICY;
   }
 
-  /** Restore from a persisted snapshot (E4 round-trip). */
-  static restore(init: SessionInit, snapshot: Pick<SessionSnapshot, "evidence" | "proposals">): AssessmentSession {
+  /**
+   * Restore from a persisted snapshot (E4 round-trip). Every record is
+   * validated against THIS session's learner, lesson and objectives —
+   * a snapshot for a different learner/lesson restores nothing and
+   * reports each dropped record.
+   */
+  static restore(
+    init: SessionInit,
+    snapshot: Pick<SessionSnapshot, "userId" | "lessonId" | "evidence" | "proposals">,
+  ): { session: AssessmentSession; rejected: EvidenceRejection[] } {
     const s = new AssessmentSession(init);
-    s.evidence = [...snapshot.evidence];
-    s.proposals = snapshot.proposals.map((p) => ({ ...p }));
-    return s;
+    const rejected: EvidenceRejection[] = [];
+    const objectiveIds = new Set(init.objectives.map((o) => o.objectiveId));
+    const identityOk = snapshot.userId === init.userId && snapshot.lessonId === init.lessonId;
+    for (const e of snapshot.evidence) {
+      if (!identityOk || e.userId !== init.userId) {
+        rejected.push({ attemptId: e.attemptId, reason: "wrong_user", detail: "snapshot record belongs to a different learner" });
+      } else if (e.lessonId !== init.lessonId) {
+        rejected.push({ attemptId: e.attemptId, reason: "wrong_lesson", detail: "snapshot record belongs to a different lesson" });
+      } else if (!objectiveIds.has(e.objectiveId)) {
+        rejected.push({ attemptId: e.attemptId, reason: "unknown_objective", detail: "snapshot record names an objective outside this lesson" });
+      } else {
+        s.evidence.push(e);
+      }
+    }
+    for (const p of snapshot.proposals) {
+      if (!identityOk || p.userId !== init.userId || p.lessonId !== init.lessonId || !objectiveIds.has(p.objectiveId)) {
+        rejected.push({ attemptId: p.proposalId, reason: "malformed", detail: "snapshot proposal does not match this session's learner/lesson/objectives" });
+      } else {
+        s.proposals.push({ ...p });
+      }
+    }
+    return { session: s, rejected };
   }
 
   /**
    * Ingest newly evaluated attempts (backend-supplied). Validates,
-   * dedupes, scopes to this session's learner, recomputes mastery, and
-   * evaluates each objective for remediation.
+   * dedupes, scopes to this session's learner AND lesson/objectives,
+   * recomputes mastery, and evaluates each objective for remediation.
+   * Out-of-scope attempts and duplicates are reported, never silently
+   * dropped.
    */
   applyAttempts(rawAttempts: unknown[]): AttemptOutcome {
     const { accepted, rejected } = intakeEvidence(rawAttempts, this.init.userId);
-    const { unique } = dedupeAttempts(accepted);
-    // Never double-count an attempt already in the pool.
+    const objectiveIds = new Set(this.init.objectives.map((o) => o.objectiveId));
+    const inScope: ObjectiveEvidence[] = [];
+    for (const e of accepted) {
+      if (e.lessonId !== this.init.lessonId) {
+        rejected.push({ attemptId: e.attemptId, reason: "wrong_lesson", detail: "attempt belongs to a different lesson" });
+      } else if (!objectiveIds.has(e.objectiveId)) {
+        rejected.push({ attemptId: e.attemptId, reason: "unknown_objective", detail: "objective not part of this lesson's objectives" });
+      } else {
+        inScope.push(e);
+      }
+    }
+    const { unique, duplicates } = dedupeAttempts(inScope);
+    rejected.push(...duplicates);
+    // Never double-count an attempt already in the pool — reported, not dropped.
     const known = new Set(this.evidence.map((e) => e.attemptId));
-    const fresh = unique.filter((e) => !known.has(e.attemptId));
+    const fresh: ObjectiveEvidence[] = [];
+    for (const e of unique) {
+      if (known.has(e.attemptId)) {
+        rejected.push({ attemptId: e.attemptId, reason: "duplicate_attempt", detail: "attempt already recorded in this session" });
+      } else {
+        fresh.push(e);
+      }
+    }
     this.evidence = [...this.evidence, ...fresh];
 
     const evaluations: Record<string, EvaluationOutcome> = {};

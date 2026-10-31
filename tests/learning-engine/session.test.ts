@@ -78,12 +78,24 @@ describe("assessment session (issue #31 acceptance path)", () => {
     expect(s.pendingProposals).toHaveLength(0);
   });
 
-  test("duplicate attemptId ingested once only", () => {
+  test("duplicate attemptId ingested once and reported, not dropped", () => {
     const s = session();
     s.applyAttempts([ev({ verdict: "incorrect", attemptId: "a1" })]);
     const out = s.applyAttempts([ev({ verdict: "incorrect", attemptId: "a1" })]);
     expect(out.accepted).toHaveLength(0);
+    expect(out.rejected.some((r) => r.reason === "duplicate_attempt")).toBe(true);
     expect(s.evidenceFor(FIX.objectiveId)).toHaveLength(1);
+  });
+
+  test("attempts for other lessons/objectives are rejected as out of scope", () => {
+    const s = session();
+    const out = s.applyAttempts([
+      ev({ verdict: "incorrect", attemptId: "a1", lessonId: "lesson-other" }),
+      ev({ verdict: "incorrect", attemptId: "a2", objectiveId: "obj-not-in-lesson" }),
+      ev({ verdict: "incorrect", attemptId: "a3", objectiveId: FIX.otherObjectiveId }), // in objectives but empty auth
+    ]);
+    expect(out.accepted).toHaveLength(1); // only the in-scope one
+    expect(out.rejected.map((r) => r.reason).sort()).toEqual(["unknown_objective", "wrong_lesson"]);
   });
 
   test("foreign-learner evidence rejected at session scope", () => {
@@ -101,20 +113,45 @@ describe("assessment session (issue #31 acceptance path)", () => {
     const s = session();
     s.applyAttempts([ev({ verdict: "incorrect", attemptId: "a1" }), ev({ verdict: "incorrect", attemptId: "a2" })]);
     const snap = s.snapshot();
-    const restored = AssessmentSession.restore(
-      {
-        userId: U,
-        lessonId: FIX.lessonId,
-        objectives: [
-          { objectiveId: FIX.objectiveId, authorizedSegmentIds: AUTHORIZED_CELLS_SEGMENTS },
-          { objectiveId: FIX.otherObjectiveId, authorizedSegmentIds: [] },
-        ],
-        coreNodes: CORE_NODES,
-        remediationSpecFor: () => CELLS_REMEDIATION_SPEC,
-      },
-      { evidence: snap.evidence, proposals: snap.proposals },
-    );
+    const restoredInit = {
+      userId: U,
+      lessonId: FIX.lessonId,
+      objectives: [
+        { objectiveId: FIX.objectiveId, authorizedSegmentIds: AUTHORIZED_CELLS_SEGMENTS },
+        { objectiveId: FIX.otherObjectiveId, authorizedSegmentIds: [] },
+      ],
+      coreNodes: CORE_NODES,
+      remediationSpecFor: () => CELLS_REMEDIATION_SPEC,
+    };
+    const { session: restored } = AssessmentSession.restore(restoredInit, snap);
     expect(restored.snapshot().proposals[0].proposalId).toBe(snap.proposals[0].proposalId);
     expect(restored.journey()).toEqual(s.journey());
+  });
+
+  test("restore rejects records from a different learner/lesson/objective", () => {
+    const s = session();
+    const out = s.applyAttempts([ev({ verdict: "incorrect", attemptId: "a1" }), ev({ verdict: "incorrect", attemptId: "a2" })]);
+    const snap = s.snapshot();
+    const init = {
+      userId: U,
+      lessonId: FIX.lessonId,
+      objectives: [{ objectiveId: FIX.objectiveId, authorizedSegmentIds: AUTHORIZED_CELLS_SEGMENTS }],
+      coreNodes: CORE_NODES,
+      remediationSpecFor: () => CELLS_REMEDIATION_SPEC,
+    };
+    // Foreign snapshot identity → restores nothing.
+    const foreign = AssessmentSession.restore({ ...init, userId: "user-other" }, snap);
+    expect(foreign.rejected.length).toBeGreaterThan(0);
+    expect(foreign.session.snapshot().evidence).toHaveLength(0);
+    // Mismatched lesson in a record → dropped, reported.
+    const mixed = AssessmentSession.restore(init, {
+      userId: U,
+      lessonId: FIX.lessonId,
+      evidence: [snap.evidence[0], { ...snap.evidence[1], lessonId: "lesson-x" }],
+      proposals: [],
+    });
+    expect(mixed.rejected).toHaveLength(1);
+    expect(mixed.rejected[0].reason).toBe("wrong_lesson");
+    expect(mixed.session.snapshot().evidence).toHaveLength(1);
   });
 });
