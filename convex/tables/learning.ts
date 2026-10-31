@@ -212,10 +212,15 @@ export const activitySpec = v.union(
     kind: v.literal("multipleChoice"),
     prompt: v.string(),
     options: v.array(v.object({ id: v.string(), label: v.string() })),
+    // Server-side answer key — set at materialization, NEVER returned by
+    // getLesson (stripped before any owner read). Optional so legacy specs
+    // still validate; absent key ⇒ needs_review, not auto-fail.
+    correctOptionId: v.optional(v.string()),
   }),
   v.object({
     kind: v.literal("shortAnswer"),
     prompt: v.string(),
+    expectedAnswer: v.optional(v.string()), // server-only key, stripped on read
   }),
   v.object({
     kind: v.literal("teachBack"),
@@ -424,3 +429,27 @@ export const importProposals = defineTable({
   createdAt: v.number(),
   updatedAt: v.number(),
 }).index("by_job", ["jobId"]);
+
+// STATE_AND_EVENTS.md — proposed/ghost practice branch: proposed until the
+// learner accepts or rejects; rejected triggers never silently re-propose.
+export const practiceProposals = defineTable({
+  ownerId: v.id("users"),
+  lessonId: v.id("lessons"),
+  /** Deterministic dedupe key (lesson + trigger evidence set). */
+  triggerKey: v.string(),
+  triggerAttemptIds: v.array(v.id("attempts")),
+  /** Justification text — why this practice is suggested. */
+  rationale: v.string(),
+  spec: activitySpec,
+  objectiveIds: v.array(v.id("objectives")),
+  sourceRefs: v.array(sourceRef),
+  state: v.union(
+    v.literal("proposed"),
+    v.literal("accepted"),
+    v.literal("rejected"),
+  ),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_owner_lesson", ["ownerId", "lessonId"])
+  .index("by_trigger", ["triggerKey"]);
