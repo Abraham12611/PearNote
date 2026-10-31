@@ -177,3 +177,27 @@ review({
   primary subject, never trimmed silently.
 - v1 limits documented: unsupported edit kinds (merge/split beyond index
   ops) are rejected by arg validation — do not pretend they save.
+
+## 10. PDF ingestion path (Issue #36)
+
+- `application/pdf` jobs: `runJob` routes to Node-runtime
+  `internal.pdfExtractionNode.extractAndStore` → `extractPdfSegments`
+  (Engineer 1 parser) → `recordSegments` → then proceeds.
+- Persisted per segment: `{segmentNo, page, text, kind?}` — `quoteStart/
+  quoteEnd` intentionally NOT stored (offsets reference parser-internal
+  pageText; option (B) per PDF_EXTRACTION_CONTRACT.md).
+- Caps: 20MB / 50 pages / 200 segments / 120k chars; warnings stored on
+  `importJobs.extractionWarnings` (codes/messages, never doc text).
+- New job state `awaiting_model`: PDF jobs park here when the model step
+  lacks BOTH `PDF_MODEL_AUTHORIZED=1` (deployment env) AND explicit per-job
+  owner consent via `learningImport.authorizeModelCall({jobId})`. The gate
+  is enforced immediately before EVERY provider dispatch, regardless of
+  whether segments already exist — a parked job can never slip through on
+  a re-run. Re-running runJob resumes only once both conditions hold.
+- Concurrency guards: terminal jobs return `already_<state>`; `classifying`
+  blocks concurrent double-dispatch; `recordSegments` refuses to duplicate
+  rows; extractAndStore early-returns on existing segments.
+- Prompt bounds: ≤100 segments / ≤100KB serialized payload to the model;
+  blob `size` checked before reading bytes into memory.
+- Idempotency: `runJob` returns `already_<state>` for terminal jobs —
+  retries can't duplicate segments or re-trigger a paid call.

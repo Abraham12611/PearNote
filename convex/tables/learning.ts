@@ -312,6 +312,7 @@ export const importJobState = v.union(
   v.literal("ready"),
   v.literal("failed"),
   v.literal("cancelled"),
+  v.literal("awaiting_model"), // extracted; paid model step gated on owner auth
 );
 
 /**
@@ -324,6 +325,19 @@ export const importJobs = defineTable({
   idempotencyKey: v.string(),
   state: importJobState,
   error: v.optional(v.string()),
+  // Extraction warnings (codes/messages — never document text).
+  extractionWarnings: v.optional(v.array(v.string())),
+  // Explicit per-job owner consent for a paid model call — the deployment
+  // PDF_MODEL_AUTHORIZED flag alone is never sufficient.
+  modelAuthorized: v.optional(v.boolean()),
+  // Optional focus scope: restrict the model prompt to segments on these
+  // physical pages + a topic hint (e.g., pages [1,2], "plant vs animal cells").
+  focusPages: v.optional(v.array(v.number())),
+  focusHint: v.optional(v.string()),
+  // Set atomically by claimModelDispatch the instant a provider call is
+  // dispatched — once claimed it can NEVER be re-claimed, so a retry after
+  // an ambiguous provider failure can never silently re-spend.
+  modelClaimed: v.optional(v.boolean()),
   // Provider facts for audit/eval: model id + prompt version, never secrets.
   model: v.optional(v.string()),
   promptVersion: v.optional(v.number()),

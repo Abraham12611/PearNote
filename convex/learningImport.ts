@@ -23,9 +23,15 @@ const err = (code: string, message: string) => new ConvexError({ code, message }
  * bound to the wrong document.
  */
 export const begin = mutation({
-  args: { sourceId: v.id("sources"), idempotencyKey: v.string() },
+  args: {
+    sourceId: v.id("sources"),
+    idempotencyKey: v.string(),
+    focusPages: v.optional(v.array(v.number())),
+    focusHint: v.optional(v.string()),
+  },
   returns: v.object({ jobId: v.id("importJobs"), state: importJobState }),
-  handler: async (ctx, { sourceId, idempotencyKey }) => {
+  handler: async (ctx, args) => {
+    const { sourceId, idempotencyKey } = args;
     const ownerId = await requireLearnerId(ctx);
     const source = await requireOwnedSource(ctx, sourceId);
     if (source.status === "deleted") throw err("INVALID_INPUT", "source deleted");
@@ -46,6 +52,8 @@ export const begin = mutation({
     const now = Date.now();
     const jobId = await ctx.db.insert("importJobs", {
       ownerId, sourceId, idempotencyKey: key, state: "extracting",
+      focusPages: args.focusPages?.filter((p) => Number.isInteger(p) && p >= 1 && p <= 500).slice(0, 20),
+      focusHint: args.focusHint?.trim().slice(0, 300),
       createdAt: now, updatedAt: now,
     });
     // Kick the pipeline: extraction → Muse call → proposal/needs_review.
@@ -59,6 +67,7 @@ const jobShape = {
   sourceId: v.id("sources"),
   state: importJobState,
   error: v.optional(v.string()),
+  extractionWarnings: v.optional(v.array(v.string())),
   createdAt: v.number(),
 };
 
@@ -77,8 +86,8 @@ export const getStatus = query({
   handler: async (ctx, { jobId }) => {
     const job = await ownedJob(ctx, jobId);
     if (job === null) return null;
-    const { _id, sourceId, state, error, createdAt } = job;
-    return { _id, sourceId, state, error, createdAt };
+    const { _id, sourceId, state, error, extractionWarnings, createdAt } = job;
+    return { _id, sourceId, state, error, extractionWarnings, createdAt };
   },
 });
 
@@ -127,6 +136,13 @@ export const recordSegments = internalMutation({
   },
   returns: v.array(v.id("sourceSegments")),
   handler: async (ctx, { sourceId, segments }) => {
+    // Idempotent: a source that already has segments is never re-populated —
+    // duplicate extraction runs cannot create duplicate rows.
+    const existing = await ctx.db
+      .query("sourceSegments")
+      .withIndex("by_source_number", (q) => q.eq("sourceId", sourceId))
+      .first();
+    if (existing !== null) return [];
     const now = Date.now();
     const ids: Id<"sourceSegments">[] = [];
     for (const s of segments) {
@@ -137,6 +153,57 @@ export const recordSegments = internalMutation({
 });
 
 /** Ingestion-internal: advance the job state machine, recording model facts. */
+/**
+ * `imports.authorizeModelCall` — explicit per-job owner consent for the paid
+ * provider step (PDF sources). Deployment env flag alone never suffices.
+ */
+export const authorizeModelCall = mutation({
+  args: { jobId: v.id("importJobs") },
+  returns: v.object({ ok: v.boolean() }),
+  handler: async (ctx, { jobId }) => {
+    const ownerId = await requireLearnerId(ctx);
+    const job = await ctx.db.get(jobId);
+    if (job === null || job.ownerId !== ownerId) throw err("UNAUTHORIZED", "job not found");
+    // Only eligible jobs: a parked awaiting_model PDF job — nothing else.
+    const source = await ctx.db.get(job.sourceId);
+    if (source === null || source.mime !== "application/pdf" || job.state !== "awaiting_model") {
+      throw err("INVALID_INPUT", "job is not an eligible PDF job awaiting authorization");
+    }
+    await ctx.db.patch(jobId, { modelAuthorized: true, updatedAt: Date.now() });
+    // Safe resume: the owner's consent schedules the pipeline continuation —
+    // extraction/gate checks re-run inside runJob before any dispatch.
+    await ctx.scheduler.runAfter(0, internal.ingestMeta.runJob, { jobId });
+    return { ok: true };
+  },
+});
+
+/**
+ * Atomically claims the single permitted provider dispatch. Mutations are
+ * serialized per document, so two concurrent runs cannot both pass. Once
+ * `modelClaimed` is set it is never cleared — an ambiguous provider failure
+ * therefore cannot silently trigger a second paid call. Also refuses when a
+ * sibling job for the SAME source already claimed (one paid call per source).
+ */
+export const claimModelDispatch = internalMutation({
+  args: { jobId: v.id("importJobs") },
+  returns: v.object({ claimed: v.boolean(), reason: v.optional(v.string()) }),
+  handler: async (ctx, { jobId }) => {
+    const job = await ctx.db.get(jobId);
+    if (job === null) return { claimed: false, reason: "not_found" };
+    if (job.modelClaimed === true) return { claimed: false, reason: "already_claimed" };
+    const priorClaim = await ctx.db
+      .query("importJobs")
+      .withIndex("by_source", (q) => q.eq("sourceId", job.sourceId))
+      .filter((q) => q.eq(q.field("modelClaimed"), true))
+      .first();
+    if (priorClaim !== null) {
+      return { claimed: false, reason: "sibling_claimed" };
+    }
+    await ctx.db.patch(jobId, { modelClaimed: true, state: "classifying", updatedAt: Date.now() });
+    return { claimed: true };
+  },
+});
+
 export const setJobState = internalMutation({
   args: {
     jobId: v.id("importJobs"),
@@ -144,6 +211,7 @@ export const setJobState = internalMutation({
     error: v.optional(v.string()),
     model: v.optional(v.string()),
     promptVersion: v.optional(v.number()),
+    extractionWarnings: v.optional(v.array(v.string())),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
