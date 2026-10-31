@@ -357,6 +357,9 @@ export const internalCompileScoredActivity = internalMutation({
       if (!allowed.has(String(oid))) throw new Error("objective not on lesson");
     }
     if (sourceRefs.length === 0) throw new Error("empty source references");
+    if (sourceRefs.some((r) => r.segmentId === undefined)) {
+      throw new Error("scored refs require segmentId");
+    }
     // Citations must be a subset of the lesson's approved segment assignment.
     const approved = new Set<string>();
     for (const oid of lesson.objectiveIds) {
@@ -432,6 +435,69 @@ const FACT_KEYWORDS: Record<string, string[]> = {
   "f-cytoplasm": ["cytoplasm"],
 };
 
+const TEMPLATE_ID = "cells_classify_v1";
+
+/**
+ * Trusted attestation path (Issue #45): an internal/reviewer assertion that
+ * specific lesson-approved segments support a specific fact→bucket. Sanity
+ * checks (segment exists, belongs to the lesson's approved refs, text
+ * mentions the fact term) guard against typos — they are NOT the basis of
+ * trust; the attestation itself is. Immutable per (template, lesson, item).
+ */
+export const attestClassificationFacts = internalMutation({
+  args: {
+    templateId: v.string(),
+    lessonId: v.id("lessons"),
+    attestedBy: v.string(),
+    items: v.array(v.object({
+      itemId: v.string(),
+      bucketId: v.string(),
+      segmentIds: v.array(v.id("sourceSegments")),
+    })),
+  },
+  returns: v.object({ attested: v.number() }),
+  handler: async (ctx, { templateId, lessonId, attestedBy, items }) => {
+    const lesson = await ctx.db.get(lessonId);
+    if (lesson === null) throw new Error("lesson not found");
+    const approved = new Set((lesson.sourceRefs ?? []).map((r) => String(r.segmentId)));
+    if (approved.size === 0) throw new Error("lesson has no approved citations");
+    const itemTerms: Record<string, string> = {
+      "f-wall": "wall", "f-chloroplast": "chloroplast", "f-bigvac": "vacuole",
+      "f-membrane": "membrane", "f-nucleus": "nucleus", "f-cytoplasm": "cytoplasm",
+    };
+    const allowedBuckets = new Set(CELLS_CLASSIFY.buckets.map((b) => b.id));
+    let count = 0;
+    for (const it of items) {
+      if (itemTerms[it.itemId] === undefined) throw new Error(`unknown item ${it.itemId}`);
+      if (!allowedBuckets.has(it.bucketId)) throw new Error(`unknown bucket ${it.bucketId}`);
+      if (it.segmentIds.length === 0) throw new Error("attestation requires segmentIds");
+      for (const sid of it.segmentIds) {
+        if (!approved.has(String(sid))) throw new Error("segment outside lesson-approved refs");
+        const seg = await ctx.db.get(sid);
+        if (seg === null) throw new Error("segment missing");
+        if (!seg.text.toLowerCase().includes(itemTerms[it.itemId])) {
+          throw new Error(`segment text does not mention term for ${it.itemId}`);
+        }
+      }
+      const existing = await ctx.db
+        .query("factAttestations")
+        .withIndex("by_template_lesson", (q) => q.eq("templateId", templateId).eq("lessonId", lessonId))
+        .collect();
+      const dup = existing.find((r) => r.itemId === it.itemId);
+      if (dup !== undefined) {
+        if (dup.bucketId !== it.bucketId) throw new Error("immutable attestation conflict");
+        continue; // idempotent — same attestation already present
+      }
+      await ctx.db.insert("factAttestations", {
+        templateId, lessonId, itemId: it.itemId, bucketId: it.bucketId,
+        segmentIds: it.segmentIds, attestedBy, createdAt: Date.now(),
+      });
+      count++;
+    }
+    return { attested: count };
+  },
+});
+
 export const materializeScoredActivity = internalMutation({
   args: { lessonId: v.id("lessons") },
   returns: v.object({ activityId: v.union(v.id("activities"), v.null()) }),
@@ -474,14 +540,7 @@ export const materializeScoredActivity = internalMutation({
       }
     }
     if (refs.length === 0) return { activityId: null }; // never fake citations
-    // Scope: only an appropriate approved Biology lesson — the template is
-    // a plant-vs-animal cell classification; anything else abstains.
-    const lessonIsCells =
-      /cell|plant|animal/i.test(lesson.title ?? "") ||
-      (await Promise.all(lesson.objectiveIds.map(async (oid) =>
-        /cell|plant|animal|membrane|nucleus|cytoplasm|chloroplast|vacuole/i.test(
-          (await ctx.db.get(oid))?.statement ?? "")))).some(Boolean);
-    if (!lessonIsCells) return { activityId: null };
+    // Scope: only lessons the owner has actually attested (see below).
 
     // Every graded fact must be supported by the authorized segment text —
     // a scored activity on unrelated material is a false ground.
@@ -490,22 +549,22 @@ export const materializeScoredActivity = internalMutation({
       const seg = await ctx.db.get(r.segmentId);
       if (seg !== null) texts.push(seg.text.toLowerCase());
     }
-    const plantBucket = new Set(["f-wall", "f-chloroplast", "f-bigvac"]);
-    const NEG = [/no\s+cell\s+wall/, /lack/, /without\s+chloroplast/, /not\s+found\s+in\s+plant/];
-    if (texts.some((t) => NEG.some((re) => re.test(t)))) {
-      return { activityId: null }; // contradictory passage → abstain
-    }
-    // Per-segment bucket evidence: a plant-only fact needs its keyword in a
-    // segment that also asserts the plant context — corpus-level matches
-    // can't launder unrelated keywords.
-    const unsupported = CELLS_CLASSIFY.items.some((i) => {
-      const kws = FACT_KEYWORDS[i.id] ?? [];
-      const evidenced = texts.some((t) =>
-        kws.some((kw) => t.includes(kw)) &&
-        (plantBucket.has(i.id) ? t.includes("plant") : true));
-      return !evidenced;
+    // TRUSTED ATTESTATION (Issue #45): every scored item must have a
+    // reviewer-attested fact→bucket→segment binding, all citations inside
+    // this lesson's own approved refs. Missing ANY attestation → abstain.
+    const attestRows = await ctx.db
+      .query("factAttestations")
+      .withIndex("by_template_lesson", (q) => q.eq("templateId", TEMPLATE_ID).eq("lessonId", lessonId))
+      .collect();
+    const byItem = new Map(attestRows.map((r) => [r.itemId, r]));
+    const correctBucket = new Map(CELLS_CLASSIFY.correctAssignments.map((a) => [a.itemId, a.bucketId]));
+    const unattested = CELLS_CLASSIFY.items.some((i) => {
+      const row = byItem.get(i.id);
+      if (row === undefined) return true;                       // no attestation
+      if (row.bucketId !== correctBucket.get(i.id)) return true; // wrong bucket attested
+      return !row.segmentIds.every((sid) => segIds.has(String(sid))); // ref not lesson-approved
     });
-    if (unsupported) return { activityId: null };
+    if (unattested) return { activityId: null };
 
     const activityId = await ctx.db.insert("activities", {
       lessonId,

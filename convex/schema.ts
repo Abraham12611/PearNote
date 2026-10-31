@@ -68,4 +68,5 @@ export default defineSchema({
   importJobs: learning.importJobs, // one ingestion run over one owned source
   importProposals: learning.importProposals, // reviewable model suggestions
   practiceProposals: learning.practiceProposals, // consented remediation branches
+  factAttestations: learning.factAttestations, // per-item fact→bucket evidence
 });

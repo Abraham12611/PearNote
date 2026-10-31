@@ -472,3 +472,20 @@ export const practiceProposals = defineTable({
 })
   .index("by_owner_lesson", ["ownerId", "lessonId"])
   .index("by_trigger", ["triggerKey"]);
+
+// SECURITY_PRIVACY.md — trusted per-item fact→bucket→segment attestation.
+// Created only via attestClassificationFacts (internal, human/reviewer
+// attestation path — never client-supplied). materializeScoredActivity
+// requires an attestation for EVERY scored item; none → abstain, never guess.
+export const factAttestations = defineTable({
+  templateId: v.string(),
+  lessonId: v.id("lessons"),
+  itemId: v.string(),
+  bucketId: v.string(),
+  /** Approved segments a reviewer verified support this fact→bucket. */
+  segmentIds: v.array(v.id("sourceSegments")),
+  attestedBy: v.string(), // e.g. "owner_review", "reviewer:x"
+  createdAt: v.number(),
+})
+  .index("by_template_lesson", ["templateId", "lessonId"])
+  .index("by_lesson", ["lessonId"]);
