@@ -25,15 +25,17 @@ import {
 } from "../../lib/routes";
 import {
   LiveDataBridge,
+  LivePathBridge,
   pearnotesLiveBackend,
   usePearNotesData,
   usePearNotesFixtures,
 } from "./data";
 import { IntakeReview } from "../ingestion/IntakeReview";
 import { CreateSubjectSheet } from "../ingestion/CreateSubjectSheet";
+import { LiveLessonScreen } from "../ingestion/LiveLessonScreen";
 import { usePearNotesRoute } from "./navigation";
 import { loadPearNotesUiStyles, pearnotesSlots } from "./slots";
-import type { LessonMode, PearNotesData } from "./types";
+import type { LessonMode, LearningPath, PearNotesData } from "./types";
 import "./shell.css";
 
 const { Home, SubjectPicker, LearningPathDrawer, LessonShell } = pearnotesSlots;
@@ -48,6 +50,10 @@ export function PearNotesCanvasShell() {
      fixture mode never mounts the query — the data seam shape is identical. */
   const liveBackend = pearnotesLiveBackend();
   const [liveData, setLiveData] = useState<PearNotesData | null>(null);
+  const [livePath, setLivePath] = useState<{
+    subjectId: string;
+    path: LearningPath;
+  } | null>(null);
   const data = fixtures ?? liveData ?? staticData;
   const fixtureLabel = fixtures?.label;
 
@@ -83,9 +89,16 @@ export function PearNotesCanvasShell() {
     setPickerOpen(false);
     window.location.hash = pearnotesPathHash(subjectId);
   }, []);
-  const openLesson = useCallback((lessonId: string) => {
-    window.location.hash = pearnotesLessonHash(lessonId);
-  }, []);
+  const openLesson = useCallback(
+    (lessonId: string) => {
+      /* `?subject=` keeps back-navigation + refresh honest (Issue #46). */
+      window.location.hash = pearnotesLessonHash(
+        lessonId,
+        route.kind === "path" ? route.subjectId : undefined,
+      );
+    },
+    [route],
+  );
   const pending = useCallback((what: string) => {
     setNotice(`${what} arrives with the learning backend (Phase 01)`);
   }, []);
@@ -131,23 +144,36 @@ export function PearNotesCanvasShell() {
       </header>
 
       {route.kind === "lesson" ? (
-        <LessonShell
-          lesson={data.lessonFor(route.lessonId)}
-          mode={lessonMode}
-          onModeChange={setLessonMode}
-          /* Exit → back to this lesson's subject path when known (their
-             contract: drawer restores scroll + selection), else home. */
-          onExit={() => {
-            const subjectId = data.lessonFor(route.lessonId)?.subjectId;
-            window.location.hash = subjectId
-              ? pearnotesPathHash(subjectId)
-              : pearnotesHomeHash();
-          }}
-          status={data.lessonFor(route.lessonId) ? "ready" : "loading"}
-          fixtureLabel={fixtureLabel}
-        >
-          {lessonCanvas}
-        </LessonShell>
+        liveBackend && !fixtureLabel ? (
+          /* Issue #46: the REAL owner lesson — getLesson is owner-scoped
+             and the widgets evaluate on the server through the live port. */
+          <LiveLessonScreen
+            lessonId={route.lessonId}
+            onBack={() => {
+              window.location.hash = route.subjectId
+                ? pearnotesPathHash(route.subjectId)
+                : pearnotesHomeHash();
+            }}
+          />
+        ) : (
+          <LessonShell
+            lesson={data.lessonFor(route.lessonId)}
+            mode={lessonMode}
+            onModeChange={setLessonMode}
+            /* Exit → back to this lesson's subject path when known (their
+               contract: drawer restores scroll + selection), else home. */
+            onExit={() => {
+              const subjectId = data.lessonFor(route.lessonId)?.subjectId;
+              window.location.hash = subjectId
+                ? pearnotesPathHash(subjectId)
+                : pearnotesHomeHash();
+            }}
+            status={data.lessonFor(route.lessonId) ? "ready" : "loading"}
+            fixtureLabel={fixtureLabel}
+          >
+            {lessonCanvas}
+          </LessonShell>
+        )
       ) : (
         <>
           <Home
@@ -186,7 +212,13 @@ export function PearNotesCanvasShell() {
             subject={
               route.kind === "path" ? data.subjectFor(route.subjectId) : null
             }
-            path={route.kind === "path" ? data.pathFor(route.subjectId) : null}
+            path={
+              route.kind === "path"
+                ? livePath?.subjectId === route.subjectId
+                  ? livePath.path
+                  : data.pathFor(route.subjectId)
+                : null
+            }
             selectedLessonId={selectedLessonId}
             onSelectLesson={setSelectedLessonId}
             onStartLesson={openLesson}
@@ -220,6 +252,21 @@ export function PearNotesCanvasShell() {
           }}
         />
       )}
+      {liveBackend && route.kind === "path" && (
+        <LivePathBridge subjectId={route.subjectId} onPath={setLivePath} />
+      )}
+      {/* Honest contract gap: the owner-scoped curriculum-tree read
+          (curricula.getPath) hasn't landed on the backend yet — say so
+          rather than drawing a fabricated path. */}
+      {liveBackend &&
+        !fixtureLabel &&
+        route.kind === "path" &&
+        !livePath && (
+          <p className="pns-live-note" role="status">
+            live curriculum pending backend contract `curricula.getPath` —
+            approved drafts exist; the tree reader is owned by Engineer 4.
+          </p>
+        )}
       {liveBackend && route.kind === "sources" && (
         <IntakeReview
           subject={data.subjectFor(route.subjectId)}
