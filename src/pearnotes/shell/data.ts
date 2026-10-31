@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { SUBJECT_AVATAR_IDS, type SubjectStatus } from "../ui/types";
 import type {
   LearningPath,
   LessonSummary,
@@ -29,6 +32,86 @@ const EMPTY_DATA: PearNotesData = {
 
 export function usePearNotesData(): PearNotesData {
   return EMPTY_DATA;
+}
+
+/* ------------------------------------------------------------------ */
+/* Phase 01 — the REAL learner data seam (Issue #24).                  */
+/* Rendered only inside ConvexAuthProvider (live mode): a fresh signed- */
+/* in account sees ZERO subjects; nothing here fabricates fixtures.    */
+/* ------------------------------------------------------------------ */
+
+const SUBJECT_STATUS: Record<string, SubjectStatus> = {
+  manual_empty: "needs_material",
+  needs_material: "needs_material",
+  draft: "needs_review",
+  generating: "generating",
+  ready: "ready",
+  failed: "failed",
+};
+
+function toPearSubject(row: {
+  _id: string;
+  name: string;
+  avatarId?: string;
+  theme?: string;
+  status: string;
+}): PearSubject {
+  const avatar = SUBJECT_AVATAR_IDS.includes(row.avatarId as never)
+    ? (row.avatarId as PearSubject["avatar"])
+    : "unknown";
+  return {
+    id: row._id,
+    name: row.name,
+    avatar,
+    color: row.theme?.startsWith("#") || row.theme?.startsWith("var(")
+      ? row.theme
+      : "var(--pn-subject-general)",
+    status: SUBJECT_STATUS[row.status] ?? "needs_material",
+  };
+}
+
+/** True when the app is actually inside a Convex provider (live + URL). */
+export function pearnotesLiveBackend(): boolean {
+  return Boolean(import.meta.env.VITE_CONVEX_URL);
+}
+
+/**
+ * Real subjects for the signed-in owner as a hook. MUST only be called
+ * inside a Convex provider — `LiveDataBridge` is only mounted when
+ * `pearnotesLiveBackend()` is true. Paths/lessons stay null until a
+ * published curriculum exists (never faked).
+ */
+function usePearNotesLiveData(): PearNotesData {
+  const rows = useQuery(api.subjects.listMine, {});
+  /* Memoized on `rows` (referentially stable from the query cache): the
+     old version built a fresh object every render, and the unbounded
+     reporting effect below turned that into an endless rerender loop. */
+  return useMemo<PearNotesData>(() => {
+    const subjects = (rows ?? []).map(toPearSubject);
+    return {
+      status: rows === undefined ? "loading" : "ready",
+      subjects,
+      resume: null,
+      subjectFor: (id) => subjects.find((s) => s.id === id) ?? null,
+      pathFor: () => null,
+      lessonFor: () => null,
+    };
+  }, [rows]);
+}
+
+/** Mounts the live query (provider required) and reports data upward.
+ *  The effect is dependency-bounded to the memoized data + stable setter,
+ *  so it fires only when the underlying query rows actually change. */
+export function LiveDataBridge({
+  onData,
+}: {
+  onData: (data: PearNotesData) => void;
+}) {
+  const data = usePearNotesLiveData();
+  useEffect(() => {
+    onData(data);
+  }, [data, onData]);
+  return null;
 }
 
 /* ------------------------------------------------------------------ */

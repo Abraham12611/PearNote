@@ -21,14 +21,19 @@ import {
   pearnotesHomeHash,
   pearnotesLessonHash,
   pearnotesPathHash,
+  pearnotesSourcesHash,
 } from "../../lib/routes";
 import {
+  LiveDataBridge,
+  pearnotesLiveBackend,
   usePearNotesData,
   usePearNotesFixtures,
 } from "./data";
+import { IntakeReview } from "../ingestion/IntakeReview";
+import { CreateSubjectSheet } from "../ingestion/CreateSubjectSheet";
 import { usePearNotesRoute } from "./navigation";
 import { loadPearNotesUiStyles, pearnotesSlots } from "./slots";
-import type { LessonMode } from "./types";
+import type { LessonMode, PearNotesData } from "./types";
 import "./shell.css";
 
 const { Home, SubjectPicker, LearningPathDrawer, LessonShell } = pearnotesSlots;
@@ -37,12 +42,17 @@ export function PearNotesCanvasShell() {
   /* Subscribed to `hashchange` — App's route state doesn't change between
      `#/learn` sub-routes, so this component owns its own route store. */
   const route = usePearNotesRoute();
-  const live = usePearNotesData();
+  const staticData = usePearNotesData();
   const fixtures = usePearNotesFixtures();
-  const data = fixtures ?? live;
+  /* Phase 01: real `subjects.listMine` under the Convex provider. Mock/
+     fixture mode never mounts the query — the data seam shape is identical. */
+  const liveBackend = pearnotesLiveBackend();
+  const [liveData, setLiveData] = useState<PearNotesData | null>(null);
+  const data = fixtures ?? liveData ?? staticData;
   const fixtureLabel = fixtures?.label;
 
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [creatingSubject, setCreatingSubject] = useState(false);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [lessonMode, setLessonMode] = useState<LessonMode>("guided");
@@ -146,7 +156,9 @@ export function PearNotesCanvasShell() {
             resume={data.resume}
             fixtureLabel={fixtureLabel}
             onLearn={() => setPickerOpen(true)}
-            onCreateSubject={() => pending("subject creation")}
+            onCreateSubject={() =>
+              liveBackend ? setCreatingSubject(true) : pending("subject creation")
+            }
             onOpenSubject={openSubject}
             onResume={openLesson}
             onOpenLibrary={() => pending("the library")}
@@ -161,9 +173,11 @@ export function PearNotesCanvasShell() {
             selectedId={selectedSubjectId}
             onSelect={setSelectedSubjectId}
             onEnter={openSubject}
-            /* F01: the creator wizard lands with the domain backend (Phase
-               01). The + tile stays wired; the shell reports it honestly. */
-            onCreate={() => pending("subject creation")}
+            /* F01: real manual subject creation under a live Convex
+               session; mock mode keeps the honest pending notice. */
+            onCreate={() =>
+              liveBackend ? setCreatingSubject(true) : pending("subject creation")
+            }
             onClose={() => setPickerOpen(false)}
             fixtureLabel={fixtureLabel}
           />
@@ -178,11 +192,41 @@ export function PearNotesCanvasShell() {
             onStartLesson={openLesson}
             onBack={() => setPickerOpen(true)}
             onClose={goHome}
-            onAddMaterials={() => pending("adding materials")}
-            onBrowseSources={() => pending("the source library")}
+            onAddMaterials={() =>
+              route.kind === "path" && liveBackend
+                ? (window.location.hash = pearnotesSourcesHash(route.subjectId))
+                : pending("adding materials")
+            }
+            onBrowseSources={() =>
+              route.kind === "path" && liveBackend
+                ? (window.location.hash = pearnotesSourcesHash(route.subjectId))
+                : pending("the source library")
+            }
             fixtureLabel={fixtureLabel}
           />
         </>
+      )}
+
+      {/* Phase 01 real surfaces — only inside the Convex provider. */}
+      {liveBackend && <LiveDataBridge onData={setLiveData} />}
+      {liveBackend && (
+        <CreateSubjectSheet
+          open={creatingSubject}
+          onClose={() => setCreatingSubject(false)}
+          onCreated={(subjectId) => {
+            setCreatingSubject(false);
+            setPickerOpen(false);
+            window.location.hash = pearnotesSourcesHash(subjectId);
+          }}
+        />
+      )}
+      {liveBackend && route.kind === "sources" && (
+        <IntakeReview
+          subject={data.subjectFor(route.subjectId)}
+          onClose={() => {
+            window.location.hash = pearnotesPathHash(route.subjectId);
+          }}
+        />
       )}
 
       {notice && (

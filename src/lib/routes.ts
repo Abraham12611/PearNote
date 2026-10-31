@@ -41,6 +41,14 @@ export function pearnotesLessonHash(lessonId: string) {
   return `#/learn/lesson/${encodeURIComponent(lessonId)}`;
 }
 
+/** `#/learn/sources/<subjectId>[?job=<jobId>]` — real PDF/text intake +
+ *  import review. The `job` param keeps an in-flight import recoverable
+ *  across refresh/navigation (Issue #24 review). */
+export function pearnotesSourcesHash(subjectId: string, jobId?: string) {
+  const base = `#/learn/sources/${encodeURIComponent(subjectId)}`;
+  return jobId ? `${base}?job=${encodeURIComponent(jobId)}` : base;
+}
+
 /** About remembers the room you came from. A cold link returns to the
  *  crew at its explicit `#/space/crew` address. */
 const LAST_SPACE_KEY = "ourspaces:last-space";
