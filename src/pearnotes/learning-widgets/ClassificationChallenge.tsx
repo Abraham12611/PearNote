@@ -364,9 +364,15 @@ export function ClassificationChallenge({
                 ? "clean sweep"
                 : result?.verdict === "partial"
                   ? "nearly there"
-                  : "not yet"}
+                  : result?.verdict === "needs_review"
+                    ? "sent for review"
+                    : "not yet"}
             </strong>
-            <p>{result?.feedback}</p>
+            <p>
+              {result?.verdict === "needs_review"
+                ? "your sort is saved — this activity couldn't be auto-marked, so it queued for review instead of a guessed score."
+                : result?.feedback}
+            </p>
             {result?.explanation && <p className="pnlw-explainer">{result.explanation}</p>}
             {result?.explanationSourceRefs?.map((ref) => (
               <button
@@ -378,9 +384,11 @@ export function ClassificationChallenge({
                 from your source{ref.page ? ` · p.${ref.page}` : ""} ↗
               </button>
             ))}
-            <button type="button" className="pnlw-btn" onClick={retry}>
-              try again
-            </button>
+            {result?.verdict !== "needs_review" && (
+              <button type="button" className="pnlw-btn" onClick={retry}>
+                try again
+              </button>
+            )}
           </div>
         )}
       </footer>

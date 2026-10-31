@@ -122,6 +122,8 @@ export interface AttemptResult {
   explanationSourceRefs?: SourceRef[];
   marks?: ClassificationMark[];
   rubric?: RubricMark[];
+  /** Objectives whose server-side mastery row changed for this attempt. */
+  masteryUpdated?: number;
   evaluatedAt: number;
 }
 
@@ -130,6 +132,26 @@ export type SubmissionPhase =
   | "submitting" // awaiting port
   | "evaluated" // result shown
   | "error"; // submission failed — retry keeps the answer
+
+/* --- consented practice ----------------------------------------------------- */
+
+/** Mirrors `learningRuntime.listPractice` row — a ghost branch awaiting consent. */
+export interface PracticeProposal {
+  proposalId: string;
+  state: "proposed" | "accepted" | "rejected";
+  /** Learner-readable why ("you missed 'cell wall' twice"). */
+  rationale: string;
+  spec: WidgetActivitySpec;
+  createdAt: number;
+}
+
+export type PracticeReviewAction = "accept" | "reject";
+
+export interface PracticeReviewResult {
+  state: "accepted" | "rejected";
+  /** Materialized activity — present on accept. */
+  activityId?: string;
+}
 
 /* --- source segments --------------------------------------------------------- */
 
@@ -175,6 +197,13 @@ export interface LearningWidgetPort {
   loadSegment(ref: SourceRef): Promise<SegmentLoadResult>;
   /** Optional tutor hand-off (highlight → ask). */
   onRequestTutor?(request: TutorRequest): void;
+  /** Consented practice proposals for this lesson (ghost branch). */
+  listPractice?(lessonId: string): Promise<PracticeProposal[]>;
+  /** Learner consent decision on a proposal — accept or reject. */
+  reviewPractice?(
+    proposalId: string,
+    action: PracticeReviewAction,
+  ): Promise<PracticeReviewResult>;
 }
 
 /** Common widget props. */

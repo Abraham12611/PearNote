@@ -116,9 +116,18 @@ export function TeachBackWidget({
               ? "covered it"
               : result?.verdict === "partial"
                 ? "partially covered"
-                : "thin so far"}
+                : result?.verdict === "needs_review"
+                  ? "sent for review"
+                  : "thin so far"}
           </strong>
-          <p>{result?.feedback}</p>
+          {result?.verdict === "needs_review" ? (
+            <p>
+              teach-back isn't auto-graded — your explanation is saved and queued
+              for real review instead of a guessed score.
+            </p>
+          ) : (
+            <p>{result?.feedback}</p>
+          )}
           {result?.rubric && (
             <ul className="pnlw-rubric-result">
               {result.rubric.map((r) => (

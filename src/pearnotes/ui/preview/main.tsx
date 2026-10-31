@@ -7,6 +7,7 @@ import "../../../index.css";
 import "../../styles/pearnotes.css";
 import "../../styles/journey-assets.css";
 import "../../styles/learning-widgets.css";
+import "../../styles/learning-board.css";
 import "./preview.css";
 import { PearNotesPrototypeApp } from "./PrototypeApp";
 
