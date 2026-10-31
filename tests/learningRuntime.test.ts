@@ -5,7 +5,7 @@ import schema from "../convex/schema";
 import type { Id } from "../convex/_generated/dataModel";
 
 const api = anyApi;
-const modules = import.meta.glob(["../convex/{learningAuth,learningRuntime,learningReview,learningImport}.ts", "../convex/_generated/api.js"]);
+const modules = import.meta.glob(["../convex/{learningAuth,learningRuntime,learningReview,learningImport,curricula}.ts", "../convex/_generated/api.js"]);
 
 async function seed() {
   const t = convexTest(schema, modules);
@@ -471,6 +471,52 @@ describe("learningRuntime", () => {
     // The activity cites the lesson's own persisted approved citations.
     const act = await t.run(async (ctx) => ctx.db.get(m.activityId!));
     expect(act?.sourceRefs.length).toBeGreaterThan(0);
+  });
+
+  test("curricula.getPath: owner sees full draft tree; foreign denied; getLesson exposes ids+refs, no keys", async () => {
+    const { t, asA, asB, aId, lessonId } = await seed();
+    const subId = await t.run(async (ctx) => (await ctx.db.query("subjects").first())!._id);
+    // Owner: full tree
+    const path = await asA.query(api.curricula.getPath, { subjectId: subId });
+    expect(path).not.toBeNull();
+    expect(path!.sections.length).toBe(1);
+    expect(path!.sections[0].units[0].lessons[0]._id).toBe(lessonId);
+    const lesson = path!.sections[0].units[0].lessons[0];
+    expect(lesson.objectiveIds.length).toBeGreaterThan(0);
+    // Foreign: denied
+    await expect(asB.query(api.curricula.getPath, { subjectId: subId }))
+      .rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
+    // getLesson: objectiveIds + sourceRefs present, keys absent.
+    const gl = await asA.query(api.learningRuntime.getLesson, { lessonId });
+    expect(gl!.objectiveIds.length).toBeGreaterThan(0);
+    expect(Array.isArray(gl!.sourceRefs)).toBe(true);
+    for (const a of gl!.activities) {
+      const spec = a.spec as Record<string, unknown>;
+      expect(spec.correctOptionId).toBeUndefined();
+      expect(spec.expectedAnswer).toBeUndefined();
+      expect(spec.correctAssignments).toBeUndefined();
+    }
+  });
+
+  test("getPath: picks latest ELIGIBLE among 21+ versions incl. superseded/rejected heads", async () => {
+    const { t, asA, aId } = await seed();
+    const subId = await t.run(async (ctx) => (await ctx.db.query("subjects").first())!._id);
+    await t.run(async (ctx) => {
+      const base = (await ctx.db.query("curriculumVersions").collect())[0]!;
+      // 21 extra versions: newest two are superseded/rejected → v20 eligible.
+      for (let i = 2; i <= 22; i++) {
+        await ctx.db.insert("curriculumVersions", {
+          subjectId: base.subjectId, version: i,
+          state: i === 22 ? "superseded" : i === 21 ? "rejected" : "draft",
+          createdAt: i,
+        });
+      }
+    });
+    const path = await asA.query(api.curricula.getPath, { subjectId: subId });
+    expect(path).not.toBeNull();
+    const picked = await t.run(async (ctx) => ctx.db.get(path!.versionId));
+    expect(picked?.version).toBe(20);                  // skips superseded 22 + rejected 21
+    expect(picked?.state).not.toBe("superseded");
   });
 
   test("practice accept materializes activity; reject terminal; foreign proposal hidden", async () => {

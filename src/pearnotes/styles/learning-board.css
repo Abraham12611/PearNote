@@ -1,0 +1,54 @@
+/* LessonBoard layout (issue #46) — the live widget board. Prefix: pnlwb-*. */
+
+.pnlwb {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+.pnlwb-title {
+  margin: 0;
+  font-family: var(--pn-font-display, "Bricolage Grotesque", sans-serif);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--pn-on-dark, #ffffff);
+}
+
+.pnlwb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.pnlwb-ghosts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 340px));
+  gap: 16px;
+}
+
+.pnlwb-source { max-width: 620px; }
+
+.pnlw-pending {
+  gap: 6px;
+}
+.pnlw-pending strong {
+  font-family: var(--pn-font-display, "Bricolage Grotesque", sans-serif);
+  font-size: 1.05rem;
+}
+.pnlw-pending p { margin: 0; font-size: 0.8125rem; color: var(--pn-muted-on-paper, #6b5f50); }
+
+/* ghost practice — a translucent "not real yet" card */
+.pnlw-ghost {
+  opacity: 0.92;
+  border-style: dashed;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 45%),
+    var(--pn-paper-deep, #e7dcc3);
+}
+.pnlw-ghost-rationale { margin: 0; font-size: 0.8125rem; font-weight: 600; }
+.pnlw-ghost-note { margin: 0; font-size: 0.6875rem; font-style: italic; color: var(--pn-muted-on-paper, #6b5f50); }
+.pnlw-ghost-actions { display: flex; gap: 8px; }
+.pnlw-ghost-accepted { border-style: solid; border-color: #2e7d52; opacity: 1; }
+.pnlw-ghost-rejected { opacity: 0.55; }

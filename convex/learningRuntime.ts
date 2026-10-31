@@ -43,8 +43,15 @@ export const getLesson = query({
       title: v.optional(v.string()),
       specVersion: v.number(),
       objectiveIds: v.array(v.id("objectives")),
+      sourceRefs: v.array(sourceRef),
       activities: v.array(
-        v.object({ _id: v.id("activities"), spec: activitySpec, revision: v.number() }),
+        v.object({
+          _id: v.id("activities"),
+          spec: activitySpec,
+          revision: v.number(),
+          objectiveIds: v.array(v.id("objectives")),
+          sourceRefs: v.array(sourceRef),
+        }),
       ),
     }),
     v.null(),
@@ -62,12 +69,15 @@ export const getLesson = query({
       title: found.lesson.title,
       specVersion: found.lesson.specVersion,
       objectiveIds: found.lesson.objectiveIds,
+      sourceRefs: found.lesson.sourceRefs ?? [],
       // Strip server-only answer keys before any read leaves the backend.
       activities: acts
         .map((a) => ({
           _id: a._id,
           spec: stripKeys(a.spec),
           revision: a.revision,
+          objectiveIds: a.objectiveIds,
+          sourceRefs: a.sourceRefs,
         }))
         .sort((a, b) => a._id.localeCompare(b._id)),
     };

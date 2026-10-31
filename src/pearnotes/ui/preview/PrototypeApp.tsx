@@ -53,6 +53,8 @@ const SCENES = [
   { id: "widget-lesson", label: "widgets · lesson card" },
   { id: "widget-source", label: "widgets · source states" },
   { id: "widget-teachback", label: "widgets · teach-back" },
+  { id: "widget-live", label: "widgets · live board" },
+  { id: "widget-pending", label: "widgets · pending" },
 ] as const;
 
 type SceneId = (typeof SCENES)[number]["id"];

@@ -14,11 +14,14 @@ import type {
   ActivityEnvelope,
   ClassificationSpec,
   LearningWidgetPort,
+  PracticeProposal,
+  PracticeReviewAction,
   SegmentLoadResult,
   SourceRef,
   SourceSegmentView,
   WidgetActivitySpec,
 } from "./types";
+import type { RuntimeLesson } from "./runtime";
 import {
   fixtureGradeChoice,
   fixtureGradeClassification,
@@ -247,4 +250,95 @@ export function createFixturePort(opts?: {
       console.info("[fixture tutor request]", request);
     },
   };
+}
+
+/* --- fixture runtime (LessonBoard preview) ------------------------------------- */
+
+/** A remedial proposal the fixture runtime can offer after wrong sorts. */
+const FIXTURE_PROPOSAL: PracticeProposal = {
+  proposalId: "fixture-prop-01",
+  state: "proposed",
+  rationale:
+    "you missed plant-only features twice in a row — here's a quick retry card grounded in the same page.",
+  spec: {
+    kind: "multipleChoice",
+    prompt: "revisit the page, then retry: which feature do animal cells never have?",
+    options: [
+      { id: "opt-a", label: "mitochondria" },
+      { id: "opt-b", label: "a cell wall" },
+      { id: "opt-c", label: "a nucleus" },
+      { id: "opt-d", label: "cytoplasm" },
+    ],
+  },
+  createdAt: 0,
+};
+
+export interface FixtureRuntime {
+  /** Mutable fixture lesson — accept appends a REAL fixture activity row,
+   * mirroring reviewPractice server-side materialization via getLesson. */
+  lesson: RuntimeLesson;
+  port: LearningWidgetPort;
+  proposals: PracticeProposal[];
+  /** Bumps to force the gallery to re-render after a consent decision. */
+  version: number;
+}
+
+/**
+ * Fixture twin of the live runtime — `LessonBoard` renders this exactly as
+ * it renders `useLearningRuntime` output. `withProposal: true` seeds the
+ * ghost-practice demo; accepting materializes a real fixture activity.
+ */
+export function createFixtureRuntime(opts?: { withProposal?: boolean }): FixtureRuntime {
+  const rt: FixtureRuntime = {
+    lesson: {
+      lessonId: FIXTURE_LESSON_ID,
+      title: "plant vs animal cells — the shared kit",
+      objectiveIds: Object.values(FIXTURE_OBJECTIVES),
+      activities: [
+        {
+          activityId: FIXTURE_ENVELOPES.lessonCard.activityId,
+          spec: FIXTURE_LESSON_CARD_SPEC,
+          revision: 1,
+          sourceRefs: FIXTURE_SOURCE_REFS,
+        },
+        {
+          activityId: FIXTURE_ENVELOPES.classify.activityId,
+          spec: FIXTURE_CLASSIFY_SPEC,
+          revision: 1,
+          sourceRefs: FIXTURE_SOURCE_REFS,
+        },
+        {
+          activityId: FIXTURE_ENVELOPES.teachBack.activityId,
+          spec: FIXTURE_TEACHBACK_SPEC,
+          revision: 1,
+          sourceRefs: FIXTURE_SOURCE_REFS,
+        },
+      ],
+    },
+    port: createFixturePort({ latencyMs: 350 }),
+    proposals: opts?.withProposal ? [{ ...FIXTURE_PROPOSAL }] : [],
+    version: 0,
+  };
+
+  rt.port.listPractice = async () => [...rt.proposals];
+  rt.port.reviewPractice = async (proposalId: string, action: PracticeReviewAction) => {
+    const p = rt.proposals.find((x) => x.proposalId === proposalId);
+    if (!p || p.state !== "proposed") {
+      throw new Error("fixture: proposal already decided");
+    }
+    p.state = action === "accept" ? "accepted" : "rejected";
+    rt.version++;
+    if (action === "accept") {
+      const activityId = `fixture-act-ghost-${p.proposalId}`;
+      rt.lesson.activities.push({
+        activityId,
+        spec: p.spec,
+        revision: 1,
+        sourceRefs: FIXTURE_SOURCE_REFS,
+      });
+      return { state: "accepted" as const, activityId };
+    }
+    return { state: "rejected" as const };
+  };
+  return rt;
 }
