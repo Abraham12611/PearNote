@@ -36,9 +36,12 @@ export function pearnotesPathHash(subjectId: string) {
   return `#/learn/path/${encodeURIComponent(subjectId)}`;
 }
 
-/** `#/learn/lesson/<lessonId>` — the full lesson canvas. */
-export function pearnotesLessonHash(lessonId: string) {
-  return `#/learn/lesson/${encodeURIComponent(lessonId)}`;
+/** `#/learn/lesson/<lessonId>[?subject=<subjectId>]` — the full lesson
+ *  canvas. The optional `subject` keeps the drawer's back path alive
+ *  across refresh (Issue #46). */
+export function pearnotesLessonHash(lessonId: string, subjectId?: string) {
+  const base = `#/learn/lesson/${encodeURIComponent(lessonId)}`;
+  return subjectId ? `${base}?subject=${encodeURIComponent(subjectId)}` : base;
 }
 
 /** `#/learn/sources/<subjectId>[?job=<jobId>]` — real PDF/text intake +

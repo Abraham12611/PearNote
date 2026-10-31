@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { SUBJECT_AVATAR_IDS, type SubjectStatus } from "../ui/types";
+import { useCurriculumPath } from "../ingestion/curriculumPath";
 import type {
   LearningPath,
   LessonSummary,
@@ -111,6 +112,23 @@ export function LiveDataBridge({
   useEffect(() => {
     onData(data);
   }, [data, onData]);
+  return null;
+}
+
+/** Live subject→path resolution (Issue #46): calls the documented
+ *  `curricula.getPath` read when the backend exposes it; reports
+ *  {subjectId, path} or null for the honest pending state. */
+export function LivePathBridge({
+  subjectId,
+  onPath,
+}: {
+  subjectId: string;
+  onPath: (resolved: { subjectId: string; path: LearningPath } | null) => void;
+}) {
+  const state = useCurriculumPath(subjectId);
+  useEffect(() => {
+    onPath(state.status === "ready" ? { subjectId, path: state.path } : null);
+  }, [state, subjectId, onPath]);
   return null;
 }
 
