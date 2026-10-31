@@ -191,6 +191,14 @@ export const claimModelDispatch = internalMutation({
     const job = await ctx.db.get(jobId);
     if (job === null) return { claimed: false, reason: "not_found" };
     if (job.modelClaimed === true) return { claimed: false, reason: "already_claimed" };
+    if (["needs_review", "accepted", "building", "ready", "cancelled", "failed", "classifying"].includes(job.state)) {
+      return { claimed: false, reason: "terminal_state" };
+    }
+    const src = await ctx.db.get(job.sourceId);
+    if (src === null || src.status === "deleted") return { claimed: false, reason: "source_gone" };
+    if (src.mime === "application/pdf" && job.modelAuthorized !== true) {
+      return { claimed: false, reason: "unauthorized_pdf" };
+    }
     const priorClaim = await ctx.db
       .query("importJobs")
       .withIndex("by_source", (q) => q.eq("sourceId", job.sourceId))

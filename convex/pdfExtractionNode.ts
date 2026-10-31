@@ -78,7 +78,7 @@ export const extractAndStore = internalAction({
       if (e instanceof PdfExtractionError) {
         return { ok: false, detail: `PDF_EXTRACTION_${e.code.toUpperCase()}: ${e.message.slice(0, 200)}`, segments: 0, warnings: [] };
       }
-      return { ok: false, detail: `PDF_EXTRACTION_UNKNOWN: ${String(e).slice(0, 200)}`, segments: 0, warnings: [] };
+      return { ok: false, detail: "PDF_EXTRACTION_UNKNOWN: parser failure", segments: 0, warnings: [] };
     }
   },
 });

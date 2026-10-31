@@ -194,6 +194,9 @@ export const lessons = defineTable({
   // the canvas must not store learning records).
   canvasSpaceId: v.optional(v.id("spaces")),
   specVersion: v.number(),
+  // The exact per-lesson approved citations (from the proposal's
+  // sourceSegmentIds) — grounding decisions use these, never subject-wide.
+  sourceRefs: v.optional(v.array(sourceRef)),
 })
   .index("by_unit_order", ["unitId", "order"])
   .index("by_canvas_space", ["canvasSpaceId"]);
@@ -212,10 +215,25 @@ export const activitySpec = v.union(
     kind: v.literal("multipleChoice"),
     prompt: v.string(),
     options: v.array(v.object({ id: v.string(), label: v.string() })),
+    // Server-side answer key — set at materialization, NEVER returned by
+    // getLesson (stripped before any read). Absent key ⇒ needs_review.
+    correctOptionId: v.optional(v.string()),
   }),
   v.object({
     kind: v.literal("shortAnswer"),
     prompt: v.string(),
+    expectedAnswer: v.optional(v.string()), // server-only key, stripped on read
+  }),
+  // Engineer 3 classify widget contract — per-item bucket sort. The correct
+  // assignment is server-only (never in the client-facing spec).
+  v.object({
+    kind: v.literal("classify"),
+    prompt: v.string(),
+    items: v.array(v.object({ id: v.string(), label: v.string(), caption: v.optional(v.string()) })),
+    buckets: v.array(v.object({ id: v.string(), label: v.string(), caption: v.optional(v.string()) })),
+    correctAssignments: v.optional(
+      v.array(v.object({ itemId: v.string(), bucketId: v.string() })),
+    ),
   }),
   v.object({
     kind: v.literal("teachBack"),
@@ -238,6 +256,10 @@ export const activities = defineTable({
 export const attemptResponse = v.union(
   v.object({ kind: v.literal("choice"), optionId: v.string() }),
   v.object({ kind: v.literal("text"), text: v.string() }),
+  v.object({
+    kind: v.literal("classification"),
+    assignments: v.array(v.object({ itemId: v.string(), bucketId: v.string() })),
+  }),
 );
 
 export const attemptEvaluation = v.object({
@@ -269,9 +291,12 @@ export const attempts = defineTable({
   ),
   response: attemptResponse,
   evaluation: v.optional(attemptEvaluation),
+  // Client-supplied dedupe key — retries never double-score an answer.
+  attemptKey: v.optional(v.string()),
   createdAt: v.number(),
 })
   .index("by_user_activity", ["userId", "activityId"])
+  .index("by_user_activity_key", ["userId", "activityId", "attemptKey"])
   .index("by_user_time", ["userId", "createdAt"]);
 
 // DATA_MODEL.md — mastery projection, derived from attempt evidence.
@@ -424,3 +449,26 @@ export const importProposals = defineTable({
   createdAt: v.number(),
   updatedAt: v.number(),
 }).index("by_job", ["jobId"]);
+
+// STATE_AND_EVENTS.md — proposed/ghost practice branch: proposed until the
+// learner accepts or rejects; rejected triggers never silently re-propose.
+export const practiceProposals = defineTable({
+  ownerId: v.id("users"),
+  lessonId: v.id("lessons"),
+  /** Deterministic dedupe key (lesson + trigger evidence set). */
+  triggerKey: v.string(),
+  triggerAttemptIds: v.array(v.id("attempts")),
+  rationale: v.string(),
+  spec: activitySpec,
+  objectiveIds: v.array(v.id("objectives")),
+  sourceRefs: v.array(sourceRef),
+  state: v.union(
+    v.literal("proposed"),
+    v.literal("accepted"),
+    v.literal("rejected"),
+  ),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_owner_lesson", ["ownerId", "lessonId"])
+  .index("by_trigger", ["triggerKey"]);
