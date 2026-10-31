@@ -217,6 +217,24 @@ describe("orchestration integrity", () => {
     expect(job?.state).toBe("needs_review");
   });
 
+  test("model-facing payload is valid JSON within bounds; losing claim preserves state", async () => {
+    process.env.PDF_MODEL_AUTHORIZED = "1";
+    const { t, asA, jobId } = await seedPdfJobWithSegments();
+    await t.action(api.ingestMeta.runJob, { jobId });
+    await asA.mutation(api.learningImport.authorizeModelCall, { jobId });
+    await t.action(api.ingestMeta.runJob, { jobId });
+    const call = chatSpy.mock.calls[0][0] as { user: string };
+    const segsJson = call.user.split("SEGMENTS (JSON):")[1];
+    const parsed = JSON.parse(segsJson);        // MUST parse — never truncated
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(segsJson.length).toBeLessThanOrEqual(100_000);
+    // Losing claimer does not clobber winner's lifecycle state.
+    await t.run(async (ctx) => ctx.db.patch(jobId, { state: "classifying", modelClaimed: true }));
+    await t.action(api.ingestMeta.runJob, { jobId });
+    const job = await t.run(async (ctx) => ctx.db.get(jobId));
+    expect(job?.state).toBe("classifying"); // unchanged, not reset to awaiting_model
+  });
+
   test("classifying state blocks concurrent double-dispatch", async () => {
     process.env.PDF_MODEL_AUTHORIZED = "1";
     const { t, asA, jobId } = await seedPdfJobWithSegments();

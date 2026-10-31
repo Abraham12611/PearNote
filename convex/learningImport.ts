@@ -162,6 +162,9 @@ export const authorizeModelCall = mutation({
       throw err("INVALID_INPUT", "job is not an eligible PDF job awaiting authorization");
     }
     await ctx.db.patch(jobId, { modelAuthorized: true, updatedAt: Date.now() });
+    // Safe resume: the owner's consent schedules the pipeline continuation —
+    // extraction/gate checks re-run inside runJob before any dispatch.
+    await ctx.scheduler.runAfter(0, internal.ingestMeta.runJob, { jobId });
     return { ok: true };
   },
 });
@@ -180,11 +183,12 @@ export const claimModelDispatch = internalMutation({
     const job = await ctx.db.get(jobId);
     if (job === null) return { claimed: false, reason: "not_found" };
     if (job.modelClaimed === true) return { claimed: false, reason: "already_claimed" };
-    const siblings = await ctx.db
+    const priorClaim = await ctx.db
       .query("importJobs")
       .withIndex("by_source", (q) => q.eq("sourceId", job.sourceId))
-      .collect();
-    if (siblings.some((j) => j._id !== jobId && j.modelClaimed === true)) {
+      .filter((q) => q.eq(q.field("modelClaimed"), true))
+      .first();
+    if (priorClaim !== null) {
       return { claimed: false, reason: "sibling_claimed" };
     }
     await ctx.db.patch(jobId, { modelClaimed: true, state: "classifying", updatedAt: Date.now() });

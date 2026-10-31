@@ -105,19 +105,25 @@ export const runJob = internalAction({
       }
     }
 
-    const payload = segments
-      .map((s: Doc<"sourceSegments">) => ({ id: s._id, page: s.page ?? null, text: s.text.slice(0, SEGMENT_TEXT_CAP) }))
-      .slice(0, PROMPT_SEGMENT_CAP);
-    const payloadText = JSON.stringify(payload).slice(0, PROMPT_TOTAL_CAP);
+    // Bounded, ALWAYS-VALID JSON: accumulate whole segment objects until the
+    // serialized payload would exceed the cap — never slice mid-JSON.
+    const payload: { id: string; page: number | null; text: string }[] = [];
+    let payloadBytes = 2; // "[]"
+    for (const s of segments) {
+      const item = { id: s._id as string, page: s.page ?? null, text: s.text.slice(0, SEGMENT_TEXT_CAP) };
+      const bytes = JSON.stringify(item).length + 1;
+      if (payload.length >= PROMPT_SEGMENT_CAP || payloadBytes + bytes > PROMPT_TOTAL_CAP) break;
+      payload.push(item);
+      payloadBytes += bytes;
+    }
+    const payloadText = JSON.stringify(payload); // bounded AND parseable
     // Atomic claim: exactly one permitted paid dispatch per source — two
     // concurrent runs cannot both pass, and an ambiguous provider failure
     // can never silently re-spend.
     const claim = await ctx.runMutation(internal.learningImport.claimModelDispatch, { jobId });
     if (!claim.claimed) {
-      await ctx.runMutation(internal.learningImport.setJobState, {
-        jobId, state: "awaiting_model",
-        error: `provider dispatch not permitted: ${claim.reason}`,
-      });
+      // Never touch state here — a concurrent winner may legitimately be
+      // classifying/needs_review; overwriting would corrupt its lifecycle.
       return { ok: false, detail: `model_not_claimed:${claim.reason}` };
     }
     const res = await _deps.chat({
