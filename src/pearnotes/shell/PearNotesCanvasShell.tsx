@@ -25,10 +25,12 @@ import {
 } from "../../lib/routes";
 import {
   LiveDataBridge,
+  LiveLessonBridge,
   LivePathBridge,
   pearnotesLiveBackend,
   usePearNotesData,
   usePearNotesFixtures,
+  type LiveLessonState,
 } from "./data";
 import { IntakeReview } from "../ingestion/IntakeReview";
 import { CreateSubjectSheet } from "../ingestion/CreateSubjectSheet";
@@ -54,6 +56,7 @@ export function PearNotesCanvasShell() {
     subjectId: string;
     path: LearningPath;
   } | null>(null);
+  const [liveLesson, setLiveLesson] = useState<LiveLessonState | null>(null);
   const data = fixtures ?? liveData ?? staticData;
   const fixtureLabel = fixtures?.label;
 
@@ -148,7 +151,11 @@ export function PearNotesCanvasShell() {
            live runtime — it owns getLesson/listPractice/port; the shell
            owns routing + the persistent spatial canvas it overlays. */
         <LessonShell
-          lesson={data.lessonFor(route.lessonId)}
+          lesson={
+            liveLesson?.status === "ready"
+              ? liveLesson.lesson
+              : data.lessonFor(route.lessonId)
+          }
           mode={lessonMode}
           onModeChange={setLessonMode}
           onExit={() => {
@@ -158,7 +165,14 @@ export function PearNotesCanvasShell() {
               ? pearnotesPathHash(subjectId)
               : pearnotesHomeHash();
           }}
-          status={data.lessonFor(route.lessonId) ? "ready" : "loading"}
+          status={
+            liveLesson?.status === "notfound"
+              ? "error"
+              : liveLesson?.status === "ready" ||
+                  data.lessonFor(route.lessonId)
+                ? "ready"
+                : "loading"
+          }
           fixtureLabel={fixtureLabel}
         >
           {lessonCanvas}
@@ -246,6 +260,13 @@ export function PearNotesCanvasShell() {
       )}
       {liveBackend && route.kind === "path" && (
         <LivePathBridge subjectId={route.subjectId} onPath={setLivePath} />
+      )}
+      {liveBackend && route.kind === "lesson" && !fixtureLabel && (
+        <LiveLessonBridge
+          lessonId={route.lessonId}
+          subjectId={route.subjectId}
+          onLesson={setLiveLesson}
+        />
       )}
       {/* Honest contract gap: the owner-scoped curriculum-tree read
           (curricula.getPath) hasn't landed on the backend yet — say so
