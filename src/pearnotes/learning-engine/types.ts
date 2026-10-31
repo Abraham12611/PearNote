@@ -76,7 +76,9 @@ export type EvidenceRejectionReason =
   | "unevaluated" // no verdict yet — submission, not evidence
   | "duplicate_attempt" // same attemptId already counted
   | "untrusted_claim" // carries fields only a server may assert (xp, overrides)
-  | "wrong_user"; // evidence for a different learner than requested
+  | "wrong_user" // evidence for a different learner than requested
+  | "wrong_lesson" // evidence for a different lesson than this session's
+  | "unknown_objective"; // objective not part of this session's objectives
 
 export interface EvidenceRejection {
   attemptId: AttemptId | undefined;

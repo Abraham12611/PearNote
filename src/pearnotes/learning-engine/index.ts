@@ -22,6 +22,13 @@ export {
 } from "./adapter";
 export { runBiologyDemo, type DemoStep } from "./demo";
 export {
+  AssessmentSession,
+  type SessionInit,
+  type SessionSnapshot,
+  type LessonObjectiveRef,
+  type AttemptOutcome,
+} from "./session";
+export {
   FIX,
   AUTHORIZED_CELLS_SEGMENTS,
   AUTHORIZED_DIFFUSION_SEGMENTS,
