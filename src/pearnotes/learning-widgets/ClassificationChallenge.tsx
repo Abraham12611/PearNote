@@ -202,7 +202,9 @@ export function ClassificationChallenge({
       setAnnounce(
         evaluation.verdict === "correct"
           ? "all sorted — nicely done"
-          : `marked: ${evaluation.verdict}. misplaced chips show their tray`,
+          : evaluation.marks
+            ? `marked: ${evaluation.verdict}. misplaced chips show their tray`
+            : `marked: ${evaluation.verdict}`,
       );
     } catch (err) {
       setPhase("error");
@@ -371,7 +373,14 @@ export function ClassificationChallenge({
             <p>
               {result?.verdict === "needs_review"
                 ? "your sort is saved — this activity couldn't be auto-marked, so it queued for review instead of a guessed score."
-                : result?.feedback}
+                : result?.feedback ??
+                  (result?.marks
+                    ? undefined
+                    : result?.verdict === "partial"
+                      ? "marked partially correct — which chips were right isn't revealed until trusted per-item marks arrive."
+                      : result?.verdict === "incorrect"
+                        ? "marked incorrect — sort it again from memory."
+                        : undefined)}
             </p>
             {result?.explanation && <p className="pnlw-explainer">{result.explanation}</p>}
             {result?.explanationSourceRefs?.map((ref) => (

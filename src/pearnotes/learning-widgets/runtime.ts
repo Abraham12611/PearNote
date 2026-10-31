@@ -83,32 +83,42 @@ export function runtimeErrorMessage(e: unknown): string {
 }
 
 /**
- * Port with stable attemptKeys: the SAME learner response retries under the
- * SAME key (server dedupe returns the original attempt); a CHANGED response
- * mints a NEW key — the two are never conflated.
+ * Port with stable attemptKeys — every deliberate Submit is a NEW attempt
+ * (fresh UUID, even for an identical answer: two wrong sorts must count as
+ * two). The key is retained ONLY while a submission is in-flight/failed,
+ * so a genuine network retry of that same submission reuses the original
+ * key and the server dedupe returns the original attempt.
  */
 export function createRuntimePort(deps: RuntimeDeps): LearningWidgetPort {
-  const keys = new Map<string, { key: string; responseJson: string }>();
+  const pendingKeys = new Map<string, { key: string; responseJson: string }>();
   return {
     async submitAttempt(submission) {
       const responseJson = JSON.stringify(submission.response);
-      const prev = keys.get(submission.activityId);
+      const pending = pendingKeys.get(submission.activityId);
       const attemptKey =
-        prev && prev.responseJson === responseJson ? prev.key : deps.newAttemptKey();
-      keys.set(submission.activityId, { key: attemptKey, responseJson });
-      const res = await deps.submitAttempt({
-        activityId: submission.activityId,
-        activityRevision: submission.activityRevision,
-        attemptKey,
-        response: submission.response,
-      });
-      const result: AttemptResult = {
-        attemptId: res.attemptId,
-        verdict: res.verdict,
-        masteryUpdated: res.masteryUpdated,
-        evaluatedAt: Date.now(),
-      };
-      return result;
+        pending && pending.responseJson === responseJson
+          ? pending.key // network retry of an in-flight/failed submission
+          : deps.newAttemptKey(); // every new deliberate submit
+      pendingKeys.set(submission.activityId, { key: attemptKey, responseJson });
+      try {
+        const res = await deps.submitAttempt({
+          activityId: submission.activityId,
+          activityRevision: submission.activityRevision,
+          attemptKey,
+          response: submission.response,
+        });
+        pendingKeys.delete(submission.activityId); // delivered — next submit is a new attempt
+        const result: AttemptResult = {
+          attemptId: res.attemptId,
+          verdict: res.verdict,
+          masteryUpdated: res.masteryUpdated,
+          evaluatedAt: Date.now(),
+        };
+        return result;
+      } catch (e) {
+        // Keep the key: a retry of THIS submission must hit server dedupe.
+        throw e;
+      }
     },
     async loadSegment(ref: SourceRef): Promise<SegmentLoadResult> {
       if (!ref.segmentId) return { status: "missing", segmentId: "" };

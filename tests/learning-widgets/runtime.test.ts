@@ -42,13 +42,43 @@ const argsOf = (mock: unknown) =>
   (mock as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0] as { attemptKey: string });
 
 describe("createRuntimePort — attemptKey stability", () => {
-  it("retries of the SAME response reuse the SAME attemptKey", async () => {
+  it("two deliberate submissions of the SAME answer mint DISTINCT keys (wrong sorts must each count)", async () => {
     const d = deps();
     const port = createRuntimePort(d);
     await port.submitAttempt(submission("opt-a"));
-    await port.submitAttempt(submission("opt-a")); // network retry, same answer
+    await port.submitAttempt(submission("opt-a")); // try-again with identical answer
+    const keys = argsOf(d.submitAttempt).map((a) => a.attemptKey);
+    expect(keys).toEqual(["key-1", "key-2"]);
+  });
+
+  it("a network retry of the SAME in-flight submission reuses the original key", async () => {
+    let calls = 0;
+    const d = deps({
+      submitAttempt: vi.fn(async (args) => {
+        calls++;
+        if (calls === 1) throw new Error("network drop");
+        return { attemptId: "att-1", verdict: "incorrect" as const, masteryUpdated: 0, _args: args };
+      }),
+    });
+    const port = createRuntimePort(d);
+    await expect(port.submitAttempt(submission("opt-a"))).rejects.toThrow("network drop");
+    await port.submitAttempt(submission("opt-a")); // retry of the dropped submit
     const keys = argsOf(d.submitAttempt).map((a) => a.attemptKey);
     expect(keys).toEqual(["key-1", "key-1"]);
+  });
+
+  it("a changed response after a failed submit also mints a NEW key", async () => {
+    const d = deps({
+      submitAttempt: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("drop"))
+        .mockResolvedValue({ attemptId: "a", verdict: "incorrect", masteryUpdated: 0 }),
+    });
+    const port = createRuntimePort(d);
+    await expect(port.submitAttempt(submission("opt-a"))).rejects.toThrow();
+    await port.submitAttempt(submission("opt-b")); // different answer = different attempt
+    const keys = argsOf(d.submitAttempt).map((a) => a.attemptKey);
+    expect(keys).toEqual(["key-1", "key-2"]);
   });
 
   it("a CHANGED response mints a NEW attemptKey", async () => {

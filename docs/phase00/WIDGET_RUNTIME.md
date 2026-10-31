@@ -16,10 +16,11 @@ seam. Fixture code stays — labelled, and structurally identical.
 
 ## attemptKey policy
 
-`createRuntimePort` keys attempts by `(activityId, serialized response)`:
-the SAME response retried reuses the SAME key (server dedupe returns the
-original attempt); a CHANGED response mints a NEW `crypto.randomUUID()`.
-Never reuse a key across different answers — server throws CONFLICT.
+`createRuntimePort` mints a fresh `crypto.randomUUID()` for EVERY
+deliberate Submit — two identical wrong sorts are two distinct attempts
+(so adaptive practice can trigger). The key is retained only while a
+submission is in-flight/failed, so a genuine network retry of that same
+submission reuses the original key and hits server dedupe.
 
 ## verdicts
 
