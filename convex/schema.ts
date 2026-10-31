@@ -67,4 +67,5 @@ export default defineSchema({
   mastery: learning.mastery, // derived per-user objective state
   importJobs: learning.importJobs, // one ingestion run over one owned source
   importProposals: learning.importProposals, // reviewable model suggestions
+  practiceProposals: learning.practiceProposals, // consented remediation branches
 });

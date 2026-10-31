@@ -13,6 +13,7 @@
  * cross-subject is ever fabricated or shared.
  */
 import { ConvexError, v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { requireLearnerId } from "./learningAuth";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -262,8 +263,15 @@ export const review = mutation({
                 subjectId: t.subjectId, conceptIds: myConcepts, statement: stmt, createdAt: now,
               }));
             }
-            await ctx.db.insert("lessons", {
+            const newLessonId = await ctx.db.insert("lessons", {
               unitId, order: lOrder++, title: l.title, objectiveIds, specVersion: 1,
+              sourceRefs: l.sourceSegmentIds.map((id) => mkRef(id)),
+            });
+            // Trusted scored-activity materialization (Issue #31): compiles a
+            // validated source-backed classify activity for the approved
+            // lesson — server-derived key, real authorized segments only.
+            await ctx.scheduler.runAfter(0, internal.learningRuntime.materializeScoredActivity, {
+              lessonId: newLessonId,
             });
           }
         }
