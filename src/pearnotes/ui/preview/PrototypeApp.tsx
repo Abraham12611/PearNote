@@ -13,6 +13,7 @@ import {
 } from "../fixtures";
 import type { LearningPath, LessonMode } from "../types";
 import { JourneyAssetGallery } from "./JourneyAssetGallery";
+import { WidgetGallery, type WidgetSceneId } from "../../learning-widgets/preview/WidgetGallery";
 
 /* ------------------------------------------------------------------
  * Isolated prototype harness (Issue #5, P00.3).
@@ -47,6 +48,11 @@ const SCENES = [
   { id: "journey-assets", label: "journey asset pack" },
   { id: "lesson-guided", label: "lesson · guided" },
   { id: "lesson-explore", label: "lesson · explore" },
+  { id: "widget-board", label: "widgets · lesson board" },
+  { id: "widget-challenge", label: "widgets · classify" },
+  { id: "widget-lesson", label: "widgets · lesson card" },
+  { id: "widget-source", label: "widgets · source states" },
+  { id: "widget-teachback", label: "widgets · teach-back" },
 ] as const;
 
 type SceneId = (typeof SCENES)[number]["id"];
@@ -166,6 +172,7 @@ export function PearNotesPrototypeApp() {
   const isJourney = scene.startsWith("journey") && scene !== "journey-assets";
   const isAssets = scene === "journey-assets";
   const isLesson = scene.startsWith("lesson");
+  const isWidget = scene.startsWith("widget");
   const emptyAccount = scene === "home-empty" || scene === "picker-empty" || scene === "picker-loading";
   const homeSubjects = emptyAccount ? [] : FIXTURE_SUBJECTS;
   const homeFixture = emptyAccount ? undefined : PROTOTYPE_FIXTURE_LABEL;
@@ -247,6 +254,8 @@ export function PearNotesPrototypeApp() {
       />
 
       {isAssets && <JourneyAssetGallery />}
+
+      {isWidget && <WidgetGallery key={scene} scene={scene as WidgetSceneId} />}
 
       {isLesson && (
         <LessonShell
