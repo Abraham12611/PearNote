@@ -5,11 +5,13 @@ import { SUBJECT_AVATAR_IDS, type SubjectStatus } from "../ui/types";
 import { useCurriculumPath } from "../ingestion/curriculumPath";
 import type {
   LearningPath,
+  LessonObjectRef,
   LessonSummary,
   PearNotesData,
   PearSubject,
   ResumePoint,
 } from "./types";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 /**
  * The shell's data seam. Phase 00 returns the real state: a new account has
@@ -129,6 +131,86 @@ export function LivePathBridge({
   useEffect(() => {
     onPath(state.status === "ready" ? { subjectId, path: state.path } : null);
   }, [state, subjectId, onPath]);
+  return null;
+}
+
+/* ---- real lesson chrome (Issue #46 rev3) ---- */
+
+export type LiveLessonState =
+  | { status: "loading" }
+  | { status: "notfound" }
+  | { status: "ready"; lesson: LessonSummary };
+
+const LESSON_OBJECT_KIND: Record<string, LessonObjectRef["kind"]> = {
+  lessonCard: "lesson_card",
+  multipleChoice: "challenge",
+  shortAnswer: "challenge",
+  classify: "challenge",
+  teachBack: "teach_back",
+};
+
+/** Convex ids are 16+ char base32-ish strings — a malformed route id would
+ *  fail validator args before the query runs, so gate on shape first. */
+const CONVEX_ID = /^[a-z0-9]{16,}$/i;
+
+/**
+ * LiveLessonBridge — builds the REAL `LessonSummary` the `LessonShell` slot
+ * guard requires, from owner-scoped `learningRuntime.getLesson` + the real
+ * subject row. Nothing is invented: no objective statements/mastery client-
+ * side (server-owned), step position stays 1/1 until curricula.getPath
+ * (#50) can place the lesson inside its unit.
+ */
+export function LiveLessonBridge({
+  lessonId,
+  subjectId,
+  onLesson,
+}: {
+  lessonId: string;
+  subjectId?: string;
+  onLesson: (state: LiveLessonState) => void;
+}) {
+  const valid = CONVEX_ID.test(lessonId);
+  const lesson = useQuery(
+    api.learningRuntime.getLesson,
+    valid ? { lessonId: lessonId as Id<"lessons"> } : "skip",
+  );
+  const subjects = useQuery(api.subjects.listMine, {});
+
+  useEffect(() => {
+    if (!valid || lesson === null) {
+      onLesson({ status: "notfound" });
+      return;
+    }
+    if (lesson === undefined || subjects === undefined) {
+      onLesson({ status: "loading" });
+      return;
+    }
+    const subject = subjects.find((s) => String(s._id) === subjectId);
+    const objects: LessonObjectRef[] = lesson.activities.map((a, i) => ({
+      id: String(a._id),
+      kind: LESSON_OBJECT_KIND[(a.spec as { kind?: string })?.kind ?? ""] ?? "challenge",
+      title:
+        (a.spec as { title?: string; prompt?: string })?.title ??
+        (a.spec as { prompt?: string })?.prompt ??
+        `activity ${i + 1}`,
+      state: "todo",
+    }));
+    onLesson({
+      status: "ready",
+      lesson: {
+        id: String(lesson._id),
+        title: lesson.title ?? "lesson",
+        subjectId: subjectId ?? "",
+        subjectName: subject?.name ?? "",
+        stepIndex: 0,
+        stepCount: 1,
+        /* Honest: objective statements/mastery aren't part of getLesson —
+           an empty list, never fabricated progress. */
+        objectives: [],
+        objects,
+      },
+    });
+  }, [valid, lesson, subjects, subjectId, lessonId, onLesson]);
   return null;
 }
 
