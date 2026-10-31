@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { SUBJECT_AVATAR_IDS, type SubjectStatus } from "../ui/types";
@@ -83,18 +83,25 @@ export function pearnotesLiveBackend(): boolean {
  */
 function usePearNotesLiveData(): PearNotesData {
   const rows = useQuery(api.subjects.listMine, {});
-  const subjects = (rows ?? []).map(toPearSubject);
-  return {
-    status: rows === undefined ? "loading" : "ready",
-    subjects,
-    resume: null,
-    subjectFor: (id) => subjects.find((s) => s.id === id) ?? null,
-    pathFor: () => null,
-    lessonFor: () => null,
-  };
+  /* Memoized on `rows` (referentially stable from the query cache): the
+     old version built a fresh object every render, and the unbounded
+     reporting effect below turned that into an endless rerender loop. */
+  return useMemo<PearNotesData>(() => {
+    const subjects = (rows ?? []).map(toPearSubject);
+    return {
+      status: rows === undefined ? "loading" : "ready",
+      subjects,
+      resume: null,
+      subjectFor: (id) => subjects.find((s) => s.id === id) ?? null,
+      pathFor: () => null,
+      lessonFor: () => null,
+    };
+  }, [rows]);
 }
 
-/** Mounts the live query (provider required) and reports data upward. */
+/** Mounts the live query (provider required) and reports data upward.
+ *  The effect is dependency-bounded to the memoized data + stable setter,
+ *  so it fires only when the underlying query rows actually change. */
 export function LiveDataBridge({
   onData,
 }: {
@@ -103,7 +110,7 @@ export function LiveDataBridge({
   const data = usePearNotesLiveData();
   useEffect(() => {
     onData(data);
-  });
+  }, [data, onData]);
   return null;
 }
 

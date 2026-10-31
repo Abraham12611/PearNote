@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
+import { pearnotesSourcesHash } from "../../lib/routes";
 import "./ingestion.css";
 import {
   ACCEPTED_MIME,
@@ -47,7 +48,9 @@ function UploadCard({
       <h3 id="pni-upload-h">add material</h3>
       <p className="pni-hint">
         PDF or plain text, up to {Math.round(MAX_SOURCE_BYTES / 1024 / 1024)} MB.
-        Your file is private — only you can read it or its citations.
+        Your file is private — only you can read it or its citations. The
+        document is extracted on the server; the model step stays off until
+        explicitly authorized — nothing is spent automatically.
       </p>
       <input
         ref={inputRef}
@@ -293,14 +296,18 @@ function ProposalReview({ jobId }: { jobId: JobId }) {
         </p>
       )}
 
-      {done ? (
+      {done || proposalRow.state === "accepted" || proposalRow.state === "rejected" ? (
         <div className="pni-done" role="status">
-          {done.state === "accepted" ? (
+          {(done?.state ?? proposalRow.state) === "accepted" ? (
             <>
-              <strong>draft saved — {done.curriculumVersionIds.length} curriculum version(s)</strong>
+              <strong>
+                draft saved — {done?.curriculumVersionIds.length ?? proposalRow.proposal.draftCurriculum?.sections.length ?? 0}{" "}
+                curriculum section(s)/version(s)
+              </strong>
               <p className="pni-hint">
-                {done.subjectIds.length} subject(s) now hold a private draft
-                curriculum. nothing is published yet.
+                {done?.subjectIds.length ?? proposalRow.proposal.suggestedSubjects.length} subject(s) now
+                hold a private draft curriculum. nothing is published yet —
+                the draft is safe to reopen here anytime.
               </p>
             </>
           ) : (
@@ -331,6 +338,14 @@ function ProposalReview({ jobId }: { jobId: JobId }) {
   );
 }
 
+/** The in-flight import survives refresh/navigation: the job id rides in
+ *  the route as `#/learn/sources/<subjectId>?job=<jobId>`. */
+function jobFromHash(): JobId | null {
+  const params = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
+  const job = params.get("job");
+  return job ? (job as JobId) : null;
+}
+
 export function IntakeReview({
   subject,
   onClose,
@@ -342,8 +357,8 @@ export function IntakeReview({
   const register = useMutation(ingestApi.sources.register);
   const begin = useMutation(ingestApi.learningImport.begin);
   const [phase, setPhase] = useState<UploadPhase>({ kind: "idle" });
-  const [jobId, setJobId] = useState<JobId | null>(null);
-  const idempotencyKey = useMemo(() => crypto.randomUUID(), []);
+  const [jobId, setJobId] = useState<JobId | null>(() => jobFromHash());
+  const [notice, setNotice] = useState<string | null>(null);
 
   const onFile = async (file: File) => {
     if (!ACCEPTED_MIME.has(file.type)) {
@@ -373,13 +388,21 @@ export function IntakeReview({
         sha256: await sha256Hex(file),
       });
       setPhase({ kind: "busy", step: "starting import" });
-      const job = await begin({ sourceId, idempotencyKey });
+      /* A FRESH idempotency key per import — the backend treats the same
+         key on a different source as a client bug (CONFLICT), so a sheet-
+         lifetime key would break the second uploaded file. */
+      const job = await begin({ sourceId, idempotencyKey: crypto.randomUUID() });
       setJobId(job.jobId);
-      setPhase({
-        kind: deduplicated ? "error" : "idle",
-        message: deduplicated ? "already in your library — attached the existing source" : "",
-      } as UploadPhase);
-      if (deduplicated) setPhase({ kind: "idle" });
+      /* Job rides in the URL so refresh/navigation recovers this import. */
+      if (subject) {
+        window.location.hash = pearnotesSourcesHash(subject.id, job.jobId);
+      }
+      setPhase({ kind: "idle" });
+      setNotice(
+        deduplicated
+          ? "that file is already in your library — attached the existing source."
+          : null,
+      );
     } catch (e) {
       setPhase({ kind: "error", message: convexErrorCode(e).message });
     }
@@ -410,9 +433,15 @@ export function IntakeReview({
       {phase.kind === "busy" && (
         <p className="pni-hint" role="status">{phase.step}…</p>
       )}
+      {notice && <p className="pni-hint" role="status">{notice}</p>}
 
       {jobId && <StatusCard jobId={jobId} />}
-      {jobId && status?.state === "needs_review" && <ProposalReview jobId={jobId} />}
+      {/* Mount whenever a proposal row may exist — needs_review AND terminal
+          states, so the approve/reject confirmation (and any future reopen)
+          survives the transition instead of unmounting instantly. */}
+      {jobId && status !== undefined && status?.state !== "failed" && (
+        <ProposalReview jobId={jobId} />
+      )}
     </div>
   );
 }
