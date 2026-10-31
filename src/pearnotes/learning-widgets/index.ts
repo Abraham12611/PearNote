@@ -4,6 +4,7 @@
  * `LearningWidgetPort.submitAttempt`. No XP, no mastery, no persistence.
  */
 import "../styles/learning-widgets.css";
+import "../styles/learning-board.css";
 
 export type {
   ActivityEnvelope,
@@ -22,6 +23,9 @@ export type {
   SourceSegmentKind,
   SourceSegmentView,
   SubmissionPhase,
+  PracticeProposal,
+  PracticeReviewAction,
+  PracticeReviewResult,
   TutorRequest,
   WidgetActivityKind,
   WidgetActivitySpec,
@@ -46,7 +50,23 @@ export { ClassificationChallenge, type ClassificationChallengeProps } from "./Cl
 export { TeachBackWidget, type TeachBackWidgetProps } from "./TeachBackWidget";
 
 export {
+  createRuntimePort,
+  defaultAttemptKey,
+  runtimeErrorMessage,
+  useLearningRuntime,
+  type LessonStatus,
+  type RuntimeActivity,
+  type RuntimeDeps,
+  type RuntimeLesson,
+  type RuntimeSubmitResponse,
+} from "./runtime";
+export { LessonBoard, type LessonBoardProps } from "./LessonBoard";
+export { LiveLessonBoard } from "./LiveLessonBoard";
+
+export {
   createFixturePort,
+  createFixtureRuntime,
+  type FixtureRuntime,
   FIXTURE_CLASSIFY_SOLUTION,
   FIXTURE_CLASSIFY_SPEC,
   FIXTURE_ENVELOPES,

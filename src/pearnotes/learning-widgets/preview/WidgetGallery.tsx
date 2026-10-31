@@ -12,6 +12,7 @@ import { SourceViewerWidget } from "../SourceViewerWidget";
 import { TeachBackWidget } from "../TeachBackWidget";
 import {
   createFixturePort,
+  createFixtureRuntime,
   FIXTURE_CLASSIFY_SPEC,
   FIXTURE_ENVELOPES,
   FIXTURE_LESSON_CARD_SPEC,
@@ -21,6 +22,7 @@ import {
   WIDGET_FIXTURE_LABEL,
 } from "../fixtures";
 import type { SourceRef } from "../types";
+import { LessonBoard } from "../LessonBoard";
 
 const HERO = "/pearnotes/learning/cells-hero-plant-vs-animal-01.png";
 const CELL_STICKER = "/pearnotes/journey/stickers/sticker-bio-cell-mascot-01.png";
@@ -31,7 +33,9 @@ export type WidgetSceneId =
   | "widget-challenge"
   | "widget-lesson"
   | "widget-source"
-  | "widget-teachback";
+  | "widget-teachback"
+  | "widget-live"
+  | "widget-pending";
 
 function Kicker({ children }: { children: string }) {
   return <span className="pn-kicker">{children}</span>;
@@ -173,6 +177,12 @@ export function WidgetGallery({ scene }: { scene: WidgetSceneId }) {
     );
   }
 
+  /* widget-live — the SAME LessonBoard the live runtime mounts, fed by the
+     fixture runtime. `?ghost=1` seeds a proposed practice ghost. */
+  if (scene === "widget-live" || scene === "widget-pending") {
+    return <LiveBoardDemo pending={scene === "widget-pending"} />;
+  }
+
   /* widget-board — all four on a spatial lesson board */
   return (
     <div className="pnlw-board-wrap">
@@ -235,6 +245,40 @@ export function WidgetGallery({ scene }: { scene: WidgetSceneId }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Fixture-twin of the live board: identical props, deterministic port. */
+function LiveBoardDemo({ pending }: { pending: boolean }) {
+  const [rt] = useState(() =>
+    createFixtureRuntime({
+      withProposal: new URLSearchParams(window.location.search).get("ghost") === "1",
+    }),
+  );
+  const [, setTick] = useState(0);
+  if (pending) rt.lesson.activities = [];
+
+  return (
+    <div className="pnlw-stage">
+      <div className="pnlw-stage-head">
+        <Kicker>widgets · live board contract (fixture twin)</Kicker>
+        <p>
+          exactly what <code>LiveLessonBoard</code> renders — same props, fixture
+          port. two wrong sorts → a practice ghost appears (demo:
+          ?ghost=1); accepting it materializes a real activity card.
+        </p>
+      </div>
+      <LessonBoard
+        lesson={rt.lesson}
+        port={rt.port}
+        practice={rt.proposals}
+        fixtureLabel={WIDGET_FIXTURE_LABEL}
+        onReviewPractice={async (id, action) => {
+          await rt.port.reviewPractice?.(id, action);
+          setTick((t) => t + 1);
+        }}
+      />
     </div>
   );
 }
