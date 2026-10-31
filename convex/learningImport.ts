@@ -23,9 +23,15 @@ const err = (code: string, message: string) => new ConvexError({ code, message }
  * bound to the wrong document.
  */
 export const begin = mutation({
-  args: { sourceId: v.id("sources"), idempotencyKey: v.string() },
+  args: {
+    sourceId: v.id("sources"),
+    idempotencyKey: v.string(),
+    focusPages: v.optional(v.array(v.number())),
+    focusHint: v.optional(v.string()),
+  },
   returns: v.object({ jobId: v.id("importJobs"), state: importJobState }),
-  handler: async (ctx, { sourceId, idempotencyKey }) => {
+  handler: async (ctx, args) => {
+    const { sourceId, idempotencyKey } = args;
     const ownerId = await requireLearnerId(ctx);
     const source = await requireOwnedSource(ctx, sourceId);
     if (source.status === "deleted") throw err("INVALID_INPUT", "source deleted");
@@ -46,6 +52,8 @@ export const begin = mutation({
     const now = Date.now();
     const jobId = await ctx.db.insert("importJobs", {
       ownerId, sourceId, idempotencyKey: key, state: "extracting",
+      focusPages: args.focusPages?.filter((p) => Number.isInteger(p) && p >= 1 && p <= 500).slice(0, 20),
+      focusHint: args.focusHint?.trim().slice(0, 300),
       createdAt: now, updatedAt: now,
     });
     // Kick the pipeline: extraction → Muse call → proposal/needs_review.

@@ -47,9 +47,20 @@ export type MetaError =
   | { kind: "network"; message: string }
   | { kind: "invalid_json" };
 
+/** Structure-only diagnostic — NEVER contains message text, request bodies,
+ *  or response values. Safe for job errors and logs. */
+export type MetaDiag = {
+  topLevelKeys: string[];
+  choices: number;
+  finishReason: string | null;
+  contentType: string;
+  refusal: boolean;
+  usage: { prompt_tokens?: number; completion_tokens?: number; reasoning_tokens?: number } | null;
+};
+
 export type MetaChatResult =
-  | { ok: true; text: string; usage: { prompt_tokens?: number; completion_tokens?: number } | null; ms: number; model: string; provider: string }
-  | { ok: false; error: MetaError; ms: number };
+  | { ok: true; text: string; usage: MetaDiag["usage"]; ms: number; model: string; provider: string; diag: MetaDiag }
+  | { ok: false; error: MetaError; ms: number; diag?: MetaDiag };
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 const MAX_BODY_LOG = 400;
@@ -59,6 +70,10 @@ export async function chat(opts: {
   user: string;
   provider?: MetaProvider;
   maxTokens?: number;
+  /** Documented Meta param for reasoning models — prefer over max_tokens. */
+  maxCompletionTokens?: number;
+  /** muse reasoning: "low" keeps a usable answer under the token cap. */
+  reasoningEffort?: "low" | "medium" | "high";
   temperature?: number;
   timeoutMs?: number;
   /** Ask the provider for a JSON object reply (response_format json_object). */
@@ -82,7 +97,9 @@ export async function chat(opts: {
           { role: "system", content: opts.system },
           { role: "user", content: opts.user },
         ],
-        max_tokens: opts.maxTokens ?? 4000,
+        ...(opts.maxTokens !== undefined ? { max_tokens: opts.maxTokens } : {}),
+        ...(opts.maxCompletionTokens !== undefined ? { max_completion_tokens: opts.maxCompletionTokens } : {}),
+        ...(opts.reasoningEffort !== undefined ? { reasoning_effort: opts.reasoningEffort } : {}),
         // Muse reasoning default is 1.0 — only override when the caller asks.
         ...(opts.temperature === undefined ? {} : { temperature: opts.temperature }),
         ...(opts.json ? { response_format: { type: "json_object" } } : {}),
@@ -91,17 +108,32 @@ export async function chat(opts: {
     if (!res.ok) {
       return { ok: false, error: { kind: "http", status: res.status, body: (await res.text()).slice(0, MAX_BODY_LOG) }, ms: Date.now() - t0 };
     }
-    const j = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-      completion_message?: { content?: { text?: string } };
+    const j = (await res.json()) as Record<string, unknown>;
+    const choices = Array.isArray(j.choices) ? (j.choices as Record<string, unknown>[]) : [];
+    const ch0 = choices[0] ?? {};
+    const msg = (ch0.message ?? {}) as Record<string, unknown>;
+    const usage = (j.usage ?? null) as MetaDiag["usage"];
+    const diag: MetaDiag = {
+      topLevelKeys: Object.keys(j).slice(0, 20),
+      choices: choices.length,
+      finishReason: typeof ch0.finish_reason === "string" ? ch0.finish_reason : null,
+      contentType: Array.isArray(msg.content) ? "array" : typeof msg.content,
+      refusal: msg.refusal !== undefined && msg.refusal !== null,
+      usage: usage === null ? null : {
+        prompt_tokens: usage.prompt_tokens,
+        completion_tokens: usage.completion_tokens,
+        reasoning_tokens: (usage as Record<string, unknown> & { completion_tokens_details?: { reasoning_tokens?: number } })
+          .completion_tokens_details?.reasoning_tokens,
+      },
     };
     const text =
-      j.choices?.[0]?.message?.content ??
-      j.completion_message?.content?.text ??
+      (typeof msg.content === "string" ? msg.content : undefined) ??
+      ((j.completion_message as { content?: { text?: string } } | undefined)?.content?.text) ??
       "";
-    if (text === "") return { ok: false, error: { kind: "invalid_json" }, ms: Date.now() - t0 };
-    return { ok: true, text, usage: j.usage ?? null, ms: Date.now() - t0, model: provider.model, provider: provider.name };
+    if (text === "") {
+      return { ok: false, error: { kind: "invalid_json" }, ms: Date.now() - t0, diag };
+    }
+    return { ok: true, text, usage: diag.usage, ms: Date.now() - t0, model: provider.model, provider: provider.name, diag };
   } catch (e) {
     const aborted = e instanceof Error && e.name === "AbortError";
     return { ok: false, error: aborted ? { kind: "timeout" } : { kind: "network", message: String(e).slice(0, MAX_BODY_LOG) }, ms: Date.now() - t0 };

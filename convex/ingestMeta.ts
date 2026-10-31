@@ -41,7 +41,7 @@ export const runJob = internalAction({
     if (job === null) return { ok: false, detail: "job not found" };
     // Idempotency: a completed/terminal job is never re-processed — a retry
     // can never trigger a second paid model call or duplicate segments.
-    if (["needs_review", "accepted", "building", "ready", "cancelled"].includes(job.state)) {
+    if (["needs_review", "accepted", "building", "ready", "cancelled", "failed"].includes(job.state)) {
       return { ok: true, detail: `already_${job.state}` };
     }
     // Fast-path in-flight check (the atomic claim below is the real guard).
@@ -105,6 +105,19 @@ export const runJob = internalAction({
       }
     }
 
+    // Focus scoping: when the job declares focusPages, the model sees ONLY
+    // those pages' segments — citations are then checked against this
+    // selected set, not merely any stored segment.
+    if (job.focusPages !== undefined && job.focusPages.length > 0) {
+      const allowed = new Set(job.focusPages);
+      segments = segments.filter((s: Doc<"sourceSegments">) => s.page !== undefined && allowed.has(s.page));
+      if (segments.length === 0) {
+        await ctx.runMutation(internal.learningImport.setJobState, {
+          jobId, state: "failed", error: "IMPORT_FAILED: no segments on focused pages",
+        });
+        return { ok: false, detail: "no_focus_segments" };
+      }
+    }
     // Bounded, ALWAYS-VALID JSON: accumulate whole segment objects until the
     // serialized payload would exceed the cap — never slice mid-JSON.
     const payload: { id: string; page: number | null; text: string }[] = [];
@@ -117,6 +130,7 @@ export const runJob = internalAction({
       payloadBytes += bytes;
     }
     const payloadText = JSON.stringify(payload); // bounded AND parseable
+    const selectedIds = new Set(payload.map((i) => i.id));
     // Atomic claim: exactly one permitted paid dispatch per source — two
     // concurrent runs cannot both pass, and an ambiguous provider failure
     // can never silently re-spend.
@@ -126,10 +140,13 @@ export const runJob = internalAction({
       // classifying/needs_review; overwriting would corrupt its lifecycle.
       return { ok: false, detail: `model_not_claimed:${claim.reason}` };
     }
+    const coverageNote = `COVERAGE: partial document — ${payload.length} selected segments${job.focusPages ? ` restricted to pages ${job.focusPages.join(",")}` : ""}; do NOT claim whole-document coverage or cite pages outside the provided set.`;
     const res = await _deps.chat({
       system: SYSTEM,
-      user: `SOURCE TITLE: ${job.sourceTitle}\nSEGMENTS (JSON):\n${payloadText}`,
+      user: `SOURCE TITLE: ${job.sourceTitle}\n${job.focusHint ? `FOCUS: ${job.focusHint}\n` : ""}${coverageNote}\nSEGMENTS (JSON):\n${payloadText}`,
       json: true,
+      maxCompletionTokens: 6000,
+      reasoningEffort: "low",
     });
 
     const fail = async (detail: string, state: "failed" | "needs_review" = "failed") => {
@@ -147,13 +164,14 @@ export const runJob = internalAction({
         invalid_json: "INVALID_MODEL_OUTPUT: empty completion",
         http: "MODEL_UNAVAILABLE: provider error",
       } as const;
-      return await fail(map[res.error.kind]);
+      const diagNote = res.diag ? ` [diag keys=${res.diag.topLevelKeys.length} choices=${res.diag.choices} finish=${res.diag.finishReason} ctype=${res.diag.contentType} refusal=${res.diag.refusal} pt=${res.diag.usage?.prompt_tokens} ct=${res.diag.usage?.completion_tokens} rt=${res.diag.usage?.reasoning_tokens}]` : "";
+      return await fail(map[res.error.kind] + diagNote);
     }
 
     const parsed = parseProposal(res.text);
     if (parsed === null) return await fail("INVALID_MODEL_OUTPUT: response is not a valid proposal");
 
-    const idSet = new Set<string>(segments.map((s: Doc<"sourceSegments">) => String(s._id)));
+    const idSet = selectedIds.size > 0 ? new Set([...selectedIds].map(String)) : new Set<string>(segments.map((s: Doc<"sourceSegments">) => String(s._id)));
     const textMap = new Map<string, string>(segments.map((s: Doc<"sourceSegments">) => [String(s._id), s.text]));
     const citeCheck = checkCitations(parsed, idSet);
     if (!citeCheck.ok) return await fail(`INVALID_MODEL_OUTPUT: ${citeCheck.detail}`, "needs_review");
@@ -203,6 +221,8 @@ export const jobDoc = internalQuery({
       storageId: v.id("_storage"),
       state: importJobState,
       modelAuthorized: v.optional(v.boolean()),
+      focusPages: v.optional(v.array(v.number())),
+      focusHint: v.optional(v.string()),
     }),
     v.null(),
   ),
@@ -219,6 +239,8 @@ export const jobDoc = internalQuery({
           storageId: source.storageId,
           state: job.state,
           modelAuthorized: job.modelAuthorized,
+          focusPages: job.focusPages,
+          focusHint: job.focusHint,
         };
   },
 });
