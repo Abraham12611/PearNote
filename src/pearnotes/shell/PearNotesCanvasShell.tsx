@@ -32,7 +32,7 @@ import {
 } from "./data";
 import { IntakeReview } from "../ingestion/IntakeReview";
 import { CreateSubjectSheet } from "../ingestion/CreateSubjectSheet";
-import { LiveLessonScreen } from "../ingestion/LiveLessonScreen";
+import { LiveLessonBoard } from "../learning-widgets";
 import { usePearNotesRoute } from "./navigation";
 import { loadPearNotesUiStyles, pearnotesSlots } from "./slots";
 import type { LessonMode, LearningPath, PearNotesData } from "./types";
@@ -144,36 +144,28 @@ export function PearNotesCanvasShell() {
       </header>
 
       {route.kind === "lesson" ? (
-        liveBackend && !fixtureLabel ? (
-          /* Issue #46: the REAL owner lesson — getLesson is owner-scoped
-             and the widgets evaluate on the server through the live port. */
-          <LiveLessonScreen
-            lessonId={route.lessonId}
-            onBack={() => {
-              window.location.hash = route.subjectId
-                ? pearnotesPathHash(route.subjectId)
-                : pearnotesHomeHash();
-            }}
-          />
-        ) : (
-          <LessonShell
-            lesson={data.lessonFor(route.lessonId)}
-            mode={lessonMode}
-            onModeChange={setLessonMode}
-            /* Exit → back to this lesson's subject path when known (their
-               contract: drawer restores scroll + selection), else home. */
-            onExit={() => {
-              const subjectId = data.lessonFor(route.lessonId)?.subjectId;
-              window.location.hash = subjectId
-                ? pearnotesPathHash(subjectId)
-                : pearnotesHomeHash();
-            }}
-            status={data.lessonFor(route.lessonId) ? "ready" : "loading"}
-            fixtureLabel={fixtureLabel}
-          >
-            {lessonCanvas}
-          </LessonShell>
-        )
+        /* Issue #46 rev2: Engineer 3's `LiveLessonBoard` is the single
+           live runtime — it owns getLesson/listPractice/port; the shell
+           owns routing + the persistent spatial canvas it overlays. */
+        <LessonShell
+          lesson={data.lessonFor(route.lessonId)}
+          mode={lessonMode}
+          onModeChange={setLessonMode}
+          onExit={() => {
+            const subjectId =
+              route.subjectId ?? data.lessonFor(route.lessonId)?.subjectId;
+            window.location.hash = subjectId
+              ? pearnotesPathHash(subjectId)
+              : pearnotesHomeHash();
+          }}
+          status={data.lessonFor(route.lessonId) ? "ready" : "loading"}
+          fixtureLabel={fixtureLabel}
+        >
+          {lessonCanvas}
+          {liveBackend && !fixtureLabel && (
+            <LiveLessonBoard lessonId={route.lessonId} />
+          )}
+        </LessonShell>
       ) : (
         <>
           <Home
