@@ -1,0 +1,85 @@
+/* Issue #24 — real intake + proposal review chrome (pni- namespace). */
+
+.pni-sheet {
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 100vw);
+  overflow-y: auto;
+  background: var(--pn-ink);
+  box-shadow: -30px 0 70px -30px rgba(0, 0, 0, 0.8);
+  color: var(--pn-on-dark);
+  padding: 18px 18px 60px;
+}
+
+.pni-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.pni-title {
+  margin: 2px 0 0;
+  font-family: var(--pn-font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.pni-card {
+  margin-bottom: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  background: #1e1e26;
+  padding: 14px 16px;
+}
+
+.pni-card h3 { margin: 0 0 6px; font-family: var(--pn-font-display); font-size: 1rem; font-weight: 800; }
+.pni-h4 { margin: 14px 0 6px; font-size: 0.78rem; font-weight: 700; color: var(--pn-muted-on-dark); text-transform: lowercase; }
+.pni-hint { color: var(--pn-muted-on-dark); font-size: 0.78rem; line-height: 1.4; margin: 4px 0; }
+.pni-error { color: var(--pn-danger); font-size: 0.8rem; margin: 8px 0 0; }
+.pni-file { margin-top: 10px; font-size: 0.8rem; color: var(--pn-muted-on-dark); max-width: 100%; }
+
+.pni-status-row { display: flex; align-items: center; gap: 9px; }
+.pni-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--pn-muted-on-dark); }
+.pni-dot.is-extracting, .pni-dot.is-classifying { background: var(--pn-amber); animation: pni-pulse 1.4s ease-in-out infinite; }
+.pni-dot.is-awaiting_model { background: var(--pn-amber); }
+.pni-dot.is-needs_review, .pni-dot.is-accepted, .pni-dot.is-ready { background: var(--pn-lime); }
+.pni-dot.is-failed { background: var(--pn-danger); }
+@keyframes pni-pulse { 50% { opacity: 0.4; } }
+
+.pni-warnings { margin: 8px 0 0; padding-left: 18px; color: var(--pn-amber); font-size: 0.75rem; }
+.pni-rev { font-size: 0.7rem; color: var(--pn-faint-on-dark); font-weight: 600; }
+
+.pni-subjects, .pni-concepts, .pni-tree { margin: 0; padding-left: 18px; font-size: 0.82rem; }
+.pni-subject { margin-bottom: 10px; }
+.pni-subject.is-discarded { opacity: 0.45; }
+.pni-subject-name { display: flex; align-items: center; gap: 8px; }
+.pni-subject-name input {
+  flex: 1; min-width: 0; border: 1px solid rgba(255,255,255,0.14); border-radius: 8px;
+  background: rgba(255,255,255,0.05); color: var(--pn-on-dark); padding: 6px 9px; font: inherit; font-weight: 700;
+}
+.pni-confidence { border-radius: 999px; background: rgba(255,255,255,0.08); padding: 2px 8px; font-size: 0.65rem; font-weight: 700; }
+.pni-mini { margin-top: 4px; border: 0; border-radius: 999px; background: rgba(255,255,255,0.1); color: var(--pn-on-dark); padding: 4px 10px; font-size: 0.7rem; font-weight: 700; cursor: pointer; }
+
+.pni-concepts li { margin-bottom: 10px; }
+.pni-quote { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--pn-lime); color: var(--pn-muted-on-dark); font-size: 0.75rem; font-style: italic; }
+.pni-quote-page { color: var(--pn-lime); font-style: normal; font-weight: 700; }
+.pni-tree ul { padding-left: 16px; list-style: disc; }
+.pni-tree li { margin: 4px 0; }
+
+.pni-consent { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; border: 1px solid var(--pn-amber); border-radius: 10px; padding: 10px 12px; font-size: 0.78rem; }
+.pni-actions { display: flex; gap: 10px; margin-top: 14px; }
+.pni-approve { flex: 1; }
+.pni-reject { border: 1px solid rgba(255,255,255,0.16); border-radius: 999px; background: none; color: var(--pn-muted-on-dark); padding: 10px 16px; font-weight: 700; cursor: pointer; }
+.pni-done { margin-top: 12px; border-radius: 12px; background: rgba(201,255,61,0.1); border: 1px solid rgba(201,255,61,0.3); padding: 12px 14px; }
+
+@media (max-width: 899px) {
+  .pni-sheet { width: 100vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class^="pni"], [class*=" pni"] { transition-duration: 1ms !important; animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
+}

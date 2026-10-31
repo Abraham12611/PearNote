@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 export type PearNotesRoute =
   | { kind: "home" }
   | { kind: "path"; subjectId: string }
+  | { kind: "sources"; subjectId: string }
   | { kind: "lesson"; lessonId: string };
 
 /**
@@ -25,6 +26,9 @@ export function pearnotesRouteFromHash(): PearNotesRoute {
 
   if (hash[1] === "path" && hash[2]) {
     return { kind: "path", subjectId: decodeURIComponent(hash[2]) };
+  }
+  if (hash[1] === "sources" && hash[2]) {
+    return { kind: "sources", subjectId: decodeURIComponent(hash[2]) };
   }
   if (hash[1] === "lesson" && hash[2]) {
     return { kind: "lesson", lessonId: decodeURIComponent(hash[2]) };
@@ -51,6 +55,9 @@ export function usePearNotesRoute(): PearNotesRoute {
   const parts = hash.replace(/^#\/?/, "").split("?")[0].split("/");
   if (parts[0] === "learn" && parts[1] === "path" && parts[2]) {
     return { kind: "path", subjectId: decodeURIComponent(parts[2]) };
+  }
+  if (parts[0] === "learn" && parts[1] === "sources" && parts[2]) {
+    return { kind: "sources", subjectId: decodeURIComponent(parts[2]) };
   }
   if (parts[0] === "learn" && parts[1] === "lesson" && parts[2]) {
     return { kind: "lesson", lessonId: decodeURIComponent(parts[2]) };

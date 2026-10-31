@@ -41,6 +41,11 @@ export function pearnotesLessonHash(lessonId: string) {
   return `#/learn/lesson/${encodeURIComponent(lessonId)}`;
 }
 
+/** `#/learn/sources/<subjectId>` — real PDF/text intake + import review. */
+export function pearnotesSourcesHash(subjectId: string) {
+  return `#/learn/sources/${encodeURIComponent(subjectId)}`;
+}
+
 /** About remembers the room you came from. A cold link returns to the
  *  crew at its explicit `#/space/crew` address. */
 const LAST_SPACE_KEY = "ourspaces:last-space";
