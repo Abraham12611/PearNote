@@ -6,11 +6,12 @@
  * the practiceProposals store — this file owns all auth/persistence.
  */
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { requireLearnerId } from "./learningAuth";
 import type { Doc, Id } from "./_generated/dataModel";
 import { activitySpec, sourceRef } from "./tables/learning";
-import { internalMutation } from "./_generated/server";
+
 import { evaluateForRemediation } from "../src/pearnotes/learning-engine/remediation";
 import { deriveMastery } from "../src/pearnotes/learning-engine/mastery";
 import type { ObjectiveEvidence } from "../src/pearnotes/learning-engine/types";
@@ -425,16 +426,6 @@ const CELLS_CLASSIFY = {
   ],
 };
 
-/** Keyword evidence required for each graded fact (item→bucket). */
-const FACT_KEYWORDS: Record<string, string[]> = {
-  "f-wall": ["cell wall", "wall"],
-  "f-chloroplast": ["chloroplast"],
-  "f-bigvac": ["vacuole"],
-  "f-membrane": ["membrane"],
-  "f-nucleus": ["nucleus"],
-  "f-cytoplasm": ["cytoplasm"],
-};
-
 const TEMPLATE_ID = "cells_classify_v1";
 
 /**
@@ -444,11 +435,10 @@ const TEMPLATE_ID = "cells_classify_v1";
  * mentions the fact term) guard against typos — they are NOT the basis of
  * trust; the attestation itself is. Immutable per (template, lesson, item).
  */
-export const attestClassificationFacts = internalMutation({
+export const attestClassificationFacts = mutation({
   args: {
     templateId: v.string(),
     lessonId: v.id("lessons"),
-    attestedBy: v.string(),
     items: v.array(v.object({
       itemId: v.string(),
       bucketId: v.string(),
@@ -456,9 +446,14 @@ export const attestClassificationFacts = internalMutation({
     })),
   },
   returns: v.object({ attested: v.number() }),
-  handler: async (ctx, { templateId, lessonId, attestedBy, items }) => {
-    const lesson = await ctx.db.get(lessonId);
-    if (lesson === null) throw new Error("lesson not found");
+  handler: async (ctx, { templateId, lessonId, items }) => {
+    // Real reviewer identity: the authenticated owner attesting their own
+    // lesson — recorded as their userId, not a caller-supplied string.
+    const attesterId = await requireLearnerId(ctx);
+    const found = await ownedLesson(ctx as never, lessonId, attesterId);
+    if (found === null) throw err("UNAUTHORIZED", "lesson not found");
+    const lesson = found.lesson;
+    const attestedBy = `owner:${String(attesterId)}`;
     const approved = new Set((lesson.sourceRefs ?? []).map((r) => String(r.segmentId)));
     if (approved.size === 0) throw new Error("lesson has no approved citations");
     const itemTerms: Record<string, string> = {
@@ -494,6 +489,9 @@ export const attestClassificationFacts = internalMutation({
       });
       count++;
     }
+    // One safe procedure: attest → schedule materialize for THIS lesson.
+    // Idempotent end-to-end (attestation dedupes, materializer dedupes).
+    await ctx.scheduler.runAfter(0, internal.learningRuntime.materializeScoredActivity, { lessonId });
     return { attested: count };
   },
 });

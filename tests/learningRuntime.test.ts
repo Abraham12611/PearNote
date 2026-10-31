@@ -236,8 +236,8 @@ describe("learningRuntime", () => {
     expect(pre.activityId).toBeNull();
     // Reviewer attestation: each item→bucket bound to lesson-approved segs.
     const segs = await t.run(async (ctx) => ctx.db.query("sourceSegments").collect());
-    await t.mutation(api.learningRuntime.attestClassificationFacts, {
-      templateId: "cells_classify_v1", lessonId, attestedBy: "owner_review",
+    await asA.mutation(api.learningRuntime.attestClassificationFacts, {
+      templateId: "cells_classify_v1", lessonId,
       items: [
         { itemId: "f-wall", bucketId: "plant", segmentIds: [segs[0]._id] },
         { itemId: "f-chloroplast", bucketId: "plant", segmentIds: [segs[0]._id] },
@@ -252,8 +252,8 @@ describe("learningRuntime", () => {
     // Attestation with a foreign/out-of-lesson segment must be rejected.
     const foreignSeg = await t.run(async (ctx) =>
       ctx.db.insert("sourceSegments", { sourceId: segs[0].sourceId, segmentNo: 9, page: 9, text: "cell wall chloroplast", createdAt: 1 }));
-    await expect(t.mutation(api.learningRuntime.attestClassificationFacts, {
-      templateId: "cells_classify_v1", lessonId, attestedBy: "owner_review",
+    await expect(asA.mutation(api.learningRuntime.attestClassificationFacts, {
+      templateId: "cells_classify_v1", lessonId,
       items: [{ itemId: "f-wall", bucketId: "plant", segmentIds: [foreignSeg] }],
     })).rejects.toThrow(/outside lesson-approved/);
     // Spec is genuinely gradable; key never readable; sourceRefs real.
@@ -451,8 +451,8 @@ describe("learningRuntime", () => {
     const abstain = await t.mutation(api.learningRuntime.materializeScoredActivity, { lessonId: lesson!._id });
     expect(abstain.activityId).toBeNull();
     const segs = await t.run(async (ctx) => ctx.db.query("sourceSegments").collect());
-    await t.mutation(api.learningRuntime.attestClassificationFacts, {
-      templateId: "cells_classify_v1", lessonId: lesson!._id, attestedBy: "owner_review",
+    await asA.mutation(api.learningRuntime.attestClassificationFacts, {
+      templateId: "cells_classify_v1", lessonId: lesson!._id,
       items: [
         { itemId: "f-wall", bucketId: "plant", segmentIds: [segs[0]._id] },
         { itemId: "f-chloroplast", bucketId: "plant", segmentIds: [segs[0]._id] },
