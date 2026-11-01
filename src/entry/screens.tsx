@@ -129,31 +129,6 @@ export function BackendMissing() {
   );
 }
 
-/** Shown where Engineer 2's `PearNotesAppRoutes` would mount until their
- *  PR lands on this branch — an honest hold, never faked app content. */
-export function AppShellPending() {
-  return (
-    <RecoveryScaffold kicker="coming together" title="your desk is being connected">
-      <p className="entry-lede">
-        The learning app shell lands with the shell-navigation merge. This
-        route is already wired — it will open on its own once that ships.
-      </p>
-      <div className="entry-actions">
-        <button type="button" className="pn-cta" onClick={() => navigate("/")}>
-          back home →
-        </button>
-        <button
-          type="button"
-          className="pn-cta-dark"
-          onClick={() => navigate("/demo")}
-        >
-          see the demo
-        </button>
-      </div>
-    </RecoveryScaffold>
-  );
-}
-
 /** A real failure loading the app shell — reported, never disguised as
  *  "still being integrated" (review #57). */
 export function AppShellError({ message }: { message: string }) {

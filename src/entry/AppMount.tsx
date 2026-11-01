@@ -58,7 +58,6 @@ import {
 import {
   AccountRequired,
   AppShellError,
-  AppShellPending,
   EntrySlip,
 } from "./screens";
 
@@ -83,12 +82,12 @@ const LazyAppRoutes = lazy(async (): Promise<{
       PearNotesAppRoutes?: AppRoutesComponent;
     };
     if (mod.PearNotesAppRoutes) return { default: mod.PearNotesAppRoutes };
-    /* The module loaded but the export isn't on this branch — an honest
-       hold while the app-shell PR is unmerged. */
-    return { default: AppShellPending };
+    /* The app-shell merge shipped — a missing export is a broken
+       integration, not a pending one. Report it like any other failure. */
+    throw new Error("PearNotesAppRoutes is not exported by src/pearnotes/shell");
   } catch (cause) {
-    /* A real import failure (network, syntax, a broken deploy) is NOT a
-       pending integration — surface it plainly (review #57). */
+    /* Real failures (import error, missing export, broken deploy) are
+       surfaced plainly — never disguised as unfinished integration. */
     const message = cause instanceof Error ? cause.message : String(cause);
     return { default: () => <AppShellError message={message} /> };
   }
