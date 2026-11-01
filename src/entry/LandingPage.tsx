@@ -77,7 +77,7 @@ export function LandingPage({ live }: { live: boolean }) {
     <main className="entry-landing" data-entry-screen="landing">
       <header className="entry-top">
         <span className="entry-mark">
-          <span aria-hidden="true">✳</span> PearNotes
+          <img src="/assets/pearnotes-mark.svg" alt="" aria-hidden="true" /> PearNotes
         </span>
         <nav className="entry-top-nav">
           <a href="#how-it-works">how it works</a>
