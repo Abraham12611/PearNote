@@ -153,3 +153,33 @@ export function AppShellPending() {
     </RecoveryScaffold>
   );
 }
+
+/** A real failure loading the app shell — reported, never disguised as
+ *  "still being integrated" (review #57). */
+export function AppShellError({ message }: { message: string }) {
+  return (
+    <RecoveryScaffold kicker="something broke" title="the desk didn't load">
+      <p className="entry-lede">
+        The app shell failed to load. That&apos;s a bug, not a missing
+        feature — please report it with this line:
+      </p>
+      <p className="entry-error">{message}</p>
+      <div className="entry-actions">
+        <button
+          type="button"
+          className="pn-cta"
+          onClick={() => window.location.reload()}
+        >
+          try again
+        </button>
+        <button
+          type="button"
+          className="pn-cta-dark"
+          onClick={() => navigate("/")}
+        >
+          back home
+        </button>
+      </div>
+    </RecoveryScaffold>
+  );
+}

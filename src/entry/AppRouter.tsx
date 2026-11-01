@@ -72,11 +72,7 @@ export function AppRouter({
         );
       }
       return (
-        <DemoMount
-          demoPathname={route.demoPathname}
-          search={loc.search}
-          live={live}
-        />
+        <DemoMount demoPathname={route.demoPathname} search={loc.search} />
       );
     case "legacy":
       return <LegacyMount mode={mode} convexClient={convexClient} />;

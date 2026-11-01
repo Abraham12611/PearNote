@@ -18,8 +18,10 @@
  * Demo: the same component mounted under `/demo/*` with its pathname
  * translated back to `/app/*`, `?fixtures=1` enforced in the URL (the
  * labelled-fixture demo surface per ACCOUNT_SESSION_CONTRACT.md §3),
- * a visible demo ribbon, and an anonymous guest session so live
- * queries stay in scope.
+ * and a visible demo ribbon. No identity bridge mounts here — browsing
+ * the demo must never mint an anonymous account or touch session
+ * identity; `demoMode` makes the component fixtures/local-only without
+ * any session at all.
  *
  * `demoMode` contract (E1 review on #57 — REQUIRED of the mounted
  * component, Engineer 2 implements it on their side):
@@ -55,6 +57,7 @@ import {
 } from "./paths";
 import {
   AccountRequired,
+  AppShellError,
   AppShellPending,
   EntrySlip,
 } from "./screens";
@@ -80,10 +83,15 @@ const LazyAppRoutes = lazy(async (): Promise<{
       PearNotesAppRoutes?: AppRoutesComponent;
     };
     if (mod.PearNotesAppRoutes) return { default: mod.PearNotesAppRoutes };
-  } catch {
-    /* the shell module isn't on this branch yet — hold honestly */
+    /* The module loaded but the export isn't on this branch — an honest
+       hold while the app-shell PR is unmerged. */
+    return { default: AppShellPending };
+  } catch (cause) {
+    /* A real import failure (network, syntax, a broken deploy) is NOT a
+       pending integration — surface it plainly (review #57). */
+    const message = cause instanceof Error ? cause.message : String(cause);
+    return { default: () => <AppShellError message={message} /> };
   }
-  return { default: AppShellPending };
 });
 
 /** `onNavigateExternal` hrefs are legacy `#/…` links — `navigate` stores
@@ -151,19 +159,16 @@ function AppAuthGate({ children }: { children: ReactNode }) {
 /**
  * `/demo*` — the deliberate demo door. The URL stays inside `/demo`
  * (visible labelling), `?fixtures=1` keeps the labelled fixture seam on,
- * and an anonymous guest session (the bridge's default) gives live
- * queries an isolated, clearly-guest identity — distinguishable from
- * registered accounts via `isAnonymous`, and never touching another
- * account's data.
+ * and `demoMode` tells the mounted component to render fixtures/local
+ * interactions only — zero personal Convex reads or writes, no session
+ * required, whatever account the visitor carries.
  */
 export function DemoMount({
   demoPathname,
   search,
-  live,
 }: {
   demoPathname: string;
   search: string;
-  live: boolean;
 }) {
   const onExternal = useExternalNavigate();
   const demoNavigate = useCallback(
@@ -178,7 +183,9 @@ export function DemoMount({
 
   return (
     <div className="entry-demo" data-demo-surface="true">
-      {live ? <AuthIdentityBridge /> : null}
+      {/* Deliberately NO AuthIdentityBridge: the demo is fixtures/local
+          only, so entering it performs no anonymous sign-in and no
+          account/profile mutations (review #57). */}
       <Suspense fallback={<EntrySlip label="opening the demo" />}>
         <LazyAppRoutes
           pathname={appPathname}
