@@ -1,3 +1,9 @@
+/* This file is the LEGACY hash-routing table (`#/…`). PearNotes clean
+ * pathname routes (`/`, `/auth/*`, `/app/*`, `/demo/*`) live in
+ * src/entry/ — paths.ts, legacy.ts (hash compat), router.ts, location.ts.
+ * The two namespaces coexist: `#/…` links mount the legacy app,
+ * everything else is pathname-routed (Assignment E1). */
+
 /** The space a bare URL opens — always shown with its explicit room slug. */
 export const DEFAULT_SPACE_SLUG = "crew";
 
