@@ -150,6 +150,24 @@ describe("legacy hash classification", () => {
       }),
     ).toEqual({ kind: "app", pathname: "/app/subjects/s1" });
   });
+
+  test("site-search params survive learn translation (mock stays mock)", () => {
+    expect(
+      routeFromLocation({
+        pathname: "/",
+        search: "?mock=1",
+        hash: "#/learn",
+      }),
+    ).toEqual({ kind: "app", pathname: "/app?mock=1" });
+    /* the retired pearnotes flag does not carry over */
+    expect(
+      routeFromLocation({
+        pathname: "/",
+        search: "?pearnotes=1&mock=1",
+        hash: "#/learn/path/s1",
+      }),
+    ).toEqual({ kind: "app", pathname: "/app/subjects/s1?mock=1" });
+  });
 });
 
 describe("demo namespace translation", () => {

@@ -25,10 +25,10 @@ export type LegacyHash =
   /** No hash (or a bare `#`). */
   | { kind: "none" };
 
-export function classifyHash(hash: string): LegacyHash {
+export function classifyHash(hash: string, search = ""): LegacyHash {
   if (!hash || hash === "#") return { kind: "none" };
   if (!hash.startsWith("#/")) return { kind: "anchor" };
-  const appUrl = learnHashToAppUrl(hash);
+  const appUrl = learnHashToAppUrl(hash, search);
   if (appUrl) return { kind: "learn", appUrl };
   return { kind: "legacy" };
 }
@@ -36,10 +36,15 @@ export function classifyHash(hash: string): LegacyHash {
 /**
  * `#/learn*` → `/app*`. Params that mean something on both sides are
  * carried over (`job`, `fixtures`); `subject` is consumed into the
- * canonical nested lesson path; the old `pearnotes` gate flag is
- * dropped — the clean URL replaces it.
+ * canonical nested lesson path; the obsolete `pearnotes` gate flag is
+ * dropped — the clean URL replaces it. Site-search params (`mock`,
+ * deployment flags…) survive translation: a `?mock=1#/learn` dev link
+ * stays in mock mode.
  */
-export function learnHashToAppUrl(hash: string): string | null {
+export function learnHashToAppUrl(
+  hash: string,
+  preserveSearch = "",
+): string | null {
   const raw = hash.replace(/^#\/?/, "");
   const [pathPart, queryPart] = raw.split("?");
   const segs = pathPart.split("/");
@@ -70,6 +75,12 @@ export function learnHashToAppUrl(hash: string): string | null {
      shared link. */
 
   if (params.get("fixtures") === "1") carry.set("fixtures", "1");
+
+  /* Site-search params the translated URL should keep — anything except
+     the retired `pearnotes` gate flag and params already set above. */
+  for (const [key, value] of new URLSearchParams(preserveSearch)) {
+    if (key !== "pearnotes" && !carry.has(key)) carry.set(key, value);
+  }
 
   const query = carry.toString();
   return pathname + (query ? `?${query}` : "");

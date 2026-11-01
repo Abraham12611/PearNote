@@ -38,7 +38,7 @@ export function AppRouter({
      this rewrites the address bar to the clean form (replace — the hash
      URL should not stay in history). */
   useEffect(() => {
-    const legacy = classifyHash(loc.hash);
+    const legacy = classifyHash(loc.hash, loc.search);
     if (legacy.kind === "learn") {
       window.history.replaceState(window.history.state, "", legacy.appUrl);
     }

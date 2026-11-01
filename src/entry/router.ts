@@ -28,7 +28,7 @@ export function routeFromLocation(loc: {
   search: string;
   hash: string;
 }): SiteRoute {
-  const legacy = classifyHash(loc.hash);
+  const legacy = classifyHash(loc.hash, loc.search);
   if (legacy.kind === "learn") {
     return { kind: "app", pathname: legacy.appUrl };
   }

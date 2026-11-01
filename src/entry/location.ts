@@ -6,6 +6,10 @@
  * assignment (e.g. Engineer 2's `onNavigateExternal`) re-enters the
  * legacy branch. `navigate()` notifies listeners manually because
  * pushState doesn't fire popstate.
+ *
+ * `getSnapshot` must be referentially stable — the cached `current`
+ * object only changes when the location actually does (infinite-loop
+ * guard, React docs on useSyncExternalStore).
  * ------------------------------------------------------------------ */
 
 import { useSyncExternalStore } from "react";
@@ -16,7 +20,7 @@ export interface LocationSnapshot {
   hash: string;
 }
 
-function snapshot(): LocationSnapshot {
+function readLocation(): LocationSnapshot {
   return {
     pathname: window.location.pathname,
     search: window.location.search,
@@ -24,21 +28,24 @@ function snapshot(): LocationSnapshot {
   };
 }
 
+let current: LocationSnapshot = readLocation();
 const listeners = new Set<() => void>();
 
-function emit() {
+function handleChange() {
+  current = readLocation();
   for (const listener of listeners) listener();
+}
+
+/* One module-level pair of window listeners — the store outlives every
+   component that reads it. */
+if (typeof window !== "undefined") {
+  window.addEventListener("popstate", handleChange);
+  window.addEventListener("hashchange", handleChange);
 }
 
 function subscribe(callback: () => void): () => void {
   listeners.add(callback);
-  window.addEventListener("popstate", callback);
-  window.addEventListener("hashchange", callback);
-  return () => {
-    listeners.delete(callback);
-    window.removeEventListener("popstate", callback);
-    window.removeEventListener("hashchange", callback);
-  };
+  return () => listeners.delete(callback);
 }
 
 const SERVER_SNAPSHOT: LocationSnapshot = {
@@ -53,7 +60,11 @@ const SERVER_SNAPSHOT: LocationSnapshot = {
  * funnels through the same store.
  */
 export function useLocation(): LocationSnapshot {
-  return useSyncExternalStore(subscribe, snapshot, () => SERVER_SNAPSHOT);
+  return useSyncExternalStore(
+    subscribe,
+    () => current,
+    () => SERVER_SNAPSHOT,
+  );
 }
 
 /**
@@ -69,6 +80,6 @@ export function navigate(to: string, options?: { replace?: boolean }) {
   } else {
     window.history.pushState(null, "", url);
   }
-  emit();
+  handleChange();
   if (!url.includes("#")) window.scrollTo(0, 0);
 }

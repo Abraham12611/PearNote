@@ -95,6 +95,7 @@ function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string })
   const user = useQuery(api.auth.currentUser, {});
   const options = useQuery(api.auth.signInOptions, {});
   const { stage, email, busy, error, sendCode, verify, restart } = useJoin();
+  const [googleError, setGoogleError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
   /* Already joined → the form's job is done. Anonymous guests stay: for
@@ -112,6 +113,7 @@ function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string })
   }, [stage]);
 
   async function google() {
+    setGoogleError(null);
     try {
       /* redirect straight to the destination — the provider completes
          the exchange when it lands. */
@@ -119,9 +121,7 @@ function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string })
         redirectTo: `${window.location.origin}${next}`,
       });
     } catch {
-      /* signIn throws before navigating only when the provider refuses
-         — the code path below remains the honest fallback. */
-      restart();
+      setGoogleError("google didn't answer — try the code instead?");
     }
   }
 
@@ -201,6 +201,7 @@ function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string })
           continue with Google
         </button>
       ) : null}
+      {googleError ? <p className="entry-error">{googleError}</p> : null}
     </div>
   );
 }
