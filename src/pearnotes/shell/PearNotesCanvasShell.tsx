@@ -24,16 +24,21 @@ import {
   pearnotesSourcesHash,
 } from "../../lib/routes";
 import {
+  CONVEX_ID,
   LiveDataBridge,
+  LiveLessonBridge,
+  LivePathBridge,
   pearnotesLiveBackend,
   usePearNotesData,
   usePearNotesFixtures,
+  type LiveLessonState,
 } from "./data";
 import { IntakeReview } from "../ingestion/IntakeReview";
 import { CreateSubjectSheet } from "../ingestion/CreateSubjectSheet";
+import { LiveLessonBoard } from "../learning-widgets";
 import { usePearNotesRoute } from "./navigation";
 import { loadPearNotesUiStyles, pearnotesSlots } from "./slots";
-import type { LessonMode, PearNotesData } from "./types";
+import type { LessonMode, LearningPath, PearNotesData } from "./types";
 import "./shell.css";
 
 const { Home, SubjectPicker, LearningPathDrawer, LessonShell } = pearnotesSlots;
@@ -48,6 +53,18 @@ export function PearNotesCanvasShell() {
      fixture mode never mounts the query — the data seam shape is identical. */
   const liveBackend = pearnotesLiveBackend();
   const [liveData, setLiveData] = useState<PearNotesData | null>(null);
+  const [livePath, setLivePath] = useState<{
+    subjectId: string;
+    path: LearningPath;
+  } | null>(null);
+  const [liveLesson, setLiveLesson] = useState<LiveLessonState | null>(null);
+
+  /* Navigating between lessons must not leave the previous lesson's
+     chrome mounted — drop the summary the moment the route id changes;
+     the bridge re-reports the fresh lesson immediately after. */
+  useEffect(() => {
+    setLiveLesson(null);
+  }, [route.kind === "lesson" ? route.lessonId : null]);
   const data = fixtures ?? liveData ?? staticData;
   const fixtureLabel = fixtures?.label;
 
@@ -83,9 +100,16 @@ export function PearNotesCanvasShell() {
     setPickerOpen(false);
     window.location.hash = pearnotesPathHash(subjectId);
   }, []);
-  const openLesson = useCallback((lessonId: string) => {
-    window.location.hash = pearnotesLessonHash(lessonId);
-  }, []);
+  const openLesson = useCallback(
+    (lessonId: string) => {
+      /* `?subject=` keeps back-navigation + refresh honest (Issue #46). */
+      window.location.hash = pearnotesLessonHash(
+        lessonId,
+        route.kind === "path" ? route.subjectId : undefined,
+      );
+    },
+    [route],
+  );
   const pending = useCallback((what: string) => {
     setNotice(`${what} arrives with the learning backend (Phase 01)`);
   }, []);
@@ -131,23 +155,62 @@ export function PearNotesCanvasShell() {
       </header>
 
       {route.kind === "lesson" ? (
+        liveLesson?.status === "notfound" ? (
+          /* Malformed/foreign id — a real error frame with working back
+             navigation, not the placeholder shell. */
+          <div className="pns-lesson-error" role="alert">
+            <p className="pn-kicker">lesson · unavailable</p>
+            <strong>this lesson isn't on your shelf</strong>
+            <p className="pns-lesson-error-sub">
+              it may belong to another learner or have been removed — no
+              lesson content is shown rather than a guessed one.
+            </p>
+            <button
+              type="button"
+              className="pn-cta"
+              onClick={() => {
+                window.location.hash = route.subjectId
+                  ? pearnotesPathHash(route.subjectId)
+                  : pearnotesHomeHash();
+              }}
+            >
+              {route.subjectId ? "back to path" : "back to desk"}
+            </button>
+          </div>
+        ) : (
+        /* Issue #46 rev2: Engineer 3's `LiveLessonBoard` is the single
+           live runtime — it owns getLesson/listPractice/port; the shell
+           owns routing + the persistent spatial canvas it overlays. */
         <LessonShell
-          lesson={data.lessonFor(route.lessonId)}
+          lesson={
+            liveLesson?.status === "ready" &&
+            liveLesson.lesson.id === route.lessonId
+              ? liveLesson.lesson
+              : data.lessonFor(route.lessonId)
+          }
           mode={lessonMode}
           onModeChange={setLessonMode}
-          /* Exit → back to this lesson's subject path when known (their
-             contract: drawer restores scroll + selection), else home. */
           onExit={() => {
-            const subjectId = data.lessonFor(route.lessonId)?.subjectId;
+            const subjectId =
+              route.subjectId ?? data.lessonFor(route.lessonId)?.subjectId;
             window.location.hash = subjectId
               ? pearnotesPathHash(subjectId)
               : pearnotesHomeHash();
           }}
-          status={data.lessonFor(route.lessonId) ? "ready" : "loading"}
+          status={
+            liveLesson?.status === "ready" ||
+              data.lessonFor(route.lessonId)
+              ? "ready"
+              : "loading"
+          }
           fixtureLabel={fixtureLabel}
         >
           {lessonCanvas}
+          {liveBackend && !fixtureLabel && CONVEX_ID.test(route.lessonId) && (
+            <LiveLessonBoard lessonId={route.lessonId} />
+          )}
         </LessonShell>
+        )
       ) : (
         <>
           <Home
@@ -186,7 +249,13 @@ export function PearNotesCanvasShell() {
             subject={
               route.kind === "path" ? data.subjectFor(route.subjectId) : null
             }
-            path={route.kind === "path" ? data.pathFor(route.subjectId) : null}
+            path={
+              route.kind === "path"
+                ? livePath?.subjectId === route.subjectId
+                  ? livePath.path
+                  : data.pathFor(route.subjectId)
+                : null
+            }
             selectedLessonId={selectedLessonId}
             onSelectLesson={setSelectedLessonId}
             onStartLesson={openLesson}
@@ -220,6 +289,29 @@ export function PearNotesCanvasShell() {
           }}
         />
       )}
+      {liveBackend && route.kind === "path" && (
+        <LivePathBridge subjectId={route.subjectId} onPath={setLivePath} />
+      )}
+      {liveBackend && route.kind === "lesson" && !fixtureLabel && (
+        <LiveLessonBridge
+          lessonId={route.lessonId}
+          subjectId={route.subjectId}
+          onLesson={setLiveLesson}
+        />
+      )}
+      {/* Honest state when the owner has no eligible curriculum version
+          yet — the typed `curricula.getPath` query is live now; a null
+          result means "approve a source proposal first", never a
+          fabricated path. */}
+      {liveBackend &&
+        !fixtureLabel &&
+        route.kind === "path" &&
+        !livePath && (
+          <p className="pns-live-note" role="status">
+            no approved curriculum on this subject yet — upload a source and
+            approve its proposal to build the real path.
+          </p>
+        )}
       {liveBackend && route.kind === "sources" && (
         <IntakeReview
           subject={data.subjectFor(route.subjectId)}

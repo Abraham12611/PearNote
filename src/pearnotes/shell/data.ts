@@ -2,13 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { SUBJECT_AVATAR_IDS, type SubjectStatus } from "../ui/types";
+import { useCurriculumPath } from "../ingestion/curriculumPath";
+import { getPathRef } from "../ingestion/api";
 import type {
   LearningPath,
+  LessonObjectRef,
   LessonSummary,
   PearNotesData,
   PearSubject,
   ResumePoint,
 } from "./types";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 /**
  * The shell's data seam. Phase 00 returns the real state: a new account has
@@ -111,6 +115,118 @@ export function LiveDataBridge({
   useEffect(() => {
     onData(data);
   }, [data, onData]);
+  return null;
+}
+
+/** Live subject→path resolution (Issue #46): calls the documented
+ *  `curricula.getPath` read when the backend exposes it; reports
+ *  {subjectId, path} or null for the honest pending state. */
+export function LivePathBridge({
+  subjectId,
+  onPath,
+}: {
+  subjectId: string;
+  onPath: (resolved: { subjectId: string; path: LearningPath } | null) => void;
+}) {
+  const state = useCurriculumPath(subjectId);
+  useEffect(() => {
+    onPath(state.status === "ready" ? { subjectId, path: state.path } : null);
+  }, [state, subjectId, onPath]);
+  return null;
+}
+
+/* ---- real lesson chrome (Issue #46 rev3) ---- */
+
+export type LiveLessonState =
+  | { status: "loading" }
+  | { status: "notfound" }
+  | { status: "ready"; lesson: LessonSummary };
+
+const LESSON_OBJECT_KIND: Record<string, LessonObjectRef["kind"]> = {
+  lessonCard: "lesson_card",
+  multipleChoice: "challenge",
+  shortAnswer: "challenge",
+  classify: "challenge",
+  teachBack: "teach_back",
+};
+
+/** Convex ids are 16+ char base32-ish strings — a malformed route id would
+ *  fail validator args before the query runs, so gate on shape first. */
+export const CONVEX_ID = /^[a-z0-9]{16,}$/i;
+
+/**
+ * LiveLessonBridge — builds the REAL `LessonSummary` the `LessonShell` slot
+ * guard requires, from owner-scoped `learningRuntime.getLesson` + the real
+ * subject row. Nothing is invented: no objective statements/mastery client-
+ * side (server-owned), step position stays 1/1 until curricula.getPath
+ * (#50) can place the lesson inside its unit.
+ */
+export function LiveLessonBridge({
+  lessonId,
+  subjectId,
+  onLesson,
+}: {
+  lessonId: string;
+  subjectId?: string;
+  onLesson: (state: LiveLessonState) => void;
+}) {
+  const valid = CONVEX_ID.test(lessonId);
+  const subjectValid = subjectId !== undefined && CONVEX_ID.test(subjectId);
+  const lesson = useQuery(
+    api.learningRuntime.getLesson,
+    valid ? { lessonId: lessonId as Id<"lessons"> } : "skip",
+  );
+  const subjects = useQuery(api.subjects.listMine, {});
+  /* Real position inside the approved path — never a hardcoded 1-of-1. */
+  const path = useQuery(
+    getPathRef,
+    subjectValid ? { subjectId: subjectId as Id<"subjects"> } : "skip",
+  );
+
+  useEffect(() => {
+    if (!valid || lesson === null) {
+      onLesson({ status: "notfound" });
+      return;
+    }
+    if (lesson === undefined || subjects === undefined) {
+      onLesson({ status: "loading" });
+      return;
+    }
+    const subject = subjects.find((s) => String(s._id) === subjectId);
+    const objects: LessonObjectRef[] = lesson.activities.map((a, i) => ({
+      id: String(a._id),
+      kind: LESSON_OBJECT_KIND[(a.spec as { kind?: string })?.kind ?? ""] ?? "challenge",
+      title:
+        (a.spec as { title?: string; prompt?: string })?.title ??
+        (a.spec as { prompt?: string })?.prompt ??
+        `activity ${i + 1}`,
+      state: "todo",
+    }));
+    /* Position within the real approved path when the curriculum read is
+       available; otherwise count only this lesson's own objects — both
+       are honest numbers, never simulated progress. */
+    const flat = (path?.sections ?? []).flatMap((s) =>
+      s.units.flatMap((u) => u.lessons),
+    );
+    const idx = flat.findIndex((l) => String(l._id) === lessonId);
+    const stepCount = flat.length > 0 ? flat.length : objects.length;
+    const stepIndex = idx >= 0 ? idx : 0;
+    onLesson({
+      status: "ready",
+      lesson: {
+        id: String(lesson._id),
+        title: lesson.title ?? "lesson",
+        subjectId: subjectId ?? "",
+        subjectName: subject?.name ?? "",
+        stepIndex,
+        stepCount: Math.max(stepCount, 1),
+        /* Honest: objective statements/mastery aren't part of getLesson —
+           an empty list, never fabricated progress. */
+        objectives: [],
+        objects,
+      },
+    });
+  }, [valid, lesson, subjects, subjectId, lessonId, path, onLesson]);
   return null;
 }
 

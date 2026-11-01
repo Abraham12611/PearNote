@@ -5,7 +5,7 @@ export type PearNotesRoute =
   | { kind: "home" }
   | { kind: "path"; subjectId: string }
   | { kind: "sources"; subjectId: string }
-  | { kind: "lesson"; lessonId: string };
+  | { kind: "lesson"; lessonId: string; subjectId?: string };
 
 /**
  * Hash parsing/building for the shell's `#/learn*` namespace. Hash-based like
@@ -17,10 +17,9 @@ export type PearNotesRoute =
  *   #/learn/lesson/<lessonId>  → full lesson canvas
  */
 export function pearnotesRouteFromHash(): PearNotesRoute {
-  const hash = window.location.hash
-    .replace(/^#\/?/, "")
-    .split("?")[0]
-    .split("/");
+  const raw = window.location.hash.replace(/^#\/?/, "");
+  const hash = raw.split("?")[0].split("/");
+  const params = new URLSearchParams(raw.split("?")[1] ?? "");
 
   if (hash[0] !== "learn") return { kind: "home" };
 
@@ -31,7 +30,12 @@ export function pearnotesRouteFromHash(): PearNotesRoute {
     return { kind: "sources", subjectId: decodeURIComponent(hash[2]) };
   }
   if (hash[1] === "lesson" && hash[2]) {
-    return { kind: "lesson", lessonId: decodeURIComponent(hash[2]) };
+    const subject = params.get("subject");
+    return {
+      kind: "lesson",
+      lessonId: decodeURIComponent(hash[2]),
+      subjectId: subject ? decodeURIComponent(subject) : undefined,
+    };
   }
   return { kind: "home" };
 }
@@ -52,7 +56,9 @@ export function usePearNotesRoute(): PearNotesRoute {
     () => window.location.hash,
     () => "#/learn",
   );
-  const parts = hash.replace(/^#\/?/, "").split("?")[0].split("/");
+  const raw = hash.replace(/^#\/?/, "");
+  const parts = raw.split("?")[0].split("/");
+  const params = new URLSearchParams(raw.split("?")[1] ?? "");
   if (parts[0] === "learn" && parts[1] === "path" && parts[2]) {
     return { kind: "path", subjectId: decodeURIComponent(parts[2]) };
   }
@@ -60,7 +66,12 @@ export function usePearNotesRoute(): PearNotesRoute {
     return { kind: "sources", subjectId: decodeURIComponent(parts[2]) };
   }
   if (parts[0] === "learn" && parts[1] === "lesson" && parts[2]) {
-    return { kind: "lesson", lessonId: decodeURIComponent(parts[2]) };
+    const subject = params.get("subject");
+    return {
+      kind: "lesson",
+      lessonId: decodeURIComponent(parts[2]),
+      subjectId: subject ? decodeURIComponent(subject) : undefined,
+    };
   }
   return { kind: "home" };
 }
