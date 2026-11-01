@@ -262,12 +262,19 @@ type FixtureBundle = {
   label: string;
 };
 
-export function usePearNotesFixtures(): PearNotesData & { label: string } | null {
+export function usePearNotesFixtures(
+  /** Issue #54 review — `?fixtures=1` is honored only when the caller's
+   *  context allows it (explicit `demoMode` prop or a dev build). A real
+   *  `/app` route passes `false` and the flag alone can never inject
+   *  sample content into a production account. Defaults on so the
+   *  legacy `#/learn` prototype harness is unchanged. */
+  enabled: boolean = true,
+): PearNotesData & { label: string } | null {
   const [bundle, setBundle] = useState<FixtureBundle | null>(null);
   const wanted = pearnotesFixturesRequested();
 
   useEffect(() => {
-    if (!wanted) return;
+    if (!enabled || !wanted) return;
     const load = fixtureModules["../ui/fixtures.ts"];
     if (!load) return;
     let live = true;
@@ -291,9 +298,9 @@ export function usePearNotesFixtures(): PearNotesData & { label: string } | null
     return () => {
       live = false;
     };
-  }, [wanted]);
+  }, [enabled, wanted]);
 
-  if (!wanted || !bundle) return null;
+  if (!enabled || !wanted || !bundle) return null;
   return {
     status: "ready",
     subjects: bundle.subjects,

@@ -14,6 +14,11 @@
  *     leave `/app` entirely (today: the legacy `#/space/<slug>` OurSpaces
  *     rooms). Without it we fall back to assigning `window.location.hash`,
  *     which the current hash router already understands.
+ *   - `demoMode?` — explicit demo context (E1's `/demo/*` mount). When
+ *     true, every personal Convex read AND write is suppressed: no
+ *     subject/source/curriculum queries, no creation or intake
+ *     mutations — only local fixtures and local interactions run.
+ *     It is a prop, NEVER inferred from `?fixtures=1` (see app/policy.ts).
  *   - A pathname outside `/app` renders `null` — the public root owns
  *     every other route.
  *
@@ -24,6 +29,8 @@
  * ------------------------------------------------------------------ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConvexAuth } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 import { Canvas } from "../../../components/Canvas";
 import { getDataMode } from "../../../live/dataMode";
 import { getIdentity } from "../../../live/identity";
@@ -70,6 +77,7 @@ import {
   appSubjectPath,
   type AppRoute,
 } from "./routes";
+import { accountStateKey, appAccessPolicy } from "./policy";
 import "./app.css";
 
 const { Home, SubjectPicker, LearningPathDrawer, LessonShell } = pearnotesSlots;
@@ -81,15 +89,33 @@ export interface PearNotesAppRoutesProps {
   navigate: (to: string) => void;
   /** links that leave `/app` (legacy `#/space/<slug>` rooms, for now). */
   onNavigateExternal?: (href: string) => void;
+  /** Explicit demo context from the router (E1's `/demo/*`). Suppresses
+   *  every personal Convex read/write — fixtures and local interactions
+   *  only. Never inferred from URL flags. */
+  demoMode?: boolean;
 }
 
 export function PearNotesAppRoutes({
   pathname,
   navigate,
   onNavigateExternal,
+  demoMode = false,
 }: PearNotesAppRoutesProps) {
   const route = useMemo(() => appRouteFromPathname(pathname), [pathname]);
   if (route.kind === "outside") return null;
+  /* Demo is a public, zero-write surface: no auth gate, no live reads —
+     regardless of whether a Convex provider happens to be mounted. */
+  if (demoMode) {
+    return (
+      <PearNotesApp
+        route={route}
+        navigate={navigate}
+        onNavigateExternal={onNavigateExternal}
+        authState="ready"
+        demoMode
+      />
+    );
+  }
   /* The auth gate needs the Convex provider, which only exists in live
      mode — `?mock=1` with a configured URL would otherwise crash the
      live hooks (useConvexAuth/useQuery without a provider). */
@@ -106,19 +132,34 @@ export function PearNotesAppRoutes({
 }
 
 /** Authenticated gate — real sign-in state, never assumed. Guests signed
- *  silently by AuthIdentityBridge read as authenticated here too. */
+ *  silently by AuthIdentityBridge read as authenticated here too.
+ *
+ *  Account-switch privacy (#54 review): `currentUser.userId` keys the
+ *  whole app subtree — sign-out/sign-in remounts it, wiping liveData/
+ *  livePath/liveLesson, selection state and the displayed identity, so
+ *  account B can never see a flash of account A's rows. `currentUser`
+ *  must resolve before the app mounts, so a stale session can't open
+ *  with yesterday's identity. */
 function LiveGate(props: {
   route: AppRoute;
   navigate: (to: string) => void;
   onNavigateExternal?: (href: string) => void;
 }) {
   const { isLoading, isAuthenticated } = useConvexAuth();
-  const authState = isLoading
-    ? "loading"
-    : isAuthenticated
-      ? "ready"
-      : "unauthorized";
-  return <PearNotesApp {...props} authState={authState} />;
+  const me = useQuery(api.auth.currentUser, isAuthenticated ? {} : "skip");
+  if (isLoading || (isAuthenticated && me === undefined)) {
+    return <PearNotesApp {...props} authState="loading" />;
+  }
+  if (!isAuthenticated) {
+    return <PearNotesApp {...props} authState="unauthorized" />;
+  }
+  return (
+    <PearNotesApp
+      {...props}
+      key={accountStateKey(me?.userId)}
+      authState="ready"
+    />
+  );
 }
 
 function PearNotesApp({
@@ -126,16 +167,25 @@ function PearNotesApp({
   navigate,
   onNavigateExternal,
   authState,
+  demoMode = false,
 }: {
   route: AppRoute;
   navigate: (to: string) => void;
   onNavigateExternal?: (href: string) => void;
   authState: "loading" | "ready" | "unauthorized";
+  demoMode?: boolean;
 }) {
   const staticData = usePearNotesData();
-  const fixtures = usePearNotesFixtures();
   /* Provider-backed reads — mirrors main.tsx's mount condition exactly. */
   const liveBackend = getDataMode() === "live" && pearnotesLiveBackend();
+  /* Review: `demoMode` fails closed — zero personal reads/writes mount
+     below; `?fixtures=1` only counts inside demo/dev contexts. */
+  const policy = appAccessPolicy({
+    demoMode,
+    liveBackend,
+    dev: import.meta.env.DEV,
+  });
+  const fixtures = usePearNotesFixtures(policy.fixturesAllowed);
   const [liveData, setLiveData] = useState<PearNotesData | null>(null);
   const [livePath, setLivePath] = useState<{
     subjectId: string;
@@ -196,6 +246,11 @@ function PearNotesApp({
   const pending = useCallback((what: string) => {
     setNotice(`${what} arrives with the learning backend (Phase 01)`);
   }, []);
+  /* Demo-disabled actions: an honest "off here", not a silent dead end
+     and never a real mutation behind a demo-looking button. */
+  const demoNote = useCallback((what: string) => {
+    setNotice(`${what} is off in the demo — it runs for real on your own account`);
+  }, []);
 
   /* The lesson IS the inherited canvas engine — empty board, no cursors,
      no fixture widgets. Same mount the hash shell proved out. */
@@ -236,7 +291,11 @@ function PearNotesApp({
       fixtureLabel={fixtureLabel}
       onLearn={() => navigate(appLearnPath())}
       onCreateSubject={() =>
-        liveBackend ? navigate(appNewPath()) : pending("subject creation")
+        demoMode
+          ? demoNote("subject creation")
+          : liveBackend
+            ? navigate(appNewPath())
+            : pending("subject creation")
       }
       onOpenSubject={openSubject}
       onResume={openLesson}
@@ -254,7 +313,7 @@ function PearNotesApp({
       case "library":
         return (
           <LibraryPage
-            live={liveBackend && !fixtureLabel}
+            live={policy.liveReads && !fixtureLabel}
             onAddMaterial={() => navigate(appLearnPath())}
           />
         );
@@ -266,7 +325,7 @@ function PearNotesApp({
         return (
           <ProfilePage
             learnerName={learnerName}
-            live={liveBackend && !fixtureLabel}
+            live={policy.liveReads && !fixtureLabel}
           />
         );
       case "settings":
@@ -294,14 +353,20 @@ function PearNotesApp({
             ) : (
               <UnauthorizedPage />
             )
-          ) : liveLesson?.status === "notfound" ? (
-            /* Malformed/foreign id — real error frame, not a guessed lesson. */
+          ) : liveLesson?.status === "notfound" ||
+            (!policy.liveReads &&
+              data.lessonFor(route.lessonId) === null) ? (
+            /* Malformed/foreign id — real error frame, not a guessed
+               lesson. Demo/mock also lands here: with live reads off,
+               "not in this data" is honest, an endless loading slip
+               isn't. */
             <div className="pns-lesson-error" role="alert">
               <p className="pn-kicker">lesson · unavailable</p>
               <strong>this lesson isn't on your shelf</strong>
               <p className="pns-lesson-error-sub">
-                it may belong to another learner or have been removed — no
-                lesson content is shown rather than a guessed one.
+                it may belong to another learner, have been removed, or be
+                outside this demo — no lesson content is shown rather
+                than a guessed one.
               </p>
               <button
                 type="button"
@@ -344,7 +409,7 @@ function PearNotesApp({
               fixtureLabel={fixtureLabel}
             >
               {lessonCanvas}
-              {liveBackend &&
+              {policy.liveMutations &&
                 !fixtureLabel &&
                 CONVEX_ID.test(route.lessonId) && (
                   <LiveLessonBoard lessonId={route.lessonId} />
@@ -361,11 +426,11 @@ function PearNotesApp({
       {authState === "ready" && route.kind !== "lesson" && (
         <>
           <SubjectPicker
-            /* `/app/new` without a backend can't create — fall back to
-               the picker, whose `+` tile reports it honestly. */
+            /* `/app/new` where creation is off (demo/mock) falls back to
+               the picker — its `+` tile explains instead of writing. */
             open={
               route.kind === "learn" ||
-              (route.kind === "new" && !liveBackend)
+              (route.kind === "new" && !policy.liveMutations)
             }
             subjects={data.subjects}
             status={data.status}
@@ -373,7 +438,11 @@ function PearNotesApp({
             onSelect={setSelectedSubjectId}
             onEnter={openSubject}
             onCreate={() =>
-              liveBackend ? navigate(appNewPath()) : pending("subject creation")
+              demoMode
+                ? demoNote("subject creation")
+                : liveBackend
+                  ? navigate(appNewPath())
+                  : pending("subject creation")
             }
             onClose={goHome}
             fixtureLabel={fixtureLabel}
@@ -396,14 +465,18 @@ function PearNotesApp({
             onBack={() => navigate(appLearnPath())}
             onClose={goHome}
             onAddMaterials={() =>
-              route.kind === "path" && liveBackend
+              route.kind === "path" && policy.liveMutations
                 ? navigate(appSourcesPath(route.subjectId))
-                : pending("adding materials")
+                : demoMode
+                  ? demoNote("adding material")
+                  : pending("adding materials")
             }
             onBrowseSources={() =>
-              route.kind === "path" && liveBackend
+              route.kind === "path" && policy.liveMutations
                 ? navigate(appSourcesPath(route.subjectId))
-                : pending("the source library")
+                : demoMode
+                  ? demoNote("the source library")
+                  : pending("the source library")
             }
             fixtureLabel={fixtureLabel}
           />
@@ -412,21 +485,21 @@ function PearNotesApp({
 
       {/* ---- live bridges + real surfaces (Convex provider only) ---- */}
 
-      {liveBackend && authState === "ready" && (
+      {policy.liveReads && authState === "ready" && (
         /* A failed owner read must degrade to the honest empty desk —
            never crash the shell or fabricate subjects. */
         <Boundary fallback={null}>
           <LiveDataBridge onData={setLiveData} />
         </Boundary>
       )}
-      {liveBackend && authState === "ready" && (
+      {policy.liveMutations && authState === "ready" && (
         <CreateSubjectSheet
           open={route.kind === "new"}
           onClose={goHome}
           onCreated={(subjectId) => navigate(appSourcesPath(subjectId))}
         />
       )}
-      {liveBackend && authState === "ready" && route.kind === "path" && (
+      {policy.liveReads && authState === "ready" && route.kind === "path" && (
         /* getPath throws UNAUTHORIZED for a foreign/guessed subject id —
            the boundary turns that into an honest "not yours" note. */
         <Boundary
@@ -441,7 +514,7 @@ function PearNotesApp({
           <LivePathBridge subjectId={route.subjectId} onPath={setLivePath} />
         </Boundary>
       )}
-      {liveBackend &&
+      {policy.liveReads &&
         authState === "ready" &&
         route.kind === "lesson" &&
         !fixtureLabel && (
@@ -463,7 +536,7 @@ function PearNotesApp({
         )}
       {/* Honest empty: an owned subject with no eligible curriculum yet —
          never a fabricated path. */}
-      {liveBackend &&
+      {policy.liveReads &&
         authState === "ready" &&
         !fixtureLabel &&
         route.kind === "path" &&
@@ -473,7 +546,7 @@ function PearNotesApp({
             approve its proposal to build the real path.
           </p>
         )}
-      {liveBackend && authState === "ready" && route.kind === "sources" && (
+      {policy.liveMutations && authState === "ready" && route.kind === "sources" && (
         <Boundary
           key={route.subjectId}
           fallback={
