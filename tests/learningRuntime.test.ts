@@ -249,6 +249,10 @@ describe("learningRuntime", () => {
     });
     const { activityId } = await t.mutation(api.learningRuntime.materializeScoredActivity, { lessonId });
     expect(activityId).not.toBeNull();
+    // Citations = exactly the attested segments (union), not arbitrary refs.
+    const row = await t.run(async (ctx) => ctx.db.get(activityId!));
+    const cited = new Set((row?.sourceRefs ?? []).map((r) => String(r.segmentId)));
+    expect(cited).toEqual(new Set([String(segs[0]._id), String(segs[1]._id)]));
     // Attestation with a foreign/out-of-lesson segment must be rejected.
     const foreignSeg = await t.run(async (ctx) =>
       ctx.db.insert("sourceSegments", { sourceId: segs[0].sourceId, segmentNo: 9, page: 9, text: "cell wall chloroplast", createdAt: 1 }));
@@ -523,6 +527,48 @@ describe("learningRuntime", () => {
     await t.run(async (ctx) =>
       ctx.db.insert("curriculumVersions", { subjectId: subOnly, version: 1, state: "superseded", createdAt: 1 }));
     expect(await asA.query(api.curricula.getPath, { subjectId: subOnly })).toBeNull();
+  });
+
+  test("getLessonSegments: foreign source + sourceId mismatch refs excluded", async () => {
+    const { t, asA, aId, lessonId } = await seed();
+    const { good, foreignSeg, foreignSrc } = await t.run(async (ctx) => {
+      const own = await ctx.db.insert("sources", {
+        ownerId: aId, storageId: await ctx.storage.store(new Blob(["x"])), title: "o",
+        mime: "application/pdf", sizeBytes: 1, sha256: "0".repeat(64), status: "indexed", createdAt: 1, updatedAt: 1,
+      });
+      const good = await ctx.db.insert("sourceSegments", { sourceId: own, segmentNo: 1, page: 1, text: "mine", createdAt: 1 });
+      const b = await ctx.db.insert("users", { name: "bea" });
+      const foreignSrc = await ctx.db.insert("sources", {
+        ownerId: b, storageId: await ctx.storage.store(new Blob(["x"])), title: "f",
+        mime: "application/pdf", sizeBytes: 1, sha256: "1".repeat(64), status: "indexed", createdAt: 1, updatedAt: 1,
+      });
+      const foreignSeg = await ctx.db.insert("sourceSegments", { sourceId: foreignSrc, segmentNo: 1, page: 1, text: "theirs", createdAt: 1 });
+      // refs: good own segment + foreign segment + mismatch (seg on own source cited under foreign sourceId)
+      await ctx.db.patch(lessonId, {
+        sourceRefs: [
+          { sourceId: own, segmentId: good },
+          { sourceId: foreignSrc, segmentId: foreignSeg },
+          { sourceId: foreignSrc, segmentId: good },   // seg belongs to own src → mismatch
+        ],
+      });
+      // Soft-deleted own source must also be excluded.
+      const del = await ctx.db.insert("sources", {
+        ownerId: aId, storageId: await ctx.storage.store(new Blob(["x"])), title: "del",
+        mime: "application/pdf", sizeBytes: 1, sha256: "2".repeat(64), status: "deleted", createdAt: 1, updatedAt: 1,
+      });
+      const delSeg = await ctx.db.insert("sourceSegments", { sourceId: del, segmentNo: 1, page: 1, text: "gone", createdAt: 1 });
+      await ctx.db.patch(lessonId, {
+        sourceRefs: [
+          { sourceId: own, segmentId: good },
+          { sourceId: foreignSrc, segmentId: foreignSeg },
+          { sourceId: foreignSrc, segmentId: good },
+          { sourceId: del, segmentId: delSeg },
+        ],
+      });
+      return { good, foreignSeg, foreignSrc };
+    });
+    const segs = await asA.query(api.learningRuntime.getLessonSegments, { lessonId });
+    expect(segs.map((x) => x._id)).toEqual([good]);     // ONLY the owned, consistent, non-deleted ref
   });
 
   test("practice accept materializes activity; reject terminal; foreign proposal hidden", async () => {
