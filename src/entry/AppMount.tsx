@@ -17,9 +17,23 @@
  *
  * Demo: the same component mounted under `/demo/*` with its pathname
  * translated back to `/app/*`, `?fixtures=1` enforced in the URL (the
- * labelled-fixture demo surface per ACCOUNT_SESSION_CONTRACT.md §3 —
- * client-side data, zero learning mutations), a visible demo ribbon,
- * and an anonymous guest session so live queries stay in scope.
+ * labelled-fixture demo surface per ACCOUNT_SESSION_CONTRACT.md §3),
+ * a visible demo ribbon, and an anonymous guest session so live
+ * queries stay in scope.
+ *
+ * `demoMode` contract (E1 review on #57 — REQUIRED of the mounted
+ * component, Engineer 2 implements it on their side):
+ *
+ *   - `demoMode === true` ⇒ NO live bridges, queries or mutations may
+ *     mount/run — a registered user in the demo must never expose or
+ *     mutate their real subjects, sources or progress.
+ *   - Data comes from the labelled fixture seam only.
+ *   - Subject creation, intake, attempts and every other write are
+ *     disabled (or visibly no-op) while demoMode is on.
+ *
+ * Until their component reads the prop it is ignored — the `?fixtures=1`
+ * gate remains as the minimum bar, and the hold screen covers the case
+ * where the component isn't on the branch at all.
  * ------------------------------------------------------------------ */
 
 import {
@@ -52,6 +66,10 @@ type AppRoutesComponent = ComponentType<{
   pathname: string;
   navigate: (to: string) => void;
   onNavigateExternal?: (href: string) => void;
+  /** When true the component renders ONLY the labelled demo surface —
+   *  no live subject/source/progress reads and no mutations, whatever
+   *  session the visitor carries (E1 review, #57). */
+  demoMode?: boolean;
 }>;
 
 const LazyAppRoutes = lazy(async (): Promise<{
@@ -166,6 +184,7 @@ export function DemoMount({
           pathname={appPathname}
           navigate={demoNavigate}
           onNavigateExternal={onExternal}
+          demoMode={true}
         />
       </Suspense>
       <DemoRibbon />

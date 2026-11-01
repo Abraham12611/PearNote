@@ -21,6 +21,7 @@ import {
   safeNextPath,
 } from "../src/entry/paths";
 import { routeFromLocation } from "../src/entry/router";
+import { mergeModeParams } from "../src/entry/location";
 
 describe("routeFromLocation — clean pathnames", () => {
   const loc = (pathname: string, search = "", hash = "") => ({
@@ -214,5 +215,38 @@ describe("path guards", () => {
     expect(safeNextPath("//evil.example")).toBeNull();
     expect(safeNextPath("")).toBeNull();
     expect(safeNextPath(null)).toBeNull();
+  });
+
+  test("safeNextPath rejects browser-normalized external URLs", () => {
+    /* a backslash IS a slash for http(s) URL parsing — "/\evil.com"
+       resolves as "//evil.com", a real external redirect */
+    expect(safeNextPath("/\\evil.example")).toBeNull();
+    expect(safeNextPath("\\\\evil.example")).toBeNull();
+    expect(safeNextPath("/\\/evil.example")).toBeNull();
+    expect(safeNextPath("/app\\../evil.example")).toBeNull();
+    /* whitespace/control characters the URL parser trims around the
+       scheme must not hide the same trick */
+    expect(safeNextPath(" /app")).toBeNull();
+    expect(safeNextPath("/\t/app")).toBeNull();
+    expect(safeNextPath("/app\nnext")).toBeNull();
+    /* non-http schemes never reach the check, but regression-lock it */
+    expect(safeNextPath("javascript:alert(1)")).toBeNull();
+    /* encoded chars stay literal in an assigned path — allowed */
+    expect(safeNextPath("/app/%2e%2e/x")).toBe("/app/%2e%2e/x");
+  });
+
+  test("mergeModeParams keeps mode flags across navigation", () => {
+    /* the mock flag must survive — dropping it flips dev surfaces live */
+    expect(mergeModeParams("/demo", "?mock=1")).toBe("/demo?mock=1");
+    expect(mergeModeParams("/app/library", "?mock=1&take=1")).toBe(
+      "/app/library?mock=1&take=1",
+    );
+    /* target URL params win; mode params fill gaps */
+    expect(mergeModeParams("/demo?fixtures=1", "?mock=1")).toBe(
+      "/demo?fixtures=1&mock=1",
+    );
+    /* non-mode params do NOT leak across routes */
+    expect(mergeModeParams("/app", "?job=j9&fixtures=1")).toBe("/app");
+    expect(mergeModeParams("/", "")).toBe("/");
   });
 });

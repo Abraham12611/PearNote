@@ -28,7 +28,14 @@ function readLocation(): LocationSnapshot {
   };
 }
 
-let current: LocationSnapshot = readLocation();
+const SERVER_SNAPSHOT: LocationSnapshot = {
+  pathname: "/",
+  search: "",
+  hash: "",
+};
+
+let current: LocationSnapshot =
+  typeof window === "undefined" ? SERVER_SNAPSHOT : readLocation();
 const listeners = new Set<() => void>();
 
 function handleChange() {
@@ -48,12 +55,6 @@ function subscribe(callback: () => void): () => void {
   return () => listeners.delete(callback);
 }
 
-const SERVER_SNAPSHOT: LocationSnapshot = {
-  pathname: "/",
-  search: "",
-  hash: "",
-};
-
 /**
  * The current location. Every subscription path that can change the
  * rendered route — popstate, hashchange, and `navigate`'s manual emit —
@@ -68,13 +69,36 @@ export function useLocation(): LocationSnapshot {
 }
 
 /**
+ * Mode params that must survive in-app navigation (E1 review): dropping
+ * `mock`/`demo`/`take` mid-flow flips a dev or labelled surface back to
+ * live behavior silently. Params already present in the target URL win;
+ * these only fill in what's missing. `fixtures` is deliberately absent —
+ * it's a per-namespace flag owned by the demo normalizer, never a global.
+ */
+export const MODE_PARAMS = ["mock", "demo", "take", "pearnotes"] as const;
+
+export function mergeModeParams(to: string, currentSearch: string): string {
+  const [path, query] = to.split("?");
+  const merged = new URLSearchParams(query ?? "");
+  const current = new URLSearchParams(currentSearch);
+  for (const key of MODE_PARAMS) {
+    const value = current.get(key);
+    if (value !== null && !merged.has(key)) merged.set(key, value);
+  }
+  const params = merged.toString();
+  return path + (params ? `?${params}` : "");
+}
+
+/**
  * The only way app code should move around the site. `to` is an absolute
  * site pathname (`/app/…`, `/demo/…`, `/auth/…`, `/`) or a legacy hash
- * href (`#/space/crew` — stored as `/#/space/crew` so back/forward and
- * refresh resolve identically).
+ * href (`#/space/crew` — stored as `/<current-search>#/space/crew` so
+ * back/forward, refresh and the dev-mode flags all resolve identically).
  */
 export function navigate(to: string, options?: { replace?: boolean }) {
-  const url = to.startsWith("#") ? `/${to}` : to;
+  const url = to.startsWith("#")
+    ? `/${window.location.search}${to}`
+    : mergeModeParams(to, window.location.search);
   if (options?.replace) {
     window.history.replaceState(window.history.state, "", url);
   } else {

@@ -11,14 +11,14 @@ import { useEffect } from "react";
 import type { ConvexReactClient } from "convex/react";
 import type { DataMode } from "../live/dataMode";
 import { classifyHash } from "./legacy";
-import { useLocation } from "./location";
-import { ensureDemoFixtures } from "./paths";
+import { demoFixturesOn, ensureDemoFixtures } from "./paths";
+import { navigate, useLocation } from "./location";
 import { routeFromLocation, siteTitleFor } from "./router";
 import { AppMount, DemoMount } from "./AppMount";
 import { AuthScreen } from "./AuthPages";
 import { LandingPage } from "./LandingPage";
 import { LegacyMount } from "./LegacyMount";
-import { SiteNotFound } from "./screens";
+import { EntrySlip, SiteNotFound } from "./screens";
 import "./entry.css";
 
 export function AppRouter({
@@ -44,19 +44,6 @@ export function AppRouter({
     }
   }, [loc.hash]);
 
-  /* `/demo` always carries `?fixtures=1` — the honest isolation flag. */
-  useEffect(() => {
-    if (route.kind !== "demo") return;
-    const wanted = ensureDemoFixtures(loc.search);
-    if (wanted !== loc.search) {
-      window.history.replaceState(
-        window.history.state,
-        "",
-        route.demoPathname + wanted,
-      );
-    }
-  }, [route, loc.search]);
-
   useEffect(() => {
     document.title = siteTitleFor(route);
   }, [route]);
@@ -71,6 +58,19 @@ export function AppRouter({
     case "app":
       return <AppMount pathname={route.pathname} live={live} />;
     case "demo":
+      /* First-render protection (E1 review): the demo tree does NOT
+         mount until the URL canonically carries `?fixtures=1`. The
+         canonicalizer rewrites it in place and only then does the app
+         seam render — no private query can run against a pre-canonical
+         URL, and `demoMode` stays on for every mount after this gate. */
+      if (!demoFixturesOn(loc.search)) {
+        return (
+          <DemoCanonicalizer
+            demoPathname={route.demoPathname}
+            search={loc.search}
+          />
+        );
+      }
       return (
         <DemoMount
           demoPathname={route.demoPathname}
@@ -83,4 +83,20 @@ export function AppRouter({
     case "notfound":
       return <SiteNotFound pathname={route.pathname} />;
   }
+}
+
+/** Mounts nothing private — rewrites `/demo…` to its canonical
+ *  `?fixtures=1` form in place, then the route re-resolves and the
+ *  gated branch above mounts the demo. */
+function DemoCanonicalizer({
+  demoPathname,
+  search,
+}: {
+  demoPathname: string;
+  search: string;
+}) {
+  useEffect(() => {
+    navigate(demoPathname + ensureDemoFixtures(search), { replace: true });
+  }, [demoPathname, search]);
+  return <EntrySlip label="entering the demo" />;
 }

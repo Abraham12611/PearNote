@@ -65,8 +65,27 @@ export function demoUrlFromAppTo(to: string): string {
   return demoPathFromApp(path) + ensureDemoFixtures(query ? `?${query}` : "");
 }
 
-/** `?next=` sanitizing — same-origin path only. */
+/** True once the URL canonically carries the demo's isolation flag. The
+ *  router refuses to mount the demo tree before this is true (E1 review:
+ *  no private query may run against a pre-canonical URL). */
+export function demoFixturesOn(search: string): boolean {
+  return new URLSearchParams(search).get(DEMO_FIXTURES_PARAM) === "1";
+}
+
+/**
+ * `?next=` sanitizing — same-origin absolute path only.
+ *
+ * Browsers normalize more than a leading `//`: a backslash counts as a
+ * slash for http(s) URLs (`"/\evil.com"` → `"//evil.com"` — a real
+ * external redirect), and whitespace/control characters around the
+ * scheme can hide the same trick. Anything the URL parser might read
+ * differently than we wrote it is refused outright.
+ */
 export function safeNextPath(value: string | null): string | null {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+  // eslint-disable-next-line no-control-regex
+  if (/[\\\x00-\x20]/.test(value)) return null;
   return value;
 }
