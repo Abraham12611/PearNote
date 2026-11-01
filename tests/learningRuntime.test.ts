@@ -517,6 +517,12 @@ describe("learningRuntime", () => {
     const picked = await t.run(async (ctx) => ctx.db.get(path!.versionId));
     expect(picked?.version).toBe(20);                  // skips superseded 22 + rejected 21
     expect(picked?.state).not.toBe("superseded");
+    // All versions superseded/rejected → getPath returns null, no path.
+    const subOnly = await t.run(async (ctx) =>
+      ctx.db.insert("subjects", { ownerId: aId, name: "dead", status: "draft", createdAt: 1, updatedAt: 1 }));
+    await t.run(async (ctx) =>
+      ctx.db.insert("curriculumVersions", { subjectId: subOnly, version: 1, state: "superseded", createdAt: 1 }));
+    expect(await asA.query(api.curricula.getPath, { subjectId: subOnly })).toBeNull();
   });
 
   test("practice accept materializes activity; reject terminal; foreign proposal hidden", async () => {
