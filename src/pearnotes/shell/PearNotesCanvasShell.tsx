@@ -155,12 +155,36 @@ export function PearNotesCanvasShell() {
       </header>
 
       {route.kind === "lesson" ? (
+        liveLesson?.status === "notfound" ? (
+          /* Malformed/foreign id — a real error frame with working back
+             navigation, not the placeholder shell. */
+          <div className="pns-lesson-error" role="alert">
+            <p className="pn-kicker">lesson · unavailable</p>
+            <strong>this lesson isn't on your shelf</strong>
+            <p className="pns-lesson-error-sub">
+              it may belong to another learner or have been removed — no
+              lesson content is shown rather than a guessed one.
+            </p>
+            <button
+              type="button"
+              className="pn-cta"
+              onClick={() => {
+                window.location.hash = route.subjectId
+                  ? pearnotesPathHash(route.subjectId)
+                  : pearnotesHomeHash();
+              }}
+            >
+              {route.subjectId ? "back to path" : "back to desk"}
+            </button>
+          </div>
+        ) : (
         /* Issue #46 rev2: Engineer 3's `LiveLessonBoard` is the single
            live runtime — it owns getLesson/listPractice/port; the shell
            owns routing + the persistent spatial canvas it overlays. */
         <LessonShell
           lesson={
-            liveLesson?.status === "ready"
+            liveLesson?.status === "ready" &&
+            liveLesson.lesson.id === route.lessonId
               ? liveLesson.lesson
               : data.lessonFor(route.lessonId)
           }
@@ -174,22 +198,19 @@ export function PearNotesCanvasShell() {
               : pearnotesHomeHash();
           }}
           status={
-            liveLesson?.status === "notfound"
-              ? "error"
-              : liveLesson?.status === "ready" ||
-                  data.lessonFor(route.lessonId)
-                ? "ready"
-                : "loading"
+            liveLesson?.status === "ready" ||
+              data.lessonFor(route.lessonId)
+              ? "ready"
+              : "loading"
           }
           fixtureLabel={fixtureLabel}
         >
           {lessonCanvas}
-          {/* Malformed ids never reach the board — the shell's own error
-              frame renders instead. */}
           {liveBackend && !fixtureLabel && CONVEX_ID.test(route.lessonId) && (
             <LiveLessonBoard lessonId={route.lessonId} />
           )}
         </LessonShell>
+        )
       ) : (
         <>
           <Home
@@ -278,16 +299,17 @@ export function PearNotesCanvasShell() {
           onLesson={setLiveLesson}
         />
       )}
-      {/* Honest contract gap: the owner-scoped curriculum-tree read
-          (curricula.getPath) hasn't landed on the backend yet — say so
-          rather than drawing a fabricated path. */}
+      {/* Honest state when the owner has no eligible curriculum version
+          yet — the typed `curricula.getPath` query is live now; a null
+          result means "approve a source proposal first", never a
+          fabricated path. */}
       {liveBackend &&
         !fixtureLabel &&
         route.kind === "path" &&
         !livePath && (
           <p className="pns-live-note" role="status">
-            live curriculum pending backend contract `curricula.getPath` —
-            approved drafts exist; the tree reader is owned by Engineer 4.
+            no approved curriculum on this subject yet — upload a source and
+            approve its proposal to build the real path.
           </p>
         )}
       {liveBackend && route.kind === "sources" && (

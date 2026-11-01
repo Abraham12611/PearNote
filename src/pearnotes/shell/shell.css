@@ -224,3 +224,21 @@
   cursor: pointer;
   padding: 0 2px;
 }
+
+/* Live lesson error frame — malformed/foreign lesson ids (#46). */
+.pns-lesson-error {
+  display: flex;
+  min-height: 60vh;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 32px;
+  color: var(--pn-on-dark, #f5efdf);
+}
+.pns-lesson-error-sub {
+  color: var(--pn-muted-on-dark, #a8a2b8);
+  font-size: 0.85rem;
+}

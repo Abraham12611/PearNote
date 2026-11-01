@@ -3,6 +3,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { SUBJECT_AVATAR_IDS, type SubjectStatus } from "../ui/types";
 import { useCurriculumPath } from "../ingestion/curriculumPath";
+import { getPathRef } from "../ingestion/api";
 import type {
   LearningPath,
   LessonObjectRef,
@@ -170,11 +171,17 @@ export function LiveLessonBridge({
   onLesson: (state: LiveLessonState) => void;
 }) {
   const valid = CONVEX_ID.test(lessonId);
+  const subjectValid = subjectId !== undefined && CONVEX_ID.test(subjectId);
   const lesson = useQuery(
     api.learningRuntime.getLesson,
     valid ? { lessonId: lessonId as Id<"lessons"> } : "skip",
   );
   const subjects = useQuery(api.subjects.listMine, {});
+  /* Real position inside the approved path — never a hardcoded 1-of-1. */
+  const path = useQuery(
+    getPathRef,
+    subjectValid ? { subjectId: subjectId as Id<"subjects"> } : "skip",
+  );
 
   useEffect(() => {
     if (!valid || lesson === null) {
@@ -195,6 +202,15 @@ export function LiveLessonBridge({
         `activity ${i + 1}`,
       state: "todo",
     }));
+    /* Position within the real approved path when the curriculum read is
+       available; otherwise count only this lesson's own objects — both
+       are honest numbers, never simulated progress. */
+    const flat = (path?.sections ?? []).flatMap((s) =>
+      s.units.flatMap((u) => u.lessons),
+    );
+    const idx = flat.findIndex((l) => String(l._id) === lessonId);
+    const stepCount = flat.length > 0 ? flat.length : objects.length;
+    const stepIndex = idx >= 0 ? idx : 0;
     onLesson({
       status: "ready",
       lesson: {
@@ -202,15 +218,15 @@ export function LiveLessonBridge({
         title: lesson.title ?? "lesson",
         subjectId: subjectId ?? "",
         subjectName: subject?.name ?? "",
-        stepIndex: 0,
-        stepCount: 1,
+        stepIndex,
+        stepCount: Math.max(stepCount, 1),
         /* Honest: objective statements/mastery aren't part of getLesson —
            an empty list, never fabricated progress. */
         objectives: [],
         objects,
       },
     });
-  }, [valid, lesson, subjects, subjectId, lessonId, onLesson]);
+  }, [valid, lesson, subjects, subjectId, lessonId, path, onLesson]);
   return null;
 }
 

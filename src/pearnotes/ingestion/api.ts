@@ -1,4 +1,5 @@
 import { api } from "../../../convex/_generated/api";
+import { makeFunctionReference } from "convex/server";
 import type { Id } from "../../../convex/_generated/dataModel";
 
 /* ------------------------------------------------------------------
@@ -9,6 +10,35 @@ import type { Id } from "../../../convex/_generated/dataModel";
  * ------------------------------------------------------------------ */
 
 export const ingestApi = api;
+
+/* `api.curricula` isn't in the generated bindings yet (codegen is
+   deployment-gated) — a typed FunctionReference keeps the reactive
+   `useQuery` call honest without `anyApi`. */
+export interface GetPathResult {
+  subjectId: Id<"subjects">;
+  versionId: Id<"curriculumVersions">;
+  sections: {
+    _id: Id<"sections">;
+    title: string;
+    units: {
+      _id: Id<"units">;
+      title: string;
+      lessons: {
+        _id: Id<"lessons">;
+        title?: string;
+        specVersion: number;
+        objectiveIds: Id<"objectives">[];
+        sourceRefs: { sourceId: Id<"sources">; segmentId?: Id<"sourceSegments"> }[];
+      }[];
+    }[];
+  }[];
+}
+
+export const getPathRef = makeFunctionReference<
+  "query",
+  { subjectId: Id<"subjects"> },
+  GetPathResult | null
+>("curricula:getPath");
 
 export type SourceId = Id<"sources">;
 export type JobId = Id<"importJobs">;
