@@ -14,6 +14,8 @@ import { describe, expect, test } from "vitest";
 import {
   accountStateKey,
   appAccessPolicy,
+  DEMO_LEARNER_NAME,
+  displayNameFor,
 } from "../src/pearnotes/shell/app/policy";
 
 describe("demo access — appAccessPolicy", () => {
@@ -71,5 +73,25 @@ describe("account transitions — accountStateKey", () => {
     expect(accountStateKey(undefined)).not.toBe(accountStateKey("user-a"));
     /* …and null itself has one fixed bucket, not a random one. */
     expect(accountStateKey(null)).toBe(accountStateKey(undefined));
+  });
+});
+
+describe("demo identity — displayNameFor", () => {
+  test("demoMode never surfaces a real account name, even transiently", () => {
+    expect(
+      displayNameFor({ demoMode: true, identityName: "Real Person" }),
+    ).toBe(DEMO_LEARNER_NAME);
+    expect(displayNameFor({ demoMode: true, identityName: undefined })).toBe(
+      DEMO_LEARNER_NAME,
+    );
+  });
+
+  test("real /app keeps the session identity", () => {
+    expect(
+      displayNameFor({ demoMode: false, identityName: "juno" }),
+    ).toBe("juno");
+    expect(displayNameFor({ demoMode: false, identityName: undefined })).toBe(
+      "you",
+    );
   });
 });

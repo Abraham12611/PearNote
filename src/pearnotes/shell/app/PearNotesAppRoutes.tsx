@@ -77,7 +77,7 @@ import {
   appSubjectPath,
   type AppRoute,
 } from "./routes";
-import { accountStateKey, appAccessPolicy } from "./policy";
+import { accountStateKey, appAccessPolicy, displayNameFor } from "./policy";
 import "./app.css";
 
 const { Home, SubjectPicker, LearningPathDrawer, LessonShell } = pearnotesSlots;
@@ -213,7 +213,17 @@ function PearNotesApp({
     loadPearNotesUiStyles();
   }, []);
 
-  const learnerName = useMemo(() => getIdentity().name, []);
+  /* Demo surfaces show a fixed nonpersonal identity — `getIdentity()`
+     isn't even read in demo mode, so a real name/avatar can never
+     appear, transiently or otherwise (coordinator review). */
+  const learnerName = useMemo(
+    () =>
+      displayNameFor({
+        demoMode,
+        identityName: demoMode ? undefined : getIdentity().name,
+      }),
+    [demoMode],
+  );
 
   /* Route-driven navigation — the picker/create-sheet are routes, not
      local state, so browser back unwinds them naturally. */

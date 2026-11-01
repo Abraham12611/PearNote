@@ -51,3 +51,20 @@ export function appAccessPolicy({
 export function accountStateKey(userId: string | null | undefined): string {
   return userId ?? "__no_user__";
 }
+
+/** Fixed nonpersonal demo identity — a real account's name/avatar
+ *  initial must never render on a demo surface, even transiently. */
+export const DEMO_LEARNER_NAME = "demo learner";
+
+/** Who the UI calls "you": the fixed demo label in demo mode, the real
+ *  session identity otherwise. Callers must not read `getIdentity()`
+ *  at all in demo mode. */
+export function displayNameFor({
+  demoMode,
+  identityName,
+}: {
+  demoMode: boolean;
+  identityName?: string;
+}): string {
+  return demoMode ? DEMO_LEARNER_NAME : (identityName ?? "you");
+}
