@@ -206,7 +206,9 @@ export const submitAttempt = mutation({
   handler: async (ctx, { activityId, activityRevision, response, attemptKey }) => {
     const userId = await requireLearnerId(ctx);
     const activity = await ctx.db.get(activityId);
-    if (activity === null) throw err("INVALID_INPUT", "activity not found");
+    // Missing and foreign are the same answer — probing well-formed ids can
+    // never distinguish "doesn't exist" from "not yours" (code AND message).
+    if (activity === null) throw err("UNAUTHORIZED", "activity not found");
     // Ownership BEFORE revision/dedupe: a foreign activity must be
     // indistinguishable from a missing one — a CONFLICT or replay answer
     // would confirm the row exists and leak its revision.
@@ -225,11 +227,15 @@ export const submitAttempt = mutation({
         if (JSON.stringify(dup.response) !== JSON.stringify(response)) {
           throw err("CONFLICT", "attemptKey reused with a different response");
         }
+        const replayVerdict = dup.evaluation?.verdict ?? "needs_review";
         return {
           attemptId: dup._id,
-          verdict: dup.evaluation?.verdict ?? "needs_review",
+          verdict: replayVerdict,
           masteryUpdated: 0,
-          marks: classifyMarks(activity.spec, dup.response),
+          // Same safeguard as first submission: an unevaluated needs_review
+          // attempt must never emit marks — replaying it can't be used as
+          // an answer-key oracle.
+          marks: replayVerdict === "needs_review" ? undefined : classifyMarks(activity.spec, dup.response),
         };
       }
     }

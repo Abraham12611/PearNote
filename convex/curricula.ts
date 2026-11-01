@@ -31,24 +31,24 @@ const lessonProgress = v.object({
 });
 
 /** Lesson rollup: demonstrated only when EVERY tracked objective is;
- * practicing if any is; learning once real evidence exists. */
+ * practicing if any is; learning once real evidence exists. `states`
+ * must contain one entry per lesson objective (read or undefined) —
+ * partial objective coverage can never produce "demonstrated". */
 function rollupProgress(
-  lesson: Doc<"lessons">,
-  masteryByObjective: Map<string, Doc<"mastery">>,
+  totalObjectives: number,
+  states: (Doc<"mastery">["state"] | undefined)[],
   evaluatedAttempts: number,
 ) {
-  const total = lesson.objectiveIds.length;
-  if (total === 0) {
-    return { tracked: false, state: "untracked" as const, assessedObjectives: 0, totalObjectives: 0, evaluatedAttempts };
+  if (totalObjectives === 0) {
+    return { tracked: false, state: "untracked" as const, assessedObjectives: 0, totalObjectives, evaluatedAttempts };
   }
-  const states = lesson.objectiveIds.map((oid) => masteryByObjective.get(String(oid))?.state);
   const assessed = states.filter((s) => s !== undefined).length;
   const state =
-    states.every((s) => s === "demonstrated") ? "demonstrated" as const
+    states.length === totalObjectives && states.every((s) => s === "demonstrated") ? "demonstrated" as const
     : states.some((s) => s === "practicing") ? "practicing" as const
     : assessed > 0 || evaluatedAttempts > 0 ? "learning" as const
     : "not_started" as const;
-  return { tracked: true, state, assessedObjectives: assessed, totalObjectives: total, evaluatedAttempts };
+  return { tracked: true, state, assessedObjectives: assessed, totalObjectives, evaluatedAttempts };
 }
 
 export const getPath = query({
@@ -98,32 +98,37 @@ export const getPath = query({
     const version = versions.find((ver) => ver.state !== "superseded" && ver.state !== "rejected");
     if (version === undefined) return null;
 
-    // Evidence for the whole path — two bounded per-user reads, once,
-    // never per-lesson scans. mastery rows are objective-keyed; attempts
-    // arrive activity-keyed and are grouped onto their lessons below.
-    const masteryRows = await ctx.db
-      .query("mastery")
-      .withIndex("by_user", (q) => q.eq("userId", ownerId))
-      .take(500);
-    const masteryByObjective = new Map(masteryRows.map((m) => [String(m.objectiveId), m]));
-    const recentAttempts = await ctx.db
-      .query("attempts")
-      .withIndex("by_user_time", (q) => q.eq("userId", ownerId))
-      .take(500);
-    const evaluatedByActivity = new Map<string, number>();
-    for (const a of recentAttempts) {
-      if (a.evaluation === undefined) continue;
-      evaluatedByActivity.set(String(a.activityId), (evaluatedByActivity.get(String(a.activityId)) ?? 0) + 1);
-    }
-
+    // Evidence is read through exact per-objective and per-activity
+    // indexes — never a global first-N window. A take() on by_user_time
+    // returns whichever rows sort first, so a lesson's own proof could be
+    // silently dropped and "progress" reported from an arbitrary subset.
     const lessonShape = async (l: Doc<"lessons">) => {
       const acts = await ctx.db
         .query("activities")
         .withIndex("by_lesson", (q) => q.eq("lessonId", l._id))
         .take(50);
-      const evaluatedAttempts = acts.reduce(
-        (n, a) => n + (evaluatedByActivity.get(String(a._id)) ?? 0), 0,
+      // Exact mastery read per objective — by_user_objective is unique per
+      // pair, so .first() is the complete row, not a sample.
+      const states = await Promise.all(
+        l.objectiveIds.slice(0, 30).map(async (oid) => {
+          const m = await ctx.db
+            .query("mastery")
+            .withIndex("by_user_objective", (q) => q.eq("userId", ownerId).eq("objectiveId", oid))
+            .first();
+          return m?.state;
+        }),
       );
+      // Per-activity attempt reads: bounded at 500 evaluated+unevaluated
+      // rows per activity — far above any realistic retry volume, and
+      // scoped so no other lesson's attempts can crowd out this evidence.
+      let evaluatedAttempts = 0;
+      for (const a of acts) {
+        const rows = await ctx.db
+          .query("attempts")
+          .withIndex("by_user_activity", (q) => q.eq("userId", ownerId).eq("activityId", a._id))
+          .take(500);
+        evaluatedAttempts += rows.reduce((n, r) => n + (r.evaluation !== undefined ? 1 : 0), 0);
+      }
       return {
         _id: l._id,
         title: l.title,
@@ -131,7 +136,7 @@ export const getPath = query({
         objectiveIds: l.objectiveIds,
         sourceRefs: l.sourceRefs ?? [],
         activityCount: acts.length,
-        progress: rollupProgress(l, masteryByObjective, evaluatedAttempts),
+        progress: rollupProgress(l.objectiveIds.length, states, evaluatedAttempts),
       };
     };
 

@@ -225,6 +225,37 @@ describe("submitAttempt privacy ordering + marks (Issue #50 §3a)", () => {
     })).rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
   });
 
+  test("nonexistent and foreign activity are indistinguishable — same code, same message", async () => {
+    const { t, asA, asB, lessonId } = await seedLesson();
+    const foreignId = await classifyAct(t, lessonId);
+    // A well-formed id whose row was deleted — exists-shaped, truly gone.
+    const deletedId = await t.run(async (ctx) => {
+      const id = await ctx.db.insert("activities", {
+        lessonId, spec: { kind: "lessonCard" as const, heading: "h", body: "b" },
+        objectiveIds: [], sourceRefs: [], revision: 1, createdAt: 1,
+      });
+      await ctx.db.delete(id);
+      return id;
+    });
+    const args = (activityId: Id<"activities">) => ({
+      activityId, activityRevision: 1, attemptKey: "probe",
+      response: { kind: "classification" as const, assignments: [{ itemId: "i1", bucketId: "p" }, { itemId: "i2", bucketId: "s" }] },
+    });
+    const missing = await asA.mutation(api.learningRuntime.submitAttempt, args(deletedId)).then(
+      () => ({ code: "OK" }), (e) => (e as { data?: { code?: string; message?: string } }).data ?? {},
+    );
+    const foreign = await asB.mutation(api.learningRuntime.submitAttempt, args(foreignId)).then(
+      () => ({ code: "OK" }), (e) => (e as { data?: { code?: string; message?: string } }).data ?? {},
+    );
+    expect(missing).toEqual(foreign);
+    expect(missing.code).toBe("UNAUTHORIZED");
+    // Even the owner sees the same answer for a deleted activity.
+    const ownMissing = await asA.mutation(api.learningRuntime.submitAttempt, args(deletedId)).then(
+      () => ({ code: "OK" }), (e) => (e as { data?: { code?: string; message?: string } }).data ?? {},
+    );
+    expect(ownMissing).toEqual(foreign);
+  });
+
   test("marks: per-item correctness after grading, no answer-key leak, none on needs_review or MCQ", async () => {
     const { t, asA, lessonId } = await seedLesson();
     const classifyId = await classifyAct(t, lessonId);
@@ -260,6 +291,15 @@ describe("submitAttempt privacy ordering + marks (Issue #50 §3a)", () => {
     });
     expect(bad.verdict).toBe("needs_review");
     expect(bad.marks).toBeUndefined();
+    // Replay of the unevaluated attempt must not emit marks either — the
+    // response would otherwise leak per-item correctness for an attempt
+    // the server never graded.
+    const badReplay = await asA.mutation(api.learningRuntime.submitAttempt, {
+      activityId: classifyId, activityRevision: 1, attemptKey: "m3",
+      response: { kind: "classification", assignments: [{ itemId: "bogus", bucketId: "p" }] },
+    });
+    expect(badReplay.verdict).toBe("needs_review");
+    expect(badReplay.marks).toBeUndefined();
   });
 });
 
@@ -296,17 +336,56 @@ describe("honest progress reads (Issues #50/#53)", () => {
     expect(after.state).toBe("learning");
     expect(after.evaluatedAttempts).toBe(1);
 
-    // Both objectives demonstrated → lesson "demonstrated".
+    // Both objectives demonstrated → lesson "demonstrated". Patch the real
+    // upserted rows (mastery is unique per user+objective — never insert
+    // a second row for the same pair).
     await t.run(async (ctx) => {
-      for (const oid of objIds) {
-        await ctx.db.insert("mastery", {
-          userId: (await ctx.db.query("users").first())!._id,
-          objectiveId: oid, state: "demonstrated", evidence: [], updatedAt: 1,
-        });
+      for (const row of await ctx.db.query("mastery").collect()) {
+        await ctx.db.patch(row._id, { state: "demonstrated" });
       }
     });
     path = await asA.query(api.curricula.getPath, { subjectId });
     expect(path!.sections[0].units[0].lessons[0].progress.state).toBe("demonstrated");
+  });
+
+  test("getPath evidence is per-lesson scoped: >500 older attempts elsewhere cannot crowd out this lesson's proof", async () => {
+    const { t, asA, aId, subjectId, lessonId, objIds } = await seedLesson({ objectives: 1 });
+    const actId = await t.run(async (ctx) => {
+      const l = (await ctx.db.get(lessonId))!;
+      const otherLesson = await ctx.db.insert("lessons", {
+        unitId: l.unitId, order: 9, title: "other", objectiveIds: [], specVersion: 1,
+      });
+      const filler = await ctx.db.insert("activities", {
+        lessonId: otherLesson,
+        spec: { kind: "multipleChoice" as const, prompt: "f", options: [{ id: "a", label: "x" }], correctOptionId: "a" },
+        objectiveIds: [], sourceRefs: [], revision: 1, createdAt: 1,
+      });
+      // 510 evaluated attempts on a DIFFERENT lesson's activity, all older
+      // than the real evidence — a first-N global window (by_user_time asc)
+      // is exactly 500 rows and would evict the real lesson's attempt.
+      for (let i = 0; i < 510; i++) {
+        await ctx.db.insert("attempts", {
+          userId: aId, activityId: filler, activityRevision: 1, state: "evaluated" as const,
+          response: { kind: "choice" as const, optionId: "a" },
+          evaluation: { verdict: "incorrect" as const, score: 0, evaluatedAt: i },
+          attemptKey: `fill-${i}`, createdAt: i,
+        });
+      }
+      return await ctx.db.insert("activities", {
+        lessonId, spec: { kind: "multipleChoice" as const, prompt: "p", options: [{ id: "a", label: "x" }], correctOptionId: "a" },
+        objectiveIds: objIds, sourceRefs: [], revision: 1, createdAt: 2,
+      });
+    });
+    // The lesson's own evaluated attempt arrives last — outside the window.
+    await asA.mutation(api.learningRuntime.submitAttempt, {
+      activityId: actId, activityRevision: 1, attemptKey: "real", response: { kind: "choice", optionId: "a" },
+    });
+    const path = await asA.query(api.curricula.getPath, { subjectId });
+    const progress = path!.sections[0].units[0].lessons[0].progress;
+    // Exactly this lesson's own attempt is counted — filler never leaks in,
+    // and the real attempt isn't evicted by a global window.
+    expect(progress.evaluatedAttempts).toBe(1);
+    expect(progress.state).toBe("learning");
   });
 
   test("getPath: unauthenticated denied; B's evidence never leaks into A's path", async () => {
