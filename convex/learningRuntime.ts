@@ -10,7 +10,7 @@ import { internal } from "./_generated/api";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { requireLearnerId } from "./learningAuth";
 import type { Doc, Id } from "./_generated/dataModel";
-import { activitySpec, sourceRef } from "./tables/learning";
+import { activitySpec, masteryState, sourceRef } from "./tables/learning";
 
 import { evaluateForRemediation } from "../src/pearnotes/learning-engine/remediation";
 import { deriveMastery } from "../src/pearnotes/learning-engine/mastery";
@@ -44,6 +44,20 @@ export const getLesson = query({
       specVersion: v.number(),
       objectiveIds: v.array(v.id("objectives")),
       sourceRefs: v.array(sourceRef),
+      /**
+       * Issue #53: the real objective statements plus the caller's own
+       * server-computed mastery — the only honest inputs for a progress
+       * compass. Empty array = lesson tracks no objectives (untracked),
+       * never "0 of 0 covered".
+       */
+      objectives: v.array(
+        v.object({
+          _id: v.id("objectives"),
+          statement: v.string(),
+          mastery: masteryState,
+          evidenceCount: v.number(),
+        }),
+      ),
       activities: v.array(
         v.object({
           _id: v.id("activities"),
@@ -64,12 +78,26 @@ export const getLesson = query({
       .query("activities")
       .withIndex("by_lesson", (q) => q.eq("lessonId", lessonId))
       .take(50);
+    const objectives = await Promise.all(
+      found.lesson.objectiveIds.slice(0, 30).map(async (oid) => {
+        const obj = await ctx.db.get(oid);
+        if (obj === null) return null;
+        const m = await ctx.db
+          .query("mastery")
+          .withIndex("by_user_objective", (q) => q.eq("userId", userId).eq("objectiveId", oid))
+          .first();
+        // No mastery row is honest "not_started" — it means zero evaluated
+        // evidence, a state the server can actually vouch for.
+        return { _id: obj._id, statement: obj.statement, mastery: m?.state ?? "not_started", evidenceCount: m?.evidence.length ?? 0 };
+      }),
+    );
     return {
       _id: found.lesson._id,
       title: found.lesson.title,
       specVersion: found.lesson.specVersion,
       objectiveIds: found.lesson.objectiveIds,
       sourceRefs: found.lesson.sourceRefs ?? [],
+      objectives: objectives.filter((o) => o !== null),
       // Strip server-only answer keys before any read leaves the backend.
       activities: acts
         .map((a) => ({
@@ -137,6 +165,23 @@ function evaluate(spec: Doc<"activities">["spec"], response: Doc<"attempts">["re
   return { verdict: "needs_review" as const, score: undefined as number | undefined };
 }
 
+/**
+ * Per-item post-grading marks (Issue #50 §3a): which submitted item landed
+ * in the right bucket — derived from the server key AFTER evaluation. The
+ * correct bucket is never disclosed, so a wrong mark can't be mined for the
+ * answer. Only classify produces per-item marks; needs_review returns none.
+ */
+function classifyMarks(
+  spec: Doc<"activities">["spec"],
+  response: Doc<"attempts">["response"],
+): { itemId: string; correct: boolean }[] | undefined {
+  if (spec.kind !== "classify" || response.kind !== "classification" || spec.correctAssignments === undefined) {
+    return undefined;
+  }
+  const key = new Map(spec.correctAssignments.map((a) => [a.itemId, a.bucketId]));
+  return response.assignments.map((a) => ({ itemId: a.itemId, correct: key.get(a.itemId) === a.bucketId }));
+}
+
 /** `learningRuntime.submitAttempt` — ownership-checked, revision-pinned, evaluated. */
 export const submitAttempt = mutation({
   args: {
@@ -156,11 +201,19 @@ export const submitAttempt = mutation({
     attemptId: v.id("attempts"),
     verdict: v.union(v.literal("correct"), v.literal("partial"), v.literal("incorrect"), v.literal("needs_review")),
     masteryUpdated: v.number(),
+    marks: v.optional(v.array(v.object({ itemId: v.string(), correct: v.boolean() }))),
   }),
   handler: async (ctx, { activityId, activityRevision, response, attemptKey }) => {
     const userId = await requireLearnerId(ctx);
     const activity = await ctx.db.get(activityId);
-    if (activity === null) throw err("INVALID_INPUT", "activity not found");
+    // Missing and foreign are the same answer — probing well-formed ids can
+    // never distinguish "doesn't exist" from "not yours" (code AND message).
+    if (activity === null) throw err("UNAUTHORIZED", "activity not found");
+    // Ownership BEFORE revision/dedupe: a foreign activity must be
+    // indistinguishable from a missing one — a CONFLICT or replay answer
+    // would confirm the row exists and leak its revision.
+    const found = await ownedLesson(ctx as never, activity.lessonId, userId);
+    if (found === null) throw err("UNAUTHORIZED", "activity not found");
     if (activity.revision !== activityRevision) throw err("CONFLICT", "activity revised; reload before answering");
     // Idempotent submit: a retried key returns the original attempt.
     // Exact indexed dedupe — no scan cap, no replay ambiguity.
@@ -174,11 +227,18 @@ export const submitAttempt = mutation({
         if (JSON.stringify(dup.response) !== JSON.stringify(response)) {
           throw err("CONFLICT", "attemptKey reused with a different response");
         }
-        return { attemptId: dup._id, verdict: dup.evaluation?.verdict ?? "needs_review", masteryUpdated: 0 };
+        const replayVerdict = dup.evaluation?.verdict ?? "needs_review";
+        return {
+          attemptId: dup._id,
+          verdict: replayVerdict,
+          masteryUpdated: 0,
+          // Same safeguard as first submission: an unevaluated needs_review
+          // attempt must never emit marks — replaying it can't be used as
+          // an answer-key oracle.
+          marks: replayVerdict === "needs_review" ? undefined : classifyMarks(activity.spec, dup.response),
+        };
       }
     }
-    const found = await ownedLesson(ctx as never, activity.lessonId, userId);
-    if (found === null) throw err("UNAUTHORIZED", "activity not found");
 
     const ev = evaluate(activity.spec, response);
     const now = Date.now();
@@ -190,6 +250,8 @@ export const submitAttempt = mutation({
       createdAt: now,
       attemptKey,
     });
+    // Per-item marks only once a verdict exists — never for needs_review.
+    const marks = ev.verdict === "needs_review" ? undefined : classifyMarks(activity.spec, response);
 
     // Mastery upsert ONLY for objectives this activity actually assesses —
     // and ONLY when the attempt is truly evaluated (needs_review never
@@ -274,7 +336,7 @@ export const submitAttempt = mutation({
         .map(String);
       const incorrectCount = attempts.filter((a) => a.evaluation?.verdict === "incorrect").length;
       if (incorrectCount < 2) {
-        return { attemptId, verdict: ev.verdict, masteryUpdated }; // policy: propose only at ≥2 mistakes
+        return { attemptId, verdict: ev.verdict, masteryUpdated, marks }; // policy: propose only at ≥2 mistakes
       }
       for (const objectiveId of activity.objectiveIds) {
         const evidence: ObjectiveEvidence[] = attempts
@@ -333,7 +395,7 @@ export const submitAttempt = mutation({
         });
       }
     }
-    return { attemptId, verdict: ev.verdict, masteryUpdated };
+    return { attemptId, verdict: ev.verdict, masteryUpdated, marks };
   },
 });
 
@@ -439,11 +501,41 @@ const CELLS_CLASSIFY = {
 const TEMPLATE_ID = "cells_classify_v1";
 
 /**
+ * Sanity-only negation screen (Issue #45): a passage that DENIES the fact
+ * ("plant cells do not have a cell wall", "lacks chloroplasts") cannot be
+ * attested as support for it. This is a reviewer-mistake guard on top of
+ * the human attestation — trust still comes from the attested row, never
+ * from lexical analysis. The screen only fires when EVERY occurrence of
+ * the term in the segment sits inside a negated clause; one affirmed
+ * mention is enough to let the reviewer proceed.
+ */
+const NEGATION_CUE = /\b(no|not|never|without|lack|lacks|lacked|lacking|absence|absent|devoid|exclude|excluding|neither)\b/;
+function segmentContradicts(text: string, term: string): boolean {
+  const lower = text.toLowerCase();
+  let idx = lower.indexOf(term);
+  if (idx === -1) return false; // absence is checked separately by includes()
+  let affirmed = false;
+  while (idx !== -1 && !affirmed) {
+    // Same-clause cue before the term: split the preceding window on
+    // clause punctuation so a negation in an earlier clause doesn't count.
+    const clauseBefore = lower.slice(Math.max(0, idx - 80), idx).split(/[.;:!?(),\n]/).pop() ?? "";
+    const after = lower.slice(idx + term.length, idx + term.length + 50);
+    const negated =
+      NEGATION_CUE.test(clauseBefore) ||
+      /\b(is|are|was|were|remains?)\s+(absent|missing|not\s+present|lacking)\b/.test(after);
+    if (!negated) affirmed = true;
+    idx = lower.indexOf(term, idx + term.length);
+  }
+  return !affirmed;
+}
+
+/**
  * Trusted attestation path (Issue #45): an internal/reviewer assertion that
  * specific lesson-approved segments support a specific fact→bucket. Sanity
  * checks (segment exists, belongs to the lesson's approved refs, text
- * mentions the fact term) guard against typos — they are NOT the basis of
- * trust; the attestation itself is. Immutable per (template, lesson, item).
+ * mentions the fact term un-negated) guard against typos and contradictory
+ * passages — they are NOT the basis of trust; the attestation itself is.
+ * Immutable per (template, lesson, item).
  */
 export const attestClassificationFacts = mutation({
   args: {
@@ -483,6 +575,9 @@ export const attestClassificationFacts = mutation({
         if (!seg.text.toLowerCase().includes(itemTerms[it.itemId])) {
           throw new Error(`segment text does not mention term for ${it.itemId}`);
         }
+        if (segmentContradicts(seg.text, itemTerms[it.itemId])) {
+          throw new Error(`segment contradicts the fact for ${it.itemId} — cite an affirming passage`);
+        }
       }
       const existing = await ctx.db
         .query("factAttestations")
@@ -520,43 +615,27 @@ export const materializeScoredActivity = internalMutation({
     const prev = existing.find((a) => a.spec.kind === "classify");
     if (prev !== undefined) return { activityId: prev._id };
 
-    // Grounding: the lesson's OWN persisted approved citations. Legacy
-    // lessons without sourceRefs fall back to objectives→concepts→refs.
+    // Grounding: ONLY the lesson's OWN persisted approved citations. Issue
+    // #45 removed the objectives→concepts→subject fallback for scored
+    // compilation — broad subject concepts were never validated as
+    // per-lesson support, and an implicit fallback could ground a graded
+    // key on material the lesson never cited. No per-lesson refs → abstain.
     const refs: { sourceId: Id<"sources">; segmentId: Id<"sourceSegments"> }[] = [];
     const segIds = new Set<string>();
-    if (lesson.sourceRefs !== undefined && lesson.sourceRefs.length > 0) {
-      for (const r of lesson.sourceRefs) {
-        if (r.segmentId !== undefined) {
-          segIds.add(String(r.segmentId));
-          refs.push({ sourceId: r.sourceId, segmentId: r.segmentId });
-        }
-      }
-    } else {
-      for (const oid of lesson.objectiveIds) {
-        const obj = await ctx.db.get(oid);
-        if (obj === null) continue;
-        for (const cid of obj.conceptIds) {
-          const concept = await ctx.db.get(cid);
-          if (concept === null) continue;
-          for (const r of concept.sourceRefs) {
-            if (r.segmentId !== undefined && !segIds.has(String(r.segmentId))) {
-              segIds.add(String(r.segmentId));
-              refs.push({ sourceId: r.sourceId, segmentId: r.segmentId });
-            }
-          }
-        }
-      }
+    for (const r of lesson.sourceRefs ?? []) {
+      if (r.segmentId === undefined) continue;
+      // Ref/segment integrity + live-source check: a stored ref is dropped
+      // when the segment is gone, belongs to a different source than the
+      // ref claims, or its source was deleted.
+      const seg = await ctx.db.get(r.segmentId);
+      if (seg === null || seg.sourceId !== r.sourceId) continue;
+      const src = await ctx.db.get(r.sourceId);
+      if (src === null || src.status === "deleted") continue;
+      segIds.add(String(r.segmentId));
+      refs.push({ sourceId: r.sourceId, segmentId: r.segmentId });
     }
     if (refs.length === 0) return { activityId: null }; // never fake citations
     // Scope: only lessons the owner has actually attested (see below).
-
-    // Every graded fact must be supported by the authorized segment text —
-    // a scored activity on unrelated material is a false ground.
-    const texts: string[] = [];
-    for (const r of refs) {
-      const seg = await ctx.db.get(r.segmentId);
-      if (seg !== null) texts.push(seg.text.toLowerCase());
-    }
     // TRUSTED ATTESTATION (Issue #45): every scored item must have a
     // reviewer-attested fact→bucket→segment binding, all citations inside
     // this lesson's own approved refs. Missing ANY attestation → abstain.
@@ -697,7 +776,10 @@ export const reviewPractice = mutation({
     if (proposal === null || proposal.ownerId !== userId) throw err("UNAUTHORIZED", "proposal not found");
     if (proposal.state === "accepted" || proposal.state === "rejected") {
       if (proposal.state !== action + "ed" && proposal.state !== action + "ted") throw err("CONFLICT", `already ${proposal.state}`);
-      return { state: proposal.state } as never;
+      // Idempotent repeat: an accepted proposal replays the SAME activityId
+      // (stored at materialization) — a retry never loses the activity or
+      // mints a second one.
+      return { state: proposal.state, activityId: proposal.activityId } as never;
     }
     const now = Date.now();
     if (action === "reject") {
@@ -712,7 +794,7 @@ export const reviewPractice = mutation({
       revision: 1,
       createdAt: now,
     });
-    await ctx.db.patch(proposalId, { state: "accepted", updatedAt: now });
+    await ctx.db.patch(proposalId, { state: "accepted", activityId, updatedAt: now });
     return { state: "accepted" as const, activityId };
   },
 });
