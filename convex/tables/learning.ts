@@ -468,6 +468,9 @@ export const practiceProposals = defineTable({
     v.literal("accepted"),
     v.literal("rejected"),
   ),
+  // The supplemental activity consent created — recorded so a repeated
+  // accept replays the same id instead of returning an unresolvable state.
+  activityId: v.optional(v.id("activities")),
   createdAt: v.number(),
   updatedAt: v.number(),
 })
