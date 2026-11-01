@@ -70,6 +70,20 @@ function LessonCompass({
   const done = lesson.objectives.filter((o) => o.state === "demonstrated").length;
   const total = lesson.objectives.length;
   const next = lesson.objectives.find((o) => o.state !== "demonstrated");
+  const stepIndex = lesson.stepIndex;
+  /* Issue #53: only claim what the server verified. No objective
+     statements → "progress not tracked yet", never a 0/0 bar that reads
+     as "nothing to do". No verified path position → no "step X of N". */
+  const tracked = total > 0;
+  const stepLine =
+    stepIndex !== null
+      ? `step ${Math.min(stepIndex + 1, lesson.stepCount)} of ${lesson.stepCount}`
+      : null;
+  const nextLine = next
+    ? `next — ${next.text}`
+    : tracked
+      ? "all objectives covered"
+      : null;
 
   return (
     <section className="pn-compass" aria-label="Lesson compass">
@@ -85,15 +99,21 @@ function LessonCompass({
         </button>
       </div>
       <strong className="pn-compass-title">{lesson.title}</strong>
-      <div className="pn-compass-progress" role="img" aria-label={`${done} of ${total} objectives demonstrated`}>
-        <span className="pn-compass-bar">
-          <span
-            className="pn-compass-bar-fill"
-            style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }}
-          />
-        </span>
-        <span className="pn-compass-count">{done}/{total}</span>
-      </div>
+      {tracked ? (
+        <div className="pn-compass-progress" role="img" aria-label={`${done} of ${total} objectives demonstrated`}>
+          <span className="pn-compass-bar">
+            <span
+              className="pn-compass-bar-fill"
+              style={{ width: `${Math.round((done / total) * 100)}%` }}
+            />
+          </span>
+          <span className="pn-compass-count">{done}/{total}</span>
+        </div>
+      ) : (
+        <p className="pn-compass-untracked" role="status">
+          progress not tracked yet
+        </p>
+      )}
       <div className="pn-mode" role="group" aria-label="Lesson mode">
         <button
           type="button"
@@ -114,8 +134,8 @@ function LessonCompass({
       </div>
       {mode === "guided" ? (
         <p className="pn-compass-next">
-          step {Math.min(lesson.stepIndex + 1, lesson.stepCount)} of {lesson.stepCount}
-          {next ? ` · next — ${next.text}` : " · all objectives covered"}
+          {[stepLine, nextLine].filter(Boolean).join(" · ") ||
+            "this lesson isn't on a tracked path yet"}
         </p>
       ) : (
         <button type="button" className="pn-return" onClick={onReturnToNext}>

@@ -29,6 +29,23 @@ export interface GetPathResult {
         specVersion: number;
         objectiveIds: Id<"objectives">[];
         sourceRefs: { sourceId: Id<"sources">; segmentId?: Id<"sourceSegments"> }[];
+        activityCount: number;
+        /** Issue #53 — server-derived per-lesson progress. The ONLY state
+         *  a client may render: `untracked` means the lesson has no
+         *  objectives (progress unverifiable), the rest are verified
+         *  mastery rollups from the caller's own rows. */
+        progress: {
+          tracked: boolean;
+          state:
+            | "untracked"
+            | "not_started"
+            | "learning"
+            | "practicing"
+            | "demonstrated";
+          assessedObjectives: number;
+          totalObjectives: number;
+          evaluatedAttempts: number;
+        };
       }[];
     }[];
   }[];

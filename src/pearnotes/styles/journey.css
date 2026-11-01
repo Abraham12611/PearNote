@@ -428,6 +428,8 @@
 
 .pnj-step-meta.is-demonstrated { color: color-mix(in srgb, var(--subject-hue, var(--pn-lime)) 80%, #fff); }
 .pnj-step-meta.is-in_progress { color: var(--pn-lime); }
+/* Issue #53 — "not tracked yet" sits quieter than real states. */
+.pnj-step-meta.is-unknown { color: var(--pn-faint-on-dark, rgba(255,255,255,0.52)); }
 .pnj-step-meta.is-locked { color: rgba(255, 255, 255, 0.35); }
 .pnj-step-meta.is-practicing,
 .pnj-step-meta.kind-practice { color: var(--pn-amber); }

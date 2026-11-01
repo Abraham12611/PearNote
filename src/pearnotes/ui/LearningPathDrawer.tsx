@@ -31,6 +31,8 @@ const ROW = 112;
 const XS = [50, 20, 50, 80];
 
 const NODE_STATE_LABEL: Record<PathLesson["state"], string> = {
+  /* Issue #53: no server mastery — "untracked", never "not started". */
+  unknown: "not tracked yet",
   not_started: "not started",
   available: "ready to start",
   in_progress: "in progress",

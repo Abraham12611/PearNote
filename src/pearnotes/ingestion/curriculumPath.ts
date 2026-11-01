@@ -5,6 +5,7 @@ import { getPathRef, type GetPathResult } from "./api";
 import type {
   LearningPath,
   PathLesson,
+  PathNodeState,
   PathSection,
   PathUnit,
 } from "../shell/types";
@@ -28,6 +29,19 @@ export type CurriculumPathState =
   | { status: "invalid" }
   | { status: "ready"; path: LearningPath };
 
+/* Server mastery rollup → drawer node state (Issue #53). `untracked`
+ *  renders as `unknown` — progress the server itself cannot verify.
+ *  Everything else is verified evidence and may be shown as-is: a
+ *  server-derived "not_started" is an honest "you haven't begun", not
+ *  the fabricated default it was before the read existed. */
+const PROGRESS_NODE_STATE: Record<string, PathNodeState> = {
+  untracked: "unknown",
+  not_started: "not_started",
+  learning: "in_progress",
+  practicing: "practicing",
+  demonstrated: "demonstrated",
+};
+
 function toPath(raw: GetPathResult): LearningPath {
   const sections: PathSection[] = raw.sections.map((sec) => ({
     id: sec._id,
@@ -40,11 +54,20 @@ function toPath(raw: GetPathResult): LearningPath {
           (l): PathLesson => ({
             id: l._id,
             title: l.title ?? "untitled lesson",
-            /* Server owns mastery — every node is honestly not_started. */
-            state: "not_started",
-            objectives: l.objectiveIds.map(String),
-            activityCount: 0,
+            /* Real server-derived progress — never a client guess. */
+            state: PROGRESS_NODE_STATE[l.progress.state] ?? "unknown",
+            /* getPath returns objective ids, not statements — rendering
+               them would show raw Convex ids as fake objective text.
+               Real statements arrive via getLesson when it opens. */
+            objectives: [],
+            activityCount: l.activityCount,
             sourceCount: l.sourceRefs.length,
+            /* 0–1 ring for in-progress nodes — the server's own fraction
+               of assessed objectives, only when it actually tracks any. */
+            progress:
+              l.progress.tracked && l.progress.totalObjectives > 0
+                ? l.progress.assessedObjectives / l.progress.totalObjectives
+                : undefined,
           }),
         ),
       }),

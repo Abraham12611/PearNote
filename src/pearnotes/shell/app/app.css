@@ -1,0 +1,286 @@
+/* ------------------------------------------------------------------
+ * /app production shell styles (Issue #54).
+ *
+ * Namespace: `.pna-*` — sits beside `.pns-*` (hash shell chrome) and
+ * `.pn-*` (Engineer 3's ui package). Tokens come from
+ * styles/tokens.css (`--pn-*`); nothing is re-defined here.
+ * ------------------------------------------------------------------ */
+
+.pna-app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  background: var(--pn-ink, #0b0b0d);
+  color: var(--pn-on-dark, #fff);
+  font-family: inherit;
+  overflow: hidden;
+}
+
+.pna-main {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow-y: auto;
+}
+
+/* ---- the rail -------------------------------------------------------- */
+
+.pna-rail {
+  flex: 0 0 auto;
+  z-index: 40;
+  align-self: center;
+  margin: 12px 0 12px 12px;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  background: var(--pn-panel, #151517);
+  border-radius: 28px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.pna-rail-mark {
+  width: 34px;
+  height: 34px;
+  display: block;
+}
+.pna-rail-mark svg { width: 100%; height: 100%; display: block; }
+
+.pna-rail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pna-rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 62px;
+  padding: 9px 4px 7px;
+  border: none;
+  border-radius: 18px;
+  background: none;
+  color: var(--pn-muted-on-dark, #bac2c6);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.pna-rail-btn:hover {
+  color: var(--pn-on-dark, #fff);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.pna-rail-btn.is-active {
+  color: var(--pn-ink, #0b0b0d);
+  background: var(--pn-lime, #c9ff3d);
+}
+
+.pna-rail-icon {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+}
+.pna-rail-icon svg { width: 100%; height: 100%; display: block; }
+
+.pna-rail-face {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--pn-paper, #f5efdf);
+  color: var(--pn-on-paper, #1d1712);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.pna-rail-btn.is-active .pna-rail-face {
+  background: var(--pn-ink, #0b0b0d);
+  color: var(--pn-lime, #c9ff3d);
+}
+
+/* ---- pages ------------------------------------------------------------ */
+
+.pna-page {
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: 34px 34px 60px;
+  max-width: 860px;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0 1px, transparent 1.4px);
+  background-size: 30px 30px;
+}
+
+.pna-page-title {
+  margin: 4px 0 8px;
+  font-size: clamp(1.7rem, 3.4vw, 2.4rem);
+  letter-spacing: -0.01em;
+}
+
+.pna-page-lede {
+  color: var(--pn-muted-on-dark, #bac2c6);
+  max-width: 60ch;
+  margin: 0 0 22px;
+  line-height: 1.5;
+}
+
+.pna-hint {
+  color: var(--pn-muted-on-dark, #bac2c6);
+  font-size: 0.9rem;
+  margin: 6px 0;
+}
+
+.pna-empty {
+  border: 1.5px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 20px;
+  padding: 22px 24px;
+  margin: 18px 0 22px;
+  max-width: 56ch;
+}
+.pna-empty strong { display: block; margin-bottom: 6px; }
+.pna-empty p { color: var(--pn-muted-on-dark, #bac2c6); margin: 0; line-height: 1.5; }
+
+/* ---- library ----------------------------------------------------------- */
+
+.pna-source-list {
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 680px;
+}
+
+.pna-source {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--pn-panel, #151517);
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+.pna-source-kind {
+  flex: 0 0 auto;
+  min-width: 44px;
+  text-align: center;
+  padding: 5px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pna-source-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pna-source-body strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pna-source-meta { color: var(--pn-muted-on-dark, #bac2c6); font-size: 0.8rem; }
+.pna-source-date { color: var(--pn-faint-on-dark, rgba(255,255,255,0.52)); font-size: 0.78rem; flex: 0 0 auto; }
+
+/* ---- achievements ------------------------------------------------------- */
+
+.pna-shelf { margin-top: 26px; }
+
+/* ---- profile ------------------------------------------------------------ */
+
+.pna-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 56ch;
+  padding: 20px 22px;
+  background: var(--pn-panel, #151517);
+  border-radius: 20px;
+}
+
+.pna-profile-face {
+  width: 54px;
+  height: 54px;
+  font-size: 26px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--pn-paper, #f5efdf);
+  color: var(--pn-on-paper, #1d1712);
+  font-weight: 800;
+}
+
+/* ---- settings ------------------------------------------------------------- */
+
+.pna-settings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 620px;
+}
+
+.pna-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 18px;
+  background: var(--pn-panel, #151517);
+  border-radius: 14px;
+}
+
+.pna-setting-state {
+  color: var(--pn-muted-on-dark, #bac2c6);
+  font-size: 0.85rem;
+}
+
+/* ---- shared: the "no curriculum yet" note both shells use --------------- */
+
+.pns-live-note {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  max-width: 340px;
+  margin: 0;
+  padding: 12px 18px;
+  background: var(--pn-panel, #151517);
+  border: 1.5px dashed rgba(255, 255, 255, 0.22);
+  border-radius: 16px;
+  color: var(--pn-muted-on-dark, #bac2c6);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  z-index: 80;
+}
+
+/* ---- responsive: rail becomes a bottom bar ------------------------------- */
+
+@media (max-width: 720px) {
+  .pna-app { flex-direction: column-reverse; }
+  .pna-rail {
+    align-self: stretch;
+    margin: 0;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    border-radius: 0;
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 4px;
+  }
+  .pna-rail-mark { display: none; }
+  .pna-rail-list { flex-direction: row; gap: 2px; overflow-x: auto; }
+  .pna-rail-btn { width: 54px; padding: 7px 2px 5px; font-size: 10px; }
+  .pna-rail-icon { width: 22px; height: 22px; }
+  .pna-page { padding: 22px 18px 48px; }
+}
