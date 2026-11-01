@@ -1,55 +1,69 @@
 /**
- * Owner attestation helper — Issue #45/#31 release gate.
- * Binds the six classify facts to the REAL Cambridge segments in the
- * OWNER'S OWN account, then triggers the one-call attest+materialize path.
+ * Owner evidence REVIEW for Biology attestation — Issue #45.
+ * READ-ONLY BY DEFAULT: prints each classify fact and the approved
+ * passages (page + text) that may support it. NOTHING is written.
  *
- * Usage (authenticated as the owner who approved the proposal):
- *   VITE_CONVEX_URL=<dev> AUTH_TOKEN=<token> LESSON_ID=<id> node scripts/attest_biology.mjs
- *   (AUTH_TOKEN: from DevTools → Application → cookies/localStorage for the
- *    dev deployment, or printed by the sign-in flow)
+ * Run `attest` for the interactive per-fact confirmation: for every one
+ * of the six facts you see the candidate passage and must explicitly
+ * confirm the bucket assignment (y) or skip (n). Skipped facts are
+ * NEVER attested and will abstain from scoring.
+ *
+ * Must be run inside the owner's authenticated Convex session — supply
+ * credentials only through your own secure sign-in (see AUTH_TOKEN
+ * env expected by the Convex client used for dev validation). Do NOT
+ * share or paste credentials anywhere public.
+ *
+ *   VITE_CONVEX_URL=<dev> AUTH_TOKEN=<session> LESSON_ID=<id> \
+ *     node scripts/attest_biology.mjs            # review only
+ *   ... node scripts/attest_biology.mjs attest   # interactive confirm
  */
 import { ConvexHttpClient } from "convex/browser";
+import * as readline from "node:readline";
 
-const url = process.env.VITE_CONVEX_URL;
-const token = process.env.AUTH_TOKEN;
-const lessonId = process.env.LESSON_ID;
+const url = process.env.VITE_CONVEX_URL, token = process.env.AUTH_TOKEN, lessonId = process.env.LESSON_ID;
 if (!url || !token || !lessonId) throw new Error("need VITE_CONVEX_URL, AUTH_TOKEN, LESSON_ID");
-
 const client = new ConvexHttpClient(url);
 client.setAuth(token);
 
-// The six template facts and required fact terms per item.
 const FACTS = [
-  { itemId: "f-wall", bucketId: "plant", term: "wall" },
-  { itemId: "f-chloroplast", bucketId: "plant", term: "chloroplast" },
-  { itemId: "f-bigvac", bucketId: "plant", term: "vacuole" },
-  { itemId: "f-membrane", bucketId: "shared", term: "membrane" },
-  { itemId: "f-nucleus", bucketId: "shared", term: "nucleus" },
-  { itemId: "f-cytoplasm", bucketId: "shared", term: "cytoplasm" },
+  { itemId: "f-wall", bucketId: "plant", term: "wall", claim: "plant cells have a cellulose cell wall" },
+  { itemId: "f-chloroplast", bucketId: "plant", term: "chloroplast", claim: "plant cells contain chloroplasts" },
+  { itemId: "f-bigvac", bucketId: "plant", term: "vacuole", claim: "plant cells have a large permanent vacuole" },
+  { itemId: "f-membrane", bucketId: "shared", term: "membrane", claim: "both cell types have a membrane" },
+  { itemId: "f-nucleus", bucketId: "shared", term: "nucleus", claim: "both cell types have a nucleus" },
+  { itemId: "f-cytoplasm", bucketId: "shared", term: "cytoplasm", claim: "both cell types have cytoplasm" },
 ];
 
-// 1) Read the lesson's OWN approved segments WITH text (owner-scoped).
 const segs = await client.query("learningRuntime:getLessonSegments", { lessonId });
 if (segs.length === 0) { console.error("no approved segments — approve the proposal first"); process.exit(1); }
-console.log(`lesson has ${segs.length} approved segments`);
 
-// 2) Per fact: bind ONLY segments whose text actually contains the term —
-//    every cited segment must support it (server re-validates too).
-const items = FACTS.map((f) => {
-  const hits = segs.filter((sg) => sg.text.toLowerCase().includes(f.term)).map((sg) => sg._id);
-  if (hits.length === 0) {
-    console.error(`NO segment evidence for ${f.itemId} (${f.term}) — abstain`);
-    process.exit(1);
+const mode = process.argv[2] ?? "review";
+const confirmed = [];
+for (const f of FACTS) {
+  const hits = segs.filter((sg) => sg.text.toLowerCase().includes(f.term));
+  console.log(`\n=== ${f.itemId} → bucket "${f.bucketId}" ===`);
+  console.log(`claim: ${f.claim}`);
+  if (hits.length === 0) { console.log("  NO candidate passage found — will abstain"); continue; }
+  for (const sg of hits) {
+    console.log(`  p${sg.page ?? "?"} seg#${sg.segmentNo}: "${sg.text.slice(0, 220)}"`);
   }
-  console.log(`  ${f.itemId} → ${f.bucketId} @ ${hits.length} segment(s)`);
-  return { itemId: f.itemId, bucketId: f.bucketId, segmentIds: hits };
-});
+  if (mode === "attest") {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const ans = await new Promise((res) => rl.question(`  confirm this fact→bucket is supported by the passage(s)? [y/n] `, res));
+    rl.close();
+    if (ans.trim().toLowerCase() === "y") confirmed.push({ itemId: f.itemId, bucketId: f.bucketId, segmentIds: hits.map((h) => h._id) });
+    else console.log("  skipped — will abstain");
+  } else {
+    confirmed.push({ itemId: f.itemId, bucketId: f.bucketId, segmentIds: hits.map((h) => h._id) });
+  }
+}
 
-// 3) One call: attest six facts + schedule materialization.
+if (mode !== "attest") {
+  console.log("\n[review only — nothing written] re-run with 'attest' to confirm each fact interactively");
+  process.exit(0);
+}
+if (confirmed.length !== 6) { console.error(`only ${confirmed.length}/6 confirmed — abstaining, nothing written`); process.exit(1); }
 const r = await client.mutation("learningRuntime:attestClassificationFacts", {
-  templateId: "cells_classify_v1",
-  lessonId,
-  items,
+  templateId: "cells_classify_v1", lessonId, items: confirmed,
 });
-console.log("attested:", JSON.stringify(r));
-console.log("materializeScoredActivity scheduled → check getLesson for the classify activity");
+console.log("attested:", JSON.stringify(r), "→ materialize scheduled");

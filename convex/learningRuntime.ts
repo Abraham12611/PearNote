@@ -631,7 +631,10 @@ export const getLessonSegments = query({
     for (const r of (found.lesson.sourceRefs ?? []).slice(0, 20)) {
       if (r.segmentId === undefined) continue;
       const seg = await ctx.db.get(r.segmentId);
-      if (seg !== null) out.push({ _id: seg._id, segmentNo: seg.segmentNo, page: seg.page, text: seg.text.slice(0, 2000) });
+      if (seg === null || seg.sourceId !== r.sourceId) continue;   // integrity: ref/segment mismatch
+      const src = await ctx.db.get(r.sourceId);
+      if (src === null || src.ownerId !== userId) continue;        // foreign source → never returned
+      out.push({ _id: seg._id, segmentNo: seg.segmentNo, page: seg.page, text: seg.text.slice(0, 2000) });
     }
     return out;
   },

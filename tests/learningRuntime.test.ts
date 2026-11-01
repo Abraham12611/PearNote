@@ -525,6 +525,34 @@ describe("learningRuntime", () => {
     expect(await asA.query(api.curricula.getPath, { subjectId: subOnly })).toBeNull();
   });
 
+  test("getLessonSegments: foreign source + sourceId mismatch refs excluded", async () => {
+    const { t, asA, aId, lessonId } = await seed();
+    const { good, foreignSeg, foreignSrc } = await t.run(async (ctx) => {
+      const own = await ctx.db.insert("sources", {
+        ownerId: aId, storageId: await ctx.storage.store(new Blob(["x"])), title: "o",
+        mime: "application/pdf", sizeBytes: 1, sha256: "0".repeat(64), status: "indexed", createdAt: 1, updatedAt: 1,
+      });
+      const good = await ctx.db.insert("sourceSegments", { sourceId: own, segmentNo: 1, page: 1, text: "mine", createdAt: 1 });
+      const b = await ctx.db.insert("users", { name: "bea" });
+      const foreignSrc = await ctx.db.insert("sources", {
+        ownerId: b, storageId: await ctx.storage.store(new Blob(["x"])), title: "f",
+        mime: "application/pdf", sizeBytes: 1, sha256: "1".repeat(64), status: "indexed", createdAt: 1, updatedAt: 1,
+      });
+      const foreignSeg = await ctx.db.insert("sourceSegments", { sourceId: foreignSrc, segmentNo: 1, page: 1, text: "theirs", createdAt: 1 });
+      // refs: good own segment + foreign segment + mismatch (seg on own source cited under foreign sourceId)
+      await ctx.db.patch(lessonId, {
+        sourceRefs: [
+          { sourceId: own, segmentId: good },
+          { sourceId: foreignSrc, segmentId: foreignSeg },
+          { sourceId: foreignSrc, segmentId: good },   // seg belongs to own src → mismatch
+        ],
+      });
+      return { good, foreignSeg, foreignSrc };
+    });
+    const segs = await asA.query(api.learningRuntime.getLessonSegments, { lessonId });
+    expect(segs.map((x) => x._id)).toEqual([good]);     // ONLY the owned, consistent ref
+  });
+
   test("practice accept materializes activity; reject terminal; foreign proposal hidden", async () => {
     const { t, asA, aId, lessonId } = await seed();
     const bSub = await t.run(async (ctx) => ctx.db.insert("users", { name: "bea" }));
