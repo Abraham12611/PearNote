@@ -117,7 +117,7 @@ export function DemoBanner({ onJoinWaitlist, onMakeSpace, pending = false }: { o
         onClick={(event) => { if (event.target === event.currentTarget) dialog.current?.close(); }}>
         <div className="demo-waitlist-layout">
           <div className="demo-poster" aria-hidden="true">
-            <div className="demo-poster-brand"><img src="/assets/ourspace-mark.png" alt="" /><span>ourspaces</span></div>
+            <div className="demo-poster-brand"><img src="/assets/pearnotes-mark.svg" alt="" /><span>PearNotes</span></div>
             <div className="demo-poster-collage">
               <div className="demo-poster-paper" />
               <figure className="demo-poster-photo">

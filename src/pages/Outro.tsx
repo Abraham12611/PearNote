@@ -49,8 +49,8 @@ export function Outro() {
     <main className="outro">
       <div className="outro-stage" key={take} style={{ "--s": scale } as CSSProperties}>
         <div className="outro-logo">
-          <i><img src="/assets/ourspace-mark.png" alt="" /></i>
-          <b>ourspaces</b>
+          <i><img src="/assets/pearnotes-mark.svg" alt="" /></i>
+          <b>PearNotes</b>
         </div>
 
         <div className="outro-pill is-thomas">built by Thomas</div>

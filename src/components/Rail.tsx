@@ -164,11 +164,11 @@ export function Rail({
       <a
         className="rail-brand"
         href="#/about"
-        title="about ourspaces"
-        aria-label="About OurSpaces"
+        title="about PearNotes"
+        aria-label="About PearNotes"
         onClick={rememberCurrentSpace}
       >
-        <img src="/assets/ourspace-mark.png" alt="ourspaces" />
+        <img src="/assets/pearnotes-mark.svg" alt="PearNotes" />
       </a>
 
       <div className="space-list">
