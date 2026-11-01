@@ -157,9 +157,10 @@ export const CONVEX_ID = /^[a-z0-9]{16,}$/i;
 /**
  * LiveLessonBridge — builds the REAL `LessonSummary` the `LessonShell` slot
  * guard requires, from owner-scoped `learningRuntime.getLesson` + the real
- * subject row. Nothing is invented: no objective statements/mastery client-
- * side (server-owned), step position stays 1/1 until curricula.getPath
- * (#50) can place the lesson inside its unit.
+ * subject row. Objective statements and mastery come verbatim from the
+ * server (Issue #53); `stepIndex` is only set when `curricula.getPath`
+ * verifiably places the lesson inside its unit — `null` is an honest
+ * "untracked position", never a fabricated step.
  */
 export function LiveLessonBridge({
   lessonId,
@@ -202,15 +203,14 @@ export function LiveLessonBridge({
         `activity ${i + 1}`,
       state: "todo",
     }));
-    /* Position within the real approved path when the curriculum read is
-       available; otherwise count only this lesson's own objects — both
-       are honest numbers, never simulated progress. */
+    /* Position within the real approved path only (Issue #53): when the
+       lesson can't be verified inside a path, `stepIndex` is null — the
+       Compass reports "untracked" rather than a fabricated position. */
     const flat = (path?.sections ?? []).flatMap((s) =>
       s.units.flatMap((u) => u.lessons),
     );
     const idx = flat.findIndex((l) => String(l._id) === lessonId);
-    const stepCount = flat.length > 0 ? flat.length : objects.length;
-    const stepIndex = idx >= 0 ? idx : 0;
+    const stepIndex = idx >= 0 ? idx : null;
     onLesson({
       status: "ready",
       lesson: {
@@ -219,10 +219,14 @@ export function LiveLessonBridge({
         subjectId: subjectId ?? "",
         subjectName: subject?.name ?? "",
         stepIndex,
-        stepCount: Math.max(stepCount, 1),
-        /* Honest: objective statements/mastery aren't part of getLesson —
-           an empty list, never fabricated progress. */
-        objectives: [],
+        stepCount: flat.length,
+        /* Issue #53: real statements + the caller's own server mastery —
+           verbatim, never fabricated. Empty array = untracked lesson. */
+        objectives: lesson.objectives.map((o) => ({
+          id: String(o._id),
+          text: o.statement,
+          state: o.mastery,
+        })),
         objects,
       },
     });
@@ -258,12 +262,19 @@ type FixtureBundle = {
   label: string;
 };
 
-export function usePearNotesFixtures(): PearNotesData & { label: string } | null {
+export function usePearNotesFixtures(
+  /** Issue #54 review — `?fixtures=1` is honored only when the caller's
+   *  context allows it (explicit `demoMode` prop or a dev build). A real
+   *  `/app` route passes `false` and the flag alone can never inject
+   *  sample content into a production account. Defaults on so the
+   *  legacy `#/learn` prototype harness is unchanged. */
+  enabled: boolean = true,
+): PearNotesData & { label: string } | null {
   const [bundle, setBundle] = useState<FixtureBundle | null>(null);
   const wanted = pearnotesFixturesRequested();
 
   useEffect(() => {
-    if (!wanted) return;
+    if (!enabled || !wanted) return;
     const load = fixtureModules["../ui/fixtures.ts"];
     if (!load) return;
     let live = true;
@@ -287,9 +298,9 @@ export function usePearNotesFixtures(): PearNotesData & { label: string } | null
     return () => {
       live = false;
     };
-  }, [wanted]);
+  }, [enabled, wanted]);
 
-  if (!wanted || !bundle) return null;
+  if (!enabled || !wanted || !bundle) return null;
   return {
     status: "ready",
     subjects: bundle.subjects,

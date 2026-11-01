@@ -99,6 +99,15 @@
 .pjn.is-needs_review .pjn-rim { stroke-dasharray: 5 6; }
 
 /* locked is inert: no lift, no hover reward, dimmed everything */
+/* Issue #53 — no server mastery: a dim, dashed-rim node. Visually beside
+   "not started" (paper + ordinal) and "locked" (padlock) but claiming
+   neither — progress is unverified, not absent. */
+.pjn.is-unknown {
+  --jnode-face: #26262c;
+  --jnode-ink: var(--pn-faint-on-dark, rgba(255, 255, 255, 0.52));
+}
+.pjn.is-unknown .pjn-rim { stroke-dasharray: 4 6; }
+
 .pjn.is-locked {
   --jnode-face: #232329;
   --jnode-ink: #63636d;

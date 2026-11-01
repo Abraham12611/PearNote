@@ -6,8 +6,10 @@ import type { PathNodeState } from "./types";
  * "journey interaction asset pack"). One layered-SVG component covers
  * the full state×kind matrix the path drawer needs:
  *
- *   state: not_started | available | in_progress | practicing |
+ *   state: unknown | not_started | available | in_progress | practicing |
  *          demonstrated | needs_review | locked
+ *          (`unknown` = server mastery absent, Issue #53 — the node keeps
+ *          its ordinal but renders muted, never "not started")
  *   kind:  lesson (default) | practice | checkpoint
  *   flags: recommended ("next" tag) · remedial (smaller branch node)
  *   extra: loading · disabled — neither exists in PathNodeState, so

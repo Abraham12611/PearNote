@@ -72,8 +72,14 @@ export interface PearSubject {
 
 /** Per-lesson path node state (CURRICULUM.md §path drawer). `locked` is
  *  reserved — current product guidance favours open exploration; it
- *  renders distinctly if a future path ever emits it. */
+ *  renders distinctly if a future path ever emits it.
+ *
+ *  `unknown` (Issue #53) means the server has NOT supplied mastery for
+ *  this node — it is not "not started", and it must never be rendered as
+ *  completed or as a confident "you haven't begun". Once an owner-scoped
+ *  mastery read exists, real states replace it. */
 export type PathNodeState =
+  | "unknown"
   | "not_started"
   | "available"
   | "in_progress"
@@ -197,8 +203,10 @@ export interface LessonSummary {
   title: string;
   subjectId: string;
   subjectName: string;
-  /** 0-based index of the recommended step the Compass points at */
-  stepIndex: number;
+  /** 0-based position inside the approved path — `null` when the lesson
+   *  isn't verifiably placed on a path (Issue #53: never a fabricated
+   *  "step 1 of N"). */
+  stepIndex: number | null;
   stepCount: number;
   objectives: LessonObjective[];
   objects: LessonObjectRef[];

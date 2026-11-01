@@ -349,15 +349,25 @@ function jobFromHash(): JobId | null {
 export function IntakeReview({
   subject,
   onClose,
+  jobId: controlledJobId,
+  onJobRoute,
 }: {
   subject: PearSubject | null;
   onClose: () => void;
+  /** Controlled job id (Issue #54 `/app` pathname shell). When provided —
+     *  even as `null` — the route's `?job=` is authoritative and this
+     *  component stops reading the hash. */
+  jobId?: JobId | null;
+  /** Called instead of writing `#/learn/sources/…` to the hash, so the
+     *  pathname router can keep the in-flight import in its own URL. */
+  onJobRoute?: (jobId: JobId) => void;
 }) {
   const createUploadUrl = useMutation(ingestApi.sources.createUploadUrl);
   const register = useMutation(ingestApi.sources.register);
   const begin = useMutation(ingestApi.learningImport.begin);
   const [phase, setPhase] = useState<UploadPhase>({ kind: "idle" });
-  const [jobId, setJobId] = useState<JobId | null>(() => jobFromHash());
+  const [hashJobId, setJobId] = useState<JobId | null>(() => jobFromHash());
+  const jobId = controlledJobId !== undefined ? controlledJobId : hashJobId;
   const [notice, setNotice] = useState<string | null>(null);
 
   const onFile = async (file: File) => {
@@ -393,8 +403,12 @@ export function IntakeReview({
          lifetime key would break the second uploaded file. */
       const job = await begin({ sourceId, idempotencyKey: crypto.randomUUID() });
       setJobId(job.jobId);
-      /* Job rides in the URL so refresh/navigation recovers this import. */
-      if (subject) {
+      /* Job rides in the URL so refresh/navigation recovers this import —
+         the pathname shell owns it via onJobRoute; the hash shell keeps
+         its legacy `#/learn/sources/<id>?job=<job>` write. */
+      if (onJobRoute) {
+        onJobRoute(job.jobId);
+      } else if (subject) {
         window.location.hash = pearnotesSourcesHash(subject.id, job.jobId);
       }
       setPhase({ kind: "idle" });

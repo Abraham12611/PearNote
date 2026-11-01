@@ -39,6 +39,9 @@ export type ResumePoint = {
 };
 
 export type PathNodeState =
+  /** server hasn't supplied mastery (Issue #53) — never render as
+   *  fabricated progress or a confident "not started". */
+  | "unknown"
   | "not_started"
   | "available"
   | "in_progress"
@@ -105,7 +108,8 @@ export type LessonSummary = {
   title: string;
   subjectId: string;
   subjectName: string;
-  stepIndex: number;
+  /** `null` = position unverified (Issue #53) — not a fabricated step. */
+  stepIndex: number | null;
   stepCount: number;
   objectives: LessonObjective[];
   objects: LessonObjectRef[];

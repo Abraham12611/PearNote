@@ -920,6 +920,14 @@
   color: var(--pn-faint-on-dark);
 }
 
+/* Issue #53 — mastery unverified: dimmer than not_started, claiming
+   nothing either way until the server says otherwise. */
+.pn-node.is-unknown {
+  border: 2px dashed rgba(255, 255, 255, 0.14);
+  background: #131317;
+  color: var(--pn-faint-on-dark);
+}
+
 .pn-node.is-in_progress {
   background: var(--pn-paper);
 }
@@ -1042,6 +1050,8 @@
 .pn-preview-state.is-demonstrated { background: var(--subject-hue, var(--pn-subject-general)); color: var(--pn-on-paper); }
 .pn-preview-state.is-in_progress,
 .pn-preview-state.is-practicing { background: var(--pn-lime); color: var(--pn-sticker); }
+/* Issue #53 — unverified progress reads as a neutral outline chip. */
+.pn-preview-state.is-unknown { box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.25); color: var(--pn-muted-on-dark); }
 
 .pn-preview-title {
   margin: 0;
@@ -1261,6 +1271,15 @@
   font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* Issue #53 — replaces the bar when no objective statements exist:
+   a 0/0 meter would read as "nothing required" or "all done". */
+.pn-compass-untracked {
+  margin: 0;
+  color: var(--pn-faint-on-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .pn-mode {

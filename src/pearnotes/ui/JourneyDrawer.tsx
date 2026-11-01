@@ -58,6 +58,9 @@ function savedMode(): JourneyMode {
 }
 
 const NODE_STATE_LABEL: Record<PathLesson["state"], string> = {
+  /* Issue #53: the server hasn't supplied mastery — honest "untracked",
+     never "not started" or implied completion. */
+  unknown: "not tracked yet",
   not_started: "not started",
   available: "ready",
   in_progress: "in progress",
@@ -151,6 +154,7 @@ function findContinue(path: LearningPath | null) {
     all.find(
       ({ l }) =>
         l.state === "available" ||
+        l.state === "unknown" ||
         l.state === "not_started" ||
         l.state === "needs_review" ||
         l.state === "practicing",
