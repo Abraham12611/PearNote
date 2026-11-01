@@ -1,21 +1,18 @@
 /**
- * Owner evidence REVIEW for Biology attestation — Issue #45.
- * READ-ONLY BY DEFAULT: prints each classify fact and the approved
- * passages (page + text) that may support it. NOTHING is written.
+ * OPERATOR tool — Biology fact evidence review + owner attestation (#45).
+ * Requires authentication credentials supplied through your own secure
+ * session (AUTH_TOKEN env). Not an in-app owner review surface.
  *
- * Run `attest` for the interactive per-fact confirmation: for every one
- * of the six facts you see the candidate passage and must explicitly
- * confirm the bucket assignment (y) or skip (n). Skipped facts are
- * NEVER attested and will abstain from scoring.
- *
- * Must be run inside the owner's authenticated Convex session — supply
- * credentials only through your own secure sign-in (see AUTH_TOKEN
- * env expected by the Convex client used for dev validation). Do NOT
- * share or paste credentials anywhere public.
+ * Modes:
+ *   review (default) — read-only: prints every fact's candidate passages
+ *                      (page + full bounded excerpt). Writes nothing.
+ *   attest           — interactive: for EACH fact, per-candidate segment
+ *                      confirm/reject individually, then a final review of
+ *                      all six mappings before a single write.
+ * Skipped/unconfirmed facts abstain — no scored activity is created.
  *
  *   VITE_CONVEX_URL=<dev> AUTH_TOKEN=<session> LESSON_ID=<id> \
- *     node scripts/attest_biology.mjs            # review only
- *   ... node scripts/attest_biology.mjs attest   # interactive confirm
+ *     node scripts/attest_biology.mjs [attest]
  */
 import { ConvexHttpClient } from "convex/browser";
 import * as readline from "node:readline";
@@ -38,31 +35,45 @@ const segs = await client.query("learningRuntime:getLessonSegments", { lessonId 
 if (segs.length === 0) { console.error("no approved segments — approve the proposal first"); process.exit(1); }
 
 const mode = process.argv[2] ?? "review";
+const rl = mode === "attest" ? readline.createInterface({ input: process.stdin, output: process.stdout }) : null;
+const ask = (q) => new Promise((res) => rl.question(q, res));
+
 const confirmed = [];
 for (const f of FACTS) {
   const hits = segs.filter((sg) => sg.text.toLowerCase().includes(f.term));
-  console.log(`\n=== ${f.itemId} → bucket "${f.bucketId}" ===`);
-  console.log(`claim: ${f.claim}`);
-  if (hits.length === 0) { console.log("  NO candidate passage found — will abstain"); continue; }
-  for (const sg of hits) {
-    console.log(`  p${sg.page ?? "?"} seg#${sg.segmentNo}: "${sg.text.slice(0, 220)}"`);
-  }
-  if (mode === "attest") {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const ans = await new Promise((res) => rl.question(`  confirm this fact→bucket is supported by the passage(s)? [y/n] `, res));
-    rl.close();
-    if (ans.trim().toLowerCase() === "y") confirmed.push({ itemId: f.itemId, bucketId: f.bucketId, segmentIds: hits.map((h) => h._id) });
-    else console.log("  skipped — will abstain");
-  } else {
+  console.log(`\n=== ${f.itemId} → bucket "${f.bucketId}" ===\nclaim: ${f.claim}`);
+  if (hits.length === 0) { console.log("  NO candidate passage — will abstain"); continue; }
+  if (mode !== "attest") {
+    for (const sg of hits) console.log(`  p${sg.page ?? "?"} #${sg.segmentNo}: "${sg.text}"`);
     confirmed.push({ itemId: f.itemId, bucketId: f.bucketId, segmentIds: hits.map((h) => h._id) });
+    continue;
   }
+  // Per-segment confirm: owner reviews EACH candidate excerpt separately —
+  // a contradictory passage must NOT be attested just for containing the term.
+  const chosen = [];
+  for (const sg of hits) {
+    console.log(`  p${sg.page ?? "?"} #${sg.segmentNo}:\n  "${sg.text}"`);
+    const ans = (await ask(`  cite this segment as support for "${f.claim}"? [y/n] `)).trim().toLowerCase();
+    if (ans === "y") chosen.push(sg._id);
+  }
+  if (chosen.length > 0) confirmed.push({ itemId: f.itemId, bucketId: f.bucketId, segmentIds: chosen });
+  else console.log("  no segment confirmed — fact will abstain");
 }
+rl?.close();
 
 if (mode !== "attest") {
-  console.log("\n[review only — nothing written] re-run with 'attest' to confirm each fact interactively");
+  console.log("\n[review only — nothing written] re-run with 'attest' to confirm per-segment");
   process.exit(0);
 }
-if (confirmed.length !== 6) { console.error(`only ${confirmed.length}/6 confirmed — abstaining, nothing written`); process.exit(1); }
+
+// Final review of the complete mapping before ANY write.
+console.log("\n==== FINAL ATTESTATION REVIEW ====");
+for (const c of confirmed) console.log(`  ${c.itemId} → ${c.bucketId} @ ${c.segmentIds.length} seg(s)`);
+if (confirmed.length !== 6) { console.error(`${confirmed.length}/6 facts confirmed — abstaining, nothing written`); process.exit(1); }
+const final = (await askInteractive("write all six attestations + schedule materialize? [yes/no] ")).trim().toLowerCase();
+async function askInteractive(q) { const r = readline.createInterface({ input: process.stdin, output: process.stdout }); const a = await new Promise((res) => r.question(q, res)); r.close(); return a; }
+if (final !== "yes") { console.log("aborted — nothing written"); process.exit(0); }
+
 const r = await client.mutation("learningRuntime:attestClassificationFacts", {
   templateId: "cells_classify_v1", lessonId, items: confirmed,
 });

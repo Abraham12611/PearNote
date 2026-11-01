@@ -574,11 +574,24 @@ export const materializeScoredActivity = internalMutation({
     });
     if (unattested) return { activityId: null };
 
+    // Citations = the union of VERIFIED attested segments (with their
+    // source ids resolved) — never an arbitrary first-N subset.
+    const attestedSegIds = new Set<string>();
+    for (const i of CELLS_CLASSIFY.items) {
+      const row = byItem.get(i.id);
+      if (row !== undefined) row.segmentIds.forEach((sid) => attestedSegIds.add(String(sid)));
+    }
+    const cited: { sourceId: Id<"sources">; segmentId: Id<"sourceSegments"> }[] = [];
+    for (const sid of attestedSegIds) {
+      const seg = await ctx.db.get(sid as Id<"sourceSegments">);
+      if (seg !== null) cited.push({ sourceId: seg.sourceId, segmentId: seg._id });
+    }
+    if (cited.length === 0) return { activityId: null };
     const activityId = await ctx.db.insert("activities", {
       lessonId,
       spec: CELLS_CLASSIFY as never,
       objectiveIds: lesson.objectiveIds,
-      sourceRefs: refs.slice(0, 6),
+      sourceRefs: cited,
       revision: 1,
       createdAt: Date.now(),
     });
@@ -633,7 +646,7 @@ export const getLessonSegments = query({
       const seg = await ctx.db.get(r.segmentId);
       if (seg === null || seg.sourceId !== r.sourceId) continue;   // integrity: ref/segment mismatch
       const src = await ctx.db.get(r.sourceId);
-      if (src === null || src.ownerId !== userId) continue;        // foreign source → never returned
+      if (src === null || src.status === "deleted" || src.ownerId !== userId) continue;
       out.push({ _id: seg._id, segmentNo: seg.segmentNo, page: seg.page, text: seg.text.slice(0, 2000) });
     }
     return out;

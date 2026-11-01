@@ -18,6 +18,7 @@ import type * as batch from "../batch.js";
 import type * as checkIns from "../checkIns.js";
 import type * as choiceVotes from "../choiceVotes.js";
 import type * as crons from "../crons.js";
+import type * as curricula from "../curricula.js";
 import type * as digest from "../digest.js";
 import type * as edits from "../edits.js";
 import type * as emails_signIn from "../emails/signIn.js";
@@ -97,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   checkIns: typeof checkIns;
   choiceVotes: typeof choiceVotes;
   crons: typeof crons;
+  curricula: typeof curricula;
   digest: typeof digest;
   edits: typeof edits;
   "emails/signIn": typeof emails_signIn;
