@@ -24,6 +24,7 @@ import {
   pearnotesSourcesHash,
 } from "../../lib/routes";
 import {
+  CONVEX_ID,
   LiveDataBridge,
   LiveLessonBridge,
   LivePathBridge,
@@ -57,6 +58,13 @@ export function PearNotesCanvasShell() {
     path: LearningPath;
   } | null>(null);
   const [liveLesson, setLiveLesson] = useState<LiveLessonState | null>(null);
+
+  /* Navigating between lessons must not leave the previous lesson's
+     chrome mounted — drop the summary the moment the route id changes;
+     the bridge re-reports the fresh lesson immediately after. */
+  useEffect(() => {
+    setLiveLesson(null);
+  }, [route.kind === "lesson" ? route.lessonId : null]);
   const data = fixtures ?? liveData ?? staticData;
   const fixtureLabel = fixtures?.label;
 
@@ -176,7 +184,9 @@ export function PearNotesCanvasShell() {
           fixtureLabel={fixtureLabel}
         >
           {lessonCanvas}
-          {liveBackend && !fixtureLabel && (
+          {/* Malformed ids never reach the board — the shell's own error
+              frame renders instead. */}
+          {liveBackend && !fixtureLabel && CONVEX_ID.test(route.lessonId) && (
             <LiveLessonBoard lessonId={route.lessonId} />
           )}
         </LessonShell>

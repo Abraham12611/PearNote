@@ -151,7 +151,7 @@ const LESSON_OBJECT_KIND: Record<string, LessonObjectRef["kind"]> = {
 
 /** Convex ids are 16+ char base32-ish strings — a malformed route id would
  *  fail validator args before the query runs, so gate on shape first. */
-const CONVEX_ID = /^[a-z0-9]{16,}$/i;
+export const CONVEX_ID = /^[a-z0-9]{16,}$/i;
 
 /**
  * LiveLessonBridge — builds the REAL `LessonSummary` the `LessonShell` slot
