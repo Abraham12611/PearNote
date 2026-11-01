@@ -616,6 +616,27 @@ export const compileLessonActivity = mutation({
   },
 });
 
+/** `learningRuntime.getLessonSegments` — owner-scoped: the lesson's own
+ * approved segment texts, for attestation/review UI. Small bounded read. */
+export const getLessonSegments = query({
+  args: { lessonId: v.id("lessons") },
+  returns: v.array(
+    v.object({ _id: v.id("sourceSegments"), segmentNo: v.number(), page: v.optional(v.number()), text: v.string() }),
+  ),
+  handler: async (ctx, { lessonId }) => {
+    const userId = await requireLearnerId(ctx);
+    const found = await ownedLesson(ctx as never, lessonId, userId);
+    if (found === null) return [];
+    const out: { _id: Id<"sourceSegments">; segmentNo: number; page?: number; text: string }[] = [];
+    for (const r of (found.lesson.sourceRefs ?? []).slice(0, 20)) {
+      if (r.segmentId === undefined) continue;
+      const seg = await ctx.db.get(r.segmentId);
+      if (seg !== null) out.push({ _id: seg._id, segmentNo: seg.segmentNo, page: seg.page, text: seg.text.slice(0, 2000) });
+    }
+    return out;
+  },
+});
+
 /** `learningRuntime.listPractice` — owner's proposals for a lesson. */
 export const listPractice = query({
   args: { lessonId: v.id("lessons") },
