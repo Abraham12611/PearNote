@@ -12,18 +12,18 @@ import { adoptAuthUserId, updateIdentity, useIdentity } from "./identity";
  * Deliberately swallows failures: a visitor who cannot sign in still gets the
  * canvas, because guest is the rollback path, not a gate (§1).
  */
-function useGuestSession() {
+function useGuestSession(enabled: boolean) {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const { signIn } = useAuthActions();
   const started = useRef(false);
 
   useEffect(() => {
-    if (isLoading || isAuthenticated || started.current) return;
+    if (!enabled || isLoading || isAuthenticated || started.current) return;
     started.current = true;
     void signIn("anonymous").catch(() => {
       // Stay a local-only visitor. The canvas is never behind sign-in.
     });
-  }, [isLoading, isAuthenticated, signIn]);
+  }, [enabled, isLoading, isAuthenticated, signIn]);
 }
 
 /**
@@ -42,8 +42,12 @@ function useGuestSession() {
  * cases the tab keeps its locally-allocated id and the canvas works exactly
  * as before — guest is the rollback path, never a gate (§1).
  */
-export function useAuthIdentity() {
-  useGuestSession();
+export function useAuthIdentity(options?: { silentGuest?: boolean }) {
+  /* `silentGuest` defaults to the original behavior (legacy canvas,
+     demo). The `/app` gateway passes false: nobody becomes a guest just
+     for opening an app URL — a signed-out visitor gets the sign-in
+     recovery screen instead (Assignment E1). */
+  useGuestSession(options?.silentGuest ?? true);
   const user = useQuery(api.auth.currentUser, {});
   const identity = useIdentity();
   const updateProfile = useMutation(api.auth.updateProfile);
@@ -98,7 +102,11 @@ export function useAuthIdentity() {
 }
 
 /** Renderless mount point, so the hook only runs inside the Convex provider. */
-export function AuthIdentityBridge() {
-  useAuthIdentity();
+export function AuthIdentityBridge({
+  silentGuest = true,
+}: {
+  silentGuest?: boolean;
+}) {
+  useAuthIdentity({ silentGuest });
   return null;
 }
