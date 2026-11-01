@@ -141,9 +141,12 @@
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.entry-mark span { color: var(--pn-lime); margin-right: 6px; }
+.entry-mark img { height: 26px; width: auto; display: block; }
 
 .entry-top-nav {
   display: flex;

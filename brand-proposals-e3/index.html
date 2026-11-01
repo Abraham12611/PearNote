@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PearNotes — E3 Brand Identity Proposals</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
+:root {
+  --ink: #0b0b0d;
+  --panel: #151517;
+  --lime: #c6f750;
+  --paper: #f5efdf;
+  --muted: #bac2c6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  background: #e9e4d6;
+  color: var(--ink);
+  padding: 48px 24px 96px;
+}
+.wordmark {
+  font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.wrap { max-width: 1160px; margin: 0 auto; }
+header.masthead { margin-bottom: 40px; }
+header.masthead h1 { font-family: "Bricolage Grotesque", sans-serif; font-size: 40px; font-weight: 800; letter-spacing: -0.02em; }
+header.masthead p { color: #4a4a4a; max-width: 720px; margin-top: 8px; line-height: 1.5; }
+.meta-bar {
+  margin-top: 16px; font-size: 13px; color: #4a4a4a; line-height: 1.6;
+  background: #f4f0e4; border: 1px solid #d8d2c0; border-radius: 12px; padding: 14px 18px;
+}
+.meta-bar code { background: #e4dec9; padding: 1px 6px; border-radius: 6px; }
+
+section.candidate {
+  background: #f8f5ea;
+  border: 1px solid #d8d2c0;
+  border-radius: 20px;
+  padding: 32px;
+  margin-top: 40px;
+}
+section.candidate h2 { font-family: "Bricolage Grotesque", sans-serif; font-size: 26px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
+.badge {
+  font-family: "IBM Plex Sans", sans-serif; font-size: 11px; font-weight: 600;
+  background: var(--ink); color: var(--lime); border-radius: 99px; padding: 4px 12px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.badge.alt { background: #d8d2c0; color: var(--ink); }
+section.candidate .rationale { margin-top: 10px; color: #3c3c3c; max-width: 780px; line-height: 1.55; font-size: 15px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+.card {
+  border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  border: 1px solid #ddd7c4; min-height: 150px; justify-content: center; align-items: center;
+}
+.card .label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.55; align-self: flex-start; }
+.card.light { background: var(--paper); }
+.card.light .label { color: var(--ink); }
+.card.dark { background: var(--panel); }
+.card.dark .label { color: var(--muted); }
+.card.white { background: #ffffff; }
+.card.white .label { color: var(--ink); }
+
+.lockup-h { display: flex; align-items: center; gap: 14px; }
+.lockup-h img { height: 56px; }
+.lockup-h .wordmark { font-size: 34px; }
+.lockup-h.light .wordmark { color: var(--ink); }
+.lockup-h.dark .wordmark { color: #fff; }
+.lockup-s { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lockup-s img { height: 72px; }
+.lockup-s .wordmark { font-size: 26px; color: var(--ink); }
+.lockup-s.dark .wordmark { color: #fff; }
+
+img.icon-lg { height: 96px; }
+img.icon-mono { height: 84px; }
+
+/* app-header mock */
+.headerbar {
+  width: 100%; border-radius: 99px; padding: 8px 18px;
+  display: flex; align-items: center; gap: 10px;
+}
+.headerbar.dark { background: var(--ink); }
+.headerbar.light { background: #fff; border: 1px solid #ddd7c4; }
+.headerbar img { height: 28px; }
+.headerbar .wordmark { font-size: 18px; }
+.headerbar.dark .wordmark { color: #fff; }
+.headerbar.light .wordmark { color: var(--ink); }
+.headerbar .navdot { width: 9px; height: 9px; border-radius: 50%; background: var(--lime); margin-left: auto; }
+
+/* favicon mocks */
+.favirow { display: flex; align-items: flex-end; gap: 18px; }
+.tab {
+  background: #dcd8cc; border-radius: 9px 9px 0 0; padding: 5px 10px 5px 8px;
+  display: flex; align-items: center; gap: 7px; border-bottom: 2px solid var(--lime);
+}
+.tab .url { font-size: 11px; color: #333; }
+.tab img { width: 16px; height: 16px; }
+.chip {
+  width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+}
+.chip img { width: 32px; height: 32px; }
+.chip.darkbg { background: var(--panel); }
+.chip.lightbg { background: #fff; border: 1px solid #ddd7c4; }
+.favirow .cap { font-size: 10px; color: #666; text-align: center; margin-top: 5px; }
+.faviitem { display: flex; flex-direction: column; align-items: center; }
+
+.supporting { margin-top: 24px; }
+.supporting h3 { font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; color: #6a6a5f; margin-bottom: 10px; }
+.supporting .row { display: flex; gap: 16px; flex-wrap: wrap; }
+.supporting img { height: 130px; border-radius: 12px; border: 1px solid #ddd7c4; background: #fff; }
+
+footer { margin-top: 56px; font-size: 13px; color: #55523f; line-height: 1.7; max-width: 900px; }
+footer h3 { font-family: "Bricolage Grotesque", sans-serif; font-size: 18px; color: var(--ink); margin-bottom: 8px; }
+footer table { border-collapse: collapse; margin-top: 10px; font-size: 12.5px; }
+footer td, footer th { border: 1px solid #cfc9b4; padding: 6px 12px; text-align: left; }
+footer th { background: #efead9; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <h1><span class="wordmark">PearNotes</span> — brand identity proposals</h1>
+  <p>Assignment E3 · visual design exploration. Five meaningfully different marks generated via FLORA (Recraft V4.1 Pro Vector + GPT Image 2.5 Sunburst). Nothing here replaces installed brand assets — pick a direction and final exports get produced in the follow-up task.</p>
+  <div class="meta-bar">
+    <b>Design grammar:</b> die-cut sticker / scrapbook materiality · ink <code>#0B0B0D</code> · warm paper <code>#F5EFDF</code> · restrained lime <code>#C6F750</code> · wordmark set in <b>Bricolage Grotesque 800</b> (OFL, already the project display font).<br/>
+    <b>FLORA project:</b> <code>prj_ns74pm82b56q9annhw5zjxt1e18hcd8d</code> — “PearNotes E3 Brand Identity” · <a href="https://app.flora.ai/projects/ns74pm82b56q9annhw5zjxt1e18hcd8d">open canvas</a>
+  </div>
+</header>
+
+<!-- ============ CANDIDATE 1 ============ -->
+<section class="candidate">
+  <h2>1 · The Folded Pear <span class="badge">pear + note</span> <span class="badge alt">Recraft V4.1 Pro Vector</span></h2>
+  <p class="rationale">The most literal reading of the name: a pear whose bottom-right edge curls up like a folded sticky-note, revealing a lime underside. The fold does double duty — it says <i>paper</i> and it says <i>there's something underneath / a reveal</i>, which maps nicely onto “notes transforming into understanding.” Strong, single-gesture silhouette; reads instantly at favicon size; closest to the product name for memorability.</p>
+  <div class="grid">
+    <div class="card light"><span class="label">Horizontal lockup · light</span>
+      <div class="lockup-h light"><img src="svg/c1b-pear-note-v2-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card dark"><span class="label">Horizontal lockup · dark</span>
+      <div class="lockup-h dark"><img src="svg/c1b-pear-note-v2-dark.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Stacked · compact</span>
+      <div class="lockup-s"><img src="svg/c1b-pear-note-v2-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Icon only</span><img class="icon-lg" src="svg/c1b-pear-note-v2-light.svg"/></div>
+    <div class="card dark"><span class="label">Icon only · dark</span><img class="icon-lg" src="svg/c1b-pear-note-v2-dark.svg"/></div>
+    <div class="card white"><span class="label">Monochrome</span>
+      <div style="display:flex;gap:28px;align-items:center"><img class="icon-mono" src="svg/c1b-pear-note-v2-mono-ink.svg"/><img class="icon-mono" src="svg/c1b-pear-note-v2-mono-paper.svg" style="background:#151517;border-radius:12px;padding:8px"/></div>
+    </div>
+    <div class="card dark"><span class="label">App header @28px</span>
+      <div class="headerbar dark"><img src="svg/c1b-pear-note-v2-dark.svg"/><span class="wordmark">PearNotes</span><span class="navdot"></span></div>
+    </div>
+    <div class="card light"><span class="label">App header @28px · light</span>
+      <div class="headerbar light"><img src="svg/c1b-pear-note-v2-light.svg"/><span class="wordmark">PearNotes</span><span class="navdot"></span></div>
+    </div>
+    <div class="card light"><span class="label">Favicon preview</span>
+      <div class="favirow">
+        <div class="faviitem"><div class="tab"><img src="svg/c1b-pear-note-v2-light.svg"/><span class="url">pearnotes.app</span></div><div class="cap">tab · 16px</div></div>
+        <div class="faviitem"><div class="chip lightbg"><img src="svg/c1b-pear-note-v2-light.svg"/></div><div class="cap">32px</div></div>
+        <div class="faviitem"><div class="chip darkbg"><img src="svg/c1b-pear-note-v2-dark.svg"/></div><div class="cap">dark</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="supporting">
+    <h3>Supporting renders — GPT Image 2.5 Sunburst (raster reference for iconography + lockup spacing)</h3>
+    <div class="row"><img src="flora-src/c5-lockup.png"/><img src="flora-src/c8-stacked-lockup.png"/><img src="png/c1-folded-pear.svg.png" style="height:130px"/></div>
+    <p style="font-size:12px;color:#6a6a5f;margin-top:8px">Left/middle: GPT 2.5 Sunburst lockups. Right: alternate vector take (squarer “note-first” silhouette) — available if the owner prefers more note, less pear.</p>
+  </div>
+</section>
+
+<!-- ============ CANDIDATE 2 ============ -->
+<section class="candidate">
+  <h2>2 · The Open Page <span class="badge">knowledge motif</span> <span class="badge alt">Recraft V4.1 Pro Vector</span></h2>
+  <p class="rationale">An open book whose pages carry a sprouting stem-and-leaf: notes literally growing into understanding. The most “learning-forward” mark — communicates education without any fruit at all, so it won't be confused with pear/food brands. Bookish, calm, trustworthy; the sprout keeps it playful. Very clean geometry — arguably the strongest at 16px.</p>
+  <div class="grid">
+    <div class="card light"><span class="label">Horizontal lockup · light</span>
+      <div class="lockup-h light"><img src="svg/c2-book-pear-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card dark"><span class="label">Horizontal lockup · dark</span>
+      <div class="lockup-h dark"><img src="svg/c2-book-pear-dark.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Stacked · compact</span>
+      <div class="lockup-s"><img src="svg/c2-book-pear-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Icon only</span><img class="icon-lg" src="svg/c2-book-pear-light.svg"/></div>
+    <div class="card dark"><span class="label">Icon only · dark</span><img class="icon-lg" src="svg/c2-book-pear-dark.svg"/></div>
+    <div class="card white"><span class="label">Monochrome</span>
+      <div style="display:flex;gap:28px;align-items:center"><img class="icon-mono" src="svg/c2-book-pear-mono-ink.svg"/><img class="icon-mono" src="svg/c2-book-pear-mono-paper.svg" style="background:#151517;border-radius:12px;padding:8px"/></div>
+    </div>
+    <div class="card dark"><span class="label">App header @28px</span>
+      <div class="headerbar dark"><img src="svg/c2-book-pear-dark.svg"/><span class="wordmark">PearNotes</span><span class="navdot"></span></div>
+    </div>
+    <div class="card light"><span class="label">App header @28px · light</span>
+      <div class="headerbar light"><img src="svg/c2-book-pear-light.svg"/><span class="wordmark">PearNotes</span><span class="navdot"></span></div>
+    </div>
+    <div class="card light"><span class="label">Favicon preview</span>
+      <div class="favirow">
+        <div class="faviitem"><div class="tab"><img src="svg/c2-book-pear-light.svg"/><span class="url">pearnotes.app</span></div><div class="cap">tab · 16px</div></div>
+        <div class="faviitem"><div class="chip lightbg"><img src="svg/c2-book-pear-light.svg"/></div><div class="cap">32px</div></div>
+        <div class="faviitem"><div class="chip darkbg"><img src="svg/c2-book-pear-dark.svg"/></div><div class="cap">dark</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CANDIDATE 3 ============ -->
+<section class="candidate">
+  <h2>3 · Pip, the Note-Buddy <span class="badge">character</span> <span class="badge alt">GPT 2.5 Sunburst + vector sketch</span></h2>
+  <p class="rationale">An original die-cut paper-pear character: a little folded-paper pear standing on a curled sheet of notes, pencil in hand. Maximum personality and approachability — the “study companion” direction. Distinctly <i>not</i> an owl (different silhouette, no mascot-suit proportions), so no Duolingo adjacency. Trade-off: character marks are busiest at favicon size — the face+paper base needs simplification for 16px, and the final asset would be redrawn as vector.</p>
+  <div class="grid">
+    <div class="card light"><span class="label">Primary render · GPT 2.5 Sunburst</span><img style="height:150px;border-radius:12px" src="flora-src/c6-sticker.png"/></div>
+    <div class="card light"><span class="label">Alternate · vector sketch (Recraft)</span><img class="icon-lg" src="svg/c3-character-light.svg"/></div>
+    <div class="card dark"><span class="label">Vector sketch · dark</span><img class="icon-lg" src="svg/c3-character-dark.svg"/></div>
+    <div class="card white"><span class="label">Monochrome (vector sketch)</span>
+      <div style="display:flex;gap:28px;align-items:center"><img class="icon-mono" src="svg/c3-character-mono-ink.svg"/><img class="icon-mono" src="svg/c3-character-mono-paper.svg" style="background:#151517;border-radius:12px;padding:8px"/></div>
+    </div>
+    <div class="card dark"><span class="label">App header @28px</span>
+      <div class="headerbar dark"><img src="svg/c3-character-dark.svg"/><span class="wordmark">PearNotes</span><span class="navdot"></span></div>
+    </div>
+    <div class="card light"><span class="label">Favicon preview (vector sketch)</span>
+      <div class="favirow">
+        <div class="faviitem"><div class="tab"><img src="svg/c3-character-light.svg"/><span class="url">pearnotes.app</span></div><div class="cap">tab · 16px</div></div>
+        <div class="faviitem"><div class="chip darkbg"><img src="svg/c3-character-dark.svg"/></div><div class="cap">dark</div></div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#6a6a5f;margin-top:16px">Note: if this direction is selected, the follow-up task should include a vector redraw pass (Recraft i2i or manual) plus a simplified 16px variant — the character's face reads at 32px+ but merges below that.</p>
+</section>
+
+<!-- ============ CANDIDATE 4 (REFINED — owner's pick) ============ -->
+<section class="candidate" style="border-color:#c6f750;border-width:2px">
+  <h2>4 · The Folded P — refined directions <span class="badge">owner's pick</span> <span class="badge alt">Recraft V4.1 Pro Vector ×4 + GPT 2.5 Sunburst</span></h2>
+  <p class="rationale">Paper folded into a “P” — the most ownable mark. Round two tuned it to the actual UI grammar from the app screenshots: teal canvas, ink slabs, chunky pills, <b>thick die-cut sticker borders</b>, torn-slip edges, and the wider accent set (lime / magenta / violet). Four sub-directions below, then accent variants.</p>
+
+  <h3 style="font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#6a6a5f;margin-top:22px">4.1 · Origami P — cream ribbon, lime undersides <span class="badge" style="margin-left:6px">lead</span></h3>
+  <div class="grid">
+    <div class="card light"><span class="label">Lockup · light</span>
+      <div class="lockup-h light"><img src="svg/c4e-origami-p-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card dark"><span class="label">Lockup · dark</span>
+      <div class="lockup-h dark"><img src="svg/c4e-origami-p-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Stacked</span>
+      <div class="lockup-s"><img src="svg/c4e-origami-p-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card white"><span class="label">Monochrome</span>
+      <div style="display:flex;gap:28px;align-items:center"><img class="icon-mono" src="svg/c4e-origami-p-mono-ink.svg"/><img class="icon-mono" src="svg/c4e-origami-p-mono-paper.svg" style="background:#151517;border-radius:12px;padding:8px"/></div>
+    </div>
+    <div class="card dark"><span class="label">App header @28px</span>
+      <div class="headerbar dark"><img src="svg/c4e-origami-p-light.svg"/><span class="wordmark">PearNotes</span><span class="navdot"></span></div>
+    </div>
+    <div class="card light"><span class="label">Favicon preview</span>
+      <div class="favirow">
+        <div class="faviitem"><div class="tab"><img src="svg/c4e-origami-p-light.svg"/><span class="url">pearnotes.app</span></div><div class="cap">tab · 16px</div></div>
+        <div class="faviitem"><div class="chip lightbg"><img src="svg/c4e-origami-p-light.svg"/></div><div class="cap">32px</div></div>
+        <div class="faviitem"><div class="chip darkbg"><img src="svg/c4e-origami-p-light.svg"/></div><div class="cap">dark tile</div></div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#6a6a5f;margin-top:10px">The sticker border means it reads on both light and dark without a recolor — exactly how the in-canvas stickers behave.</p>
+  <div class="supporting">
+    <h3>Context render — GPT Image 2.5 Sunburst (raster, presentation only)</h3>
+    <div class="row"><img src="flora-src/c4d-appicon-teal.png" style="height:170px"/></div>
+    <p style="font-size:12px;color:#6a6a5f;margin-top:8px">Origami-P as an app icon on the teal topographic canvas — this is the target feel for the PWA icon.</p>
+  </div>
+
+  <h3 style="font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#6a6a5f;margin-top:26px">4.2 · Sticker P — ink body, die-cut border, tilted</h3>
+  <div class="grid">
+    <div class="card light"><span class="label">Icon · light</span><img class="icon-lg" src="svg/c4a-sticker-p-light.svg"/></div>
+    <div class="card dark"><span class="label">Lockup · dark</span>
+      <div class="lockup-h dark"><img src="svg/c4a-sticker-p-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Favicon preview</span>
+      <div class="favirow">
+        <div class="faviitem"><div class="tab"><img src="svg/c4a-sticker-p-light.svg"/><span class="url">pearnotes.app</span></div><div class="cap">tab · 16px</div></div>
+        <div class="faviitem"><div class="chip darkbg"><img src="svg/c4a-sticker-p-light.svg"/></div><div class="cap">dark tile</div></div>
+      </div>
+    </div>
+    <div class="card white"><span class="label">Monochrome</span>
+      <div style="display:flex;gap:28px;align-items:center"><img class="icon-mono" src="svg/c4a-sticker-p-mono-ink.svg"/><img class="icon-mono" src="svg/c4a-sticker-p-mono-paper.svg" style="background:#151517;border-radius:12px;padding:8px"/></div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#6a6a5f;margin-top:10px">Most “sticker-pack” of the set — the ink slab + cream border + tilt matches the canvas stickers 1:1. P legibility is softer than 4.1.</p>
+
+  <h3 style="font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#6a6a5f;margin-top:26px">4.3 · Stack P — two overlapping papers</h3>
+  <div class="grid">
+    <div class="card light"><span class="label">Icon · light</span><img class="icon-lg" src="svg/c4b-pill-p-light.svg"/></div>
+    <div class="card dark"><span class="label">Lockup · dark</span>
+      <div class="lockup-h dark"><img src="svg/c4b-pill-p-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Favicon preview</span>
+      <div class="favirow">
+        <div class="faviitem"><div class="tab"><img src="svg/c4b-pill-p-light.svg"/><span class="url">pearnotes.app</span></div><div class="cap">tab · 16px</div></div>
+        <div class="faviitem"><div class="chip darkbg"><img src="svg/c4b-pill-p-light.svg"/></div><div class="cap">dark tile</div></div>
+      </div>
+    </div>
+    <div class="card white"><span class="label">Monochrome</span>
+      <div style="display:flex;gap:28px;align-items:center"><img class="icon-mono" src="svg/c4b-pill-p-mono-ink.svg"/><img class="icon-mono" src="svg/c4b-pill-p-mono-paper.svg" style="background:#151517;border-radius:12px;padding:8px"/></div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#6a6a5f;margin-top:10px">Reads as layered notes — a cream sheet over a lime sheet. Distinctive, though the double-outline is the busiest at 16px.</p>
+
+  <h3 style="font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#6a6a5f;margin-top:26px">4.4 · Torn-slip P — IOU/receipt edge</h3>
+  <div class="grid">
+    <div class="card light"><span class="label">Icon · light</span><img class="icon-lg" src="svg/c4c-torn-p-light.svg"/></div>
+    <div class="card dark"><span class="label">Lockup · dark</span>
+      <div class="lockup-h dark"><img src="svg/c4c-torn-p-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Favicon preview</span>
+      <div class="favirow">
+        <div class="faviitem"><div class="tab"><img src="svg/c4c-torn-p-light.svg"/><span class="url">pearnotes.app</span></div><div class="cap">tab · 16px</div></div>
+        <div class="faviitem"><div class="chip darkbg"><img src="svg/c4c-torn-p-light.svg"/></div><div class="cap">dark tile</div></div>
+      </div>
+    </div>
+    <div class="card white"><span class="label">Monochrome</span>
+      <div style="display:flex;gap:28px;align-items:center"><img class="icon-mono" src="svg/c4c-torn-p-mono-ink.svg"/><img class="icon-mono" src="svg/c4c-torn-p-mono-paper.svg" style="background:#151517;border-radius:12px;padding:8px"/></div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#6a6a5f;margin-top:10px">The torn bottom + seed counter are the most scrapbook-authentic, but the silhouette reads “receipt” more than “P” — likely needs a redraw to restore the letterform.</p>
+
+  <h3 style="font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#6a6a5f;margin-top:28px">Accent palette — the fold is the brand color slot</h3>
+  <div class="grid">
+    <div class="card light"><span class="label">Lime (current)</span><img class="icon-lg" src="svg/c4e-origami-p-light.svg"/></div>
+    <div class="card light"><span class="label">Magenta fold</span><img class="icon-lg" src="svg/c4e-origami-p-pink.svg"/></div>
+    <div class="card light"><span class="label">Violet fold</span><img class="icon-lg" src="svg/c4e-origami-p-violet.svg"/></div>
+    <div class="card light"><span class="label">Sticker P · magenta</span><img class="icon-lg" src="svg/c4a-sticker-p-pink.svg"/></div>
+    <div class="card light"><span class="label">Sticker P · violet</span><img class="icon-lg" src="svg/c4a-sticker-p-violet.svg"/></div>
+    <div class="card light"><span class="label">Original P · magenta</span><img class="icon-lg" src="svg/c4-p-monogram-pink.svg"/></div>
+  </div>
+  <p style="font-size:12px;color:#6a6a5f;margin-top:10px">Derived locally by remapping the accent fill — no extra model calls. Magenta/violet echo the app's live-badge and template accents; lime stays closest to the blueprint token (<code>#C6F750</code>).</p>
+</section>
+
+<!-- ============ CANDIDATE 5 ============ -->
+<section class="candidate">
+  <h2>5 · The Path Pear <span class="badge">spatial journey</span> <span class="badge alt">Recraft V4.1 Pro Vector</span></h2>
+  <p class="rationale">A pear whose body holds a connected path of stepping-stone nodes ending at a lime “you are here” point — the most <i>spatial-learning</i> concept, echoing PearNotes' curriculum path nodes on the canvas. Distinctive and product-specific; the diagonal lean gives it energy but the internal node detail is the busiest of the five at small sizes.</p>
+  <div class="grid">
+    <div class="card light"><span class="label">Horizontal lockup · light</span>
+      <div class="lockup-h light"><img src="svg/c7-path-pear-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card dark"><span class="label">Horizontal lockup · dark</span>
+      <div class="lockup-h dark"><img src="svg/c7-path-pear-dark.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Stacked · compact</span>
+      <div class="lockup-s"><img src="svg/c7-path-pear-light.svg"/><span class="wordmark">PearNotes</span></div>
+    </div>
+    <div class="card light"><span class="label">Icon only</span><img class="icon-lg" src="svg/c7-path-pear-light.svg"/></div>
+    <div class="card dark"><span class="label">Icon only · dark</span><img class="icon-lg" src="svg/c7-path-pear-dark.svg"/></div>
+    <div class="card white"><span class="label">Monochrome</span>
+      <div style="display:flex;gap:28px;align-items:center"><img class="icon-mono" src="svg/c7-path-pear-mono-ink.svg"/><img class="icon-mono" src="svg/c7-path-pear-mono-paper.svg" style="background:#151517;border-radius:12px;padding:8px"/></div>
+    </div>
+    <div class="card dark"><span class="label">App header @28px</span>
+      <div class="headerbar dark"><img src="svg/c7-path-pear-dark.svg"/><span class="wordmark">PearNotes</span><span class="navdot"></span></div>
+    </div>
+    <div class="card light"><span class="label">Favicon preview</span>
+      <div class="favirow">
+        <div class="faviitem"><div class="tab"><img src="svg/c7-path-pear-light.svg"/><span class="url">pearnotes.app</span></div><div class="cap">tab · 16px</div></div>
+        <div class="faviitem"><div class="chip darkbg"><img src="svg/c7-path-pear-dark.svg"/></div><div class="cap">dark</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <h3>Generation record, rights & licensing notes</h3>
+  <table>
+    <tr><th>Asset</th><th>FLORA model</th><th>Run id</th><th>Cost (USD)</th></tr>
+    <tr><td>C1 folded-note vector (alt)</td><td>Recraft V4.1 Pro Vector (<code>t2i-recraft-v4-1-pro-vector-t2i</code>)</td><td><code>run_m170twk8trq644dtksrr4zss3d8hdmc7</code></td><td>$0.36</td></tr>
+    <tr><td>C1b folded-pear vector (lead)</td><td>Recraft V4.1 Pro Vector</td><td><code>run_m17emdp7srgc2vh5fcwh2fr7tn8hcqjf</code></td><td>$0.36</td></tr>
+    <tr><td>C2 open-book vector</td><td>Recraft V4.1 Pro Vector</td><td><code>run_m1758en2s785qava9q61b3aqeh8hc571</code></td><td>$0.36</td></tr>
+    <tr><td>C3 character vector sketch</td><td>Recraft V4.1 Pro Vector</td><td><code>run_m176s0cmg2w3y210aw18mgkzk58hdcq5</code></td><td>$0.36</td></tr>
+    <tr><td>C4 folded-P vector</td><td>Recraft V4.1 Pro Vector</td><td><code>run_m17943w8p4jayv8f3vx7q1yfan8hdf0r</code></td><td>$0.36</td></tr>
+    <tr><td>C7 path-pear vector</td><td>Recraft V4.1 Pro Vector</td><td><code>run_m17037pr2ceqf4ts78zych0px98hc0qe</code></td><td>$0.36</td></tr>
+    <tr><td>C5 horizontal lockup (raster)</td><td>GPT Image 2.5 Sunburst (<code>t2i-gpt-image-2-5-sunburst</code>)</td><td><code>run_m171sef9a92aa74tpcczpnxznx8hd42k</code></td><td>$0.055</td></tr>
+    <tr><td>C6 character sticker (raster)</td><td>GPT Image 2.5 Sunburst</td><td><code>run_m17fqwc2ez7n9bbaypdfz2x7kx8hdmzg</code></td><td>$0.055</td></tr>
+    <tr><td>C8 stacked lockup (raster)</td><td>GPT Image 2.5 Sunburst</td><td><code>run_m172qnnjppjbgedntfmz2cs57n8hcjb3</code></td><td>$0.055</td></tr>
+    <tr><td>C4a sticker-P vector</td><td>Recraft V4.1 Pro Vector</td><td><code>run_m1790dh1c9n5ccjdfxdmb1gb7h8hdjfw</code></td><td>$0.36</td></tr>
+    <tr><td>C4b stack-P vector</td><td>Recraft V4.1 Pro Vector</td><td><code>run_m17dgqyyzq947zsrxs8f7qr33x8hdsfh</code></td><td>$0.36</td></tr>
+    <tr><td>C4c torn-slip-P vector</td><td>Recraft V4.1 Pro Vector</td><td><code>run_m17a3r3amxy3v73bjke91fs6k98hc9gc</code></td><td>$0.36</td></tr>
+    <tr><td>C4e origami-P vector</td><td>Recraft V4.1 Pro Vector</td><td><code>run_m177aj34yr9qdae8ywac059hf98hdwcv</code></td><td>$0.36</td></tr>
+    <tr><td>C4d app-icon-on-teal (raster)</td><td>GPT Image 2.5 Sunburst</td><td><code>run_m17b4y0h7bgnxq3k4ee2fpgzn98hdrb9</code></td><td>$0.055</td></tr>
+  </table>
+  <p style="margin-top:14px">Total generation spend: <b>$3.82</b> (round 1: $2.325 · round 2 Folded-P refinement: $1.495). Method: text-to-image / text-to-vector prompts (no image references), full prompts preserved in <code>PROPOSAL.md</code>. Variants (dark, monochrome, transparent) were produced by remapping fills on the returned SVG path data — no additional model calls.</p>
+  <p><b>Rights:</b> outputs are original generations, not derived from OurSpaces or third-party artwork. Recraft and GPT Image terms grant the workspace user rights to generated outputs, but <b>AI-generated marks may have limited copyright/trademark registrability</b> — recommend a human designer cleanup + trademark search (esp. vs. Pear/Pear Deck/Notion/Duolingo) before the mark is registered or shipped. <b>Fonts:</b> Bricolage Grotesque and IBM Plex Sans are SIL OFL — safe for logo typesetting; the wordmark should be converted to outlines in final exports.</p>
+  <p><b>Next step:</b> owner picks a candidate number; the follow-up task produces production SVGs, transparent PNG/WebP exports, favicon.ico + PWA icon set, OG image, and the coordinated asset replacement PR (no <code>main</code> merge without approval).</p>
+</footer>
+
+</div>
+</body>
+</html>

@@ -23,7 +23,7 @@ function Envelope({ rise, go, land, from, subject }: { rise: string; go: string;
       <svg viewBox="0 0 430 262" preserveAspectRatio="none" aria-hidden="true">
         <path d="M0 0 L215 141 L430 0" />
       </svg>
-      <i><img src="/assets/ourspace-mark.png" alt="" /></i>
+      <i><img src="/assets/pearnotes-mark.svg" alt="" /></i>
       <small>{from}</small>
       <b>{subject}</b>
     </div>
@@ -46,8 +46,8 @@ export function MailReel() {
     <main className="reel">
       <div className="reel-stage" key={take} style={{ "--s": scale } as CSSProperties}>
         <div className="reel-logo">
-          <i><img src="/assets/ourspace-mark.png" alt="" /></i>
-          <b>ourspaces</b>
+          <i><img src="/assets/pearnotes-mark.svg" alt="" /></i>
+          <b>PearNotes</b>
         </div>
 
         <div className="reel-kicker"><i />the crew<small>6 here</small></div>

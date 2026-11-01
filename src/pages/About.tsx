@@ -120,8 +120,8 @@ function AboutOverview() {
     <main className="about-page">
       <nav className="about-bar about-wrap">
         <a className="about-brand" href="#/about">
-          <img src="/assets/ourspace-mark.png" alt="" />
-          <span>ourspaces</span>
+          <img src="/assets/pearnotes-mark.svg" alt="" />
+          <span>PearNotes</span>
           <small>about</small>
         </a>
         <a className="about-back" href={backHash}><span>←</span> back to the space</a>
@@ -214,7 +214,7 @@ function AboutOverview() {
 
       <footer className="about-footer about-wrap">
         <div className="about-footer-invite"><h2>There’s room for you.</h2><a className="about-button" href="#/space/crew">come on in <span>↗</span></a></div>
-        <div className="about-footer-meta"><a className="about-brand" href="#/about"><img src="/assets/ourspace-mark.png" alt="" /><span>ourspaces</span></a><span>group chats forget. spaces remember.</span><a href={REPO_URL} target="_blank" rel="noreferrer">made in the open ↗</a><a href="https://nebiusglobalaihackathon.devpost.com/" target="_blank" rel="noreferrer">built for the Nebius × NVIDIA hackathon ↗</a></div>
+        <div className="about-footer-meta"><a className="about-brand" href="#/about"><img src="/assets/pearnotes-mark.svg" alt="" /><span>PearNotes</span></a><span>group chats forget. spaces remember.</span><a href={REPO_URL} target="_blank" rel="noreferrer">made in the open ↗</a><a href="https://nebiusglobalaihackathon.devpost.com/" target="_blank" rel="noreferrer">built for the Nebius × NVIDIA hackathon ↗</a></div>
       </footer>
     </main>
   );
@@ -406,7 +406,7 @@ function VendorPage({ vendor }: { vendor: VendorStory }) {
   return (
     <main className={`about-page vendor-page vendor-${vendor.id}`} style={{ "--vendor-color": `var(--color-${vendor.color})` } as CSSProperties}>
       <nav className="about-bar about-wrap">
-        <a className="about-brand" href="#/about"><img src="/assets/ourspace-mark.png" alt="" /><span>ourspaces</span><small>made with</small></a>
+        <a className="about-brand" href="#/about"><img src="/assets/pearnotes-mark.svg" alt="" /><span>PearNotes</span><small>made with</small></a>
         <a className="about-back" href="#/about"><span>←</span> back to about</a>
       </nav>
       <nav className="vendor-nav about-wrap">{VENDORS.map((item) => <a key={item.id} href={`#/about/${item.id}`} className={item.id === vendor.id ? "is-selected" : ""} style={{ "--nav-color": `var(--color-${item.color})` } as CSSProperties}>{item.name}<span>↗</span></a>)}</nav>
