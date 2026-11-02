@@ -47,6 +47,20 @@ export function routeFromLocation(loc: {
   return { kind: "notfound", pathname: pathname + search };
 }
 
+/** First `/app` segment → tab title (the shell's own page names). */
+const APP_TITLES: Record<string, string> = {
+  "": "your desk",
+  learn: "learn",
+  new: "new subject",
+  library: "library",
+  groups: "groups",
+  achievements: "shelf",
+  profile: "profile",
+  settings: "settings",
+  subjects: "learning path",
+  lessons: "lesson",
+};
+
 export function siteTitleFor(route: SiteRoute): string {
   switch (route.kind) {
     case "landing":
@@ -55,12 +69,17 @@ export function siteTitleFor(route: SiteRoute): string {
       return "PearNotes — sign in";
     case "sign-up":
       return "PearNotes — create your account";
-    case "app":
-      return "PearNotes";
+    case "app": {
+      /* pathname arrives with the query attached — strip it first. */
+      const path = route.pathname.split("?")[0];
+      const seg = path.slice("/app".length).replace(/^\//, "").split("/")[0];
+      const label = APP_TITLES[seg] ?? "not found";
+      return `PearNotes — ${label}`;
+    }
     case "demo":
       return "PearNotes — demo";
     case "legacy":
-      return "PearNotes";
+      return "PearNotes — space";
     case "notfound":
       return "PearNotes — page not found";
   }
