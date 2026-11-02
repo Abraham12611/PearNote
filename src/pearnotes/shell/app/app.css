@@ -204,3 +204,23 @@
   
   .pna-page { padding: 22px 18px 48px; }
 }
+
+/* #64 — commissioned SVG icons inside the native .space-link tiles:
+   the original tiles size emoji by font-size; SVGs need an explicit
+   box. Same 20px glyph footprint as the original's emoji tiles. */
+.pna-app .space-link svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  margin: 0 auto;
+}
+
+/* #64 — E1's demo ribbon (.entry-demo-ribbon, fixed bottom pill, z60)
+   overlaps the native bottom dock on narrow screens. Lift the dock
+   clear of it when both are present — mobile only; the desktop rail
+   sits top-left and never collides. */
+@media (max-width: 800px) {
+  body:has(.entry-demo-ribbon) .space-rail {
+    bottom: 76px;
+  }
+}
