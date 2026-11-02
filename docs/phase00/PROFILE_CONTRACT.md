@@ -10,7 +10,7 @@ owner-derived identity — no userId args for writes.
 | `profiles.getMine` | query | `{userId, personaId?, name?, image?, color?, email?, isAnonymous, initialized} \| null` | Self only. `initialized=false` → show persona chooser. |
 | `profiles.initialize` | mutation | same profile shape | Idempotent one-time assignment (deterministic persona from userId hash). Safe to call on every sign-in — repeats replay, never re-roll. Two racing callbacks converge. |
 | `profiles.update` | mutation | same profile shape | `{name?, image?, personaId?, color?}` whitelist. personaId must be a catalog id → pulls matching accent unless explicit `color`. Empty/41+ char name, unknown persona, non-hex color → `INVALID_INPUT`. |
-| `profiles.getDisplay` | query | `[{userId, personaId?, name?, image?, color?}]` ≤20 ids | **Display-safe only** — no email/isAnonymous/study fields. For people capsule/member faces. Signed-in required. |
+| `profiles.getDisplay` | query | `[{userId, personaId?, name?, image?, color?}]` ≤20 ids | **SELF-ONLY** — foreign ids are silently filtered (fail-closed). Friends/group capsule read is deferred until a relationship table exists. |
 
 ## Personas
 
@@ -27,8 +27,9 @@ clover, pepper, kiwi` — each `{id, label, accent}`. Face asset:
 - **Chooser UI:** render the 8 personas from `PERSONAS`; `update({personaId})`
   swaps face + cursor accent in one write (propagates to rooms on next
   reactive read — cursor = `color` + `name` chip as in the original).
-- **Capsule:** `getDisplay(userIds)` — the ONLY cross-user read; renders
-  name+face+accent. Never shows email or private study data.
+- **Capsule:** `getDisplay(userIds)` — self-only for now: only the
+  caller's own id returns a row. The friends/group capsule contract ships
+  when a real relationship table lands; never shows email or study data.
 - **Registered vs guest:** `isAnonymous` distinguishes; guests can hold a
   persona too (it survives the join upgrade — same users row).
 - Learning data is never part of this API — attempts/mastery stay in the

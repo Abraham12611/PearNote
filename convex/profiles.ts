@@ -102,6 +102,24 @@ export const initialize = mutation({
  * matching cursor accent (the "matching cursor" contract) unless the caller
  * also passes an explicit color. All other fields are whitelist-validated.
  */
+const COLOR_RE = /^#[0-9a-f]{6}$/i;
+
+/**
+ * Curated image refs only (review #72-3): a persona face path or an
+ * explicitly cleared value. Arbitrary URLs — tracking pixels, off-site
+ * images — never enter shared profile displays. Owner-uploaded photos via
+ * verified storage refs are a follow-up, not a free string.
+ */
+function checkImageRef(image: string): string | undefined {
+  const trimmed = image.trim();
+  if (trimmed === "") return undefined; // clear → fallback face
+  const match = /^\/avatars\/([a-z0-9]+)\.png$/.exec(trimmed);
+  if (match === null || personaById(match[1]) === undefined) {
+    throw err("INVALID_INPUT", "image must be a catalog avatar path");
+  }
+  return trimmed;
+}
+
 export const update = mutation({
   args: {
     name: v.optional(v.string()),
@@ -114,6 +132,11 @@ export const update = mutation({
     const userId = await me(ctx);
     const u = await ctx.db.get(userId);
     if (u === null) throw err("UNAUTHORIZED", "account not found");
+    // Validate EVERY supplied field up front — no branch can smuggle an
+    // unvalidated color or image through a personaId payload (review #72-2/3).
+    if (args.color !== undefined && !COLOR_RE.test(args.color)) {
+      throw err("INVALID_INPUT", "color must be a #rrggbb hex value");
+    }
     const patch: Record<string, string | undefined> = {};
     if (args.name !== undefined) {
       const name = args.name.trim();
@@ -122,22 +145,18 @@ export const update = mutation({
       }
       patch.name = name;
     }
-    if (args.image !== undefined) {
-      const image = args.image.trim();
-      if (image.length > 2048) throw err("INVALID_INPUT", "image ref too long");
-      patch.image = image === "" ? undefined : image;
-    }
+    if (args.image !== undefined) patch.image = checkImageRef(args.image);
     if (args.personaId !== undefined) {
       const persona = personaById(args.personaId);
       if (persona === undefined) throw err("INVALID_INPUT", "unknown persona");
       patch.personaId = persona.id;
-      // The persona's own accent follows unless explicitly overridden.
+      // The persona-matched accent is the default cursor look; an explicit
+      // validated color wins only when deliberately supplied.
       patch.color = args.color ?? persona.accent;
       if (u.image === undefined || u.image === personaImagePath((u.personaId ?? "") as PersonaId)) {
         patch.image = personaImagePath(persona.id);
       }
     } else if (args.color !== undefined) {
-      if (!/^#[0-9a-f]{3,8}$/i.test(args.color)) throw err("INVALID_INPUT", "color must be hex");
       patch.color = args.color;
     }
     if (Object.keys(patch).length > 0) await ctx.db.patch(userId, patch);
@@ -146,10 +165,11 @@ export const update = mutation({
 });
 
 /**
- * `profiles.getDisplay` — the ONLY cross-user profile read: batched
- * display-safe fields for capsules/member faces. Anything sensitive is
- * structurally absent, so a guessed userId can never reach email, flags or
- * study data. Bounded at 20 ids.
+ * `profiles.getDisplay` — SELF-ONLY until a friends/groups relationship
+ * table exists (review #72-1). Requesting someone else's id yields nothing
+ * — fail-closed, indistinguishable from a user who simply has no profile.
+ * The friends capsule contract is deferred; room presence already derives
+ * its display identity from the room's own member surface, not this read.
  */
 export const getDisplay = query({
   args: { userIds: v.array(v.id("users")) },
@@ -163,9 +183,10 @@ export const getDisplay = query({
     }),
   ),
   handler: async (ctx, { userIds }) => {
-    await me(ctx); // signed-in only — display identity is not world-public
+    const self = await me(ctx);
     const out: { userId: Id<"users">; personaId?: string; name?: string; image?: string; color?: string }[] = [];
     for (const id of userIds.slice(0, 20)) {
+      if (String(id) !== String(self)) continue; // foreign id → invisible
       const u = await ctx.db.get(id);
       if (u === null) continue;
       out.push({ userId: u._id, personaId: u.personaId, name: u.name, image: u.image, color: u.color });
@@ -173,6 +194,26 @@ export const getDisplay = query({
     return out;
   },
 });
+
+/**
+ * The safe sign-in handoff (review #72-5): `auth.createOrUpdateUser` calls
+ * this for every resolved user id — brand-new accounts get a persona at
+ * creation, and pre-persona rows are lazily backfilled on next sign-in.
+ * Idempotent by construction: a set personaId is never re-rolled.
+ */
+export async function seedPersona(
+  db: { get: (id: Id<"users">) => Promise<Doc<"users"> | null>; patch: (id: Id<"users">, p: Record<string, string>) => Promise<void> },
+  userId: Id<"users">,
+) {
+  const u = await db.get(userId);
+  if (u === null || u.personaId !== undefined) return;
+  const persona = defaultPersonaFor(String(userId));
+  await db.patch(userId, {
+    personaId: persona.id,
+    ...(u.color === undefined ? { color: persona.accent } : {}),
+    ...(u.image === undefined ? { image: personaImagePath(persona.id) } : {}),
+  });
+}
 
 /** Exported so E2's UI can render the same catalog (ids are stable). */
 export { PERSONA_IDS };

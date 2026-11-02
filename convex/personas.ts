@@ -5,15 +5,17 @@
  * account starts with; the face itself is `/avatars/<id>.png`.
  * Pure data — safe to import from client and server alike.
  */
+// Accents are the ORIGINAL IDENTITY_COLORS (src/live/identity.ts) paired
+// with the original persona order — the same color a room cursor gets.
 export const PERSONAS = [
-  { id: "juno", label: "Juno", accent: "#7853ff" },
-  { id: "momo", label: "Momo", accent: "#ff7ab8" },
-  { id: "pico", label: "Pico", accent: "#3ec97f" },
-  { id: "wren", label: "Wren", accent: "#4aa3ff" },
-  { id: "ziggy", label: "Ziggy", accent: "#ffb020" },
-  { id: "clover", label: "Clover", accent: "#2fb8a6" },
-  { id: "pepper", label: "Pepper", accent: "#ff5c48" },
-  { id: "kiwi", label: "Kiwi", accent: "#8fd13f" },
+  { id: "juno", label: "Juno", accent: "#7C5CFF" },
+  { id: "momo", label: "Momo", accent: "#E63DA8" },
+  { id: "pico", label: "Pico", accent: "#FF7A3D" },
+  { id: "wren", label: "Wren", accent: "#3D6EFF" },
+  { id: "ziggy", label: "Ziggy", accent: "#13B8A6" },
+  { id: "clover", label: "Clover", accent: "#C6F750" },
+  { id: "pepper", label: "Pepper", accent: "#FFB020" },
+  { id: "kiwi", label: "Kiwi", accent: "#FF3B5C" },
 ] as const;
 
 export type PersonaId = (typeof PERSONAS)[number]["id"];

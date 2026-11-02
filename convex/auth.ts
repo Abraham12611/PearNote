@@ -32,7 +32,9 @@ import { safeOAuthRedirect } from "./authFlow";
  * name, colour and membership all survive because the id never changed.
  * That's §1's "upgrade, don't fork", with no data migration at all.
  */
-async function createOrUpdateUser(
+import { seedPersona } from "./profiles";
+
+async function createOrUpdateUserInner(
   rawCtx: GenericMutationCtx<AnyDataModel>,
   {
     existingUserId,
@@ -148,6 +150,22 @@ async function createOrUpdateUser(
     email: profile.email,
     emailVerificationTime: now,
   });
+}
+
+/**
+ * Which `users` row a sign-in resolves to — plus the durable persona handoff
+ * (Issue #66): every resolved id is seeded on EVERY sign-in path, so new
+ * accounts get a persona at creation and pre-persona rows are lazily
+ * backfilled. seedPersona is idempotent — never re-rolls a set personaId.
+ */
+async function createOrUpdateUser(
+  rawCtx: GenericMutationCtx<AnyDataModel>,
+  args: Parameters<typeof createOrUpdateUserInner>[1],
+): Promise<Id<"users">> {
+  const userId = await createOrUpdateUserInner(rawCtx, args);
+  const ctx = rawCtx as unknown as { db: GenericMutationCtx<DataModel>["db"] };
+  await seedPersona(ctx.db, userId);
+  return userId;
 }
 
 /** "Thomas Nguyen" → "thomas": the room calls people by one lowercase name. */
