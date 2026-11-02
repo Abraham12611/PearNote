@@ -94,10 +94,10 @@ describe("safeOAuthRedirect — strict origin, no prefix smuggling", () => {
       expect(safeOAuthRedirect(bad, "https://app.pearnotes.example")).toBe("https://app.pearnotes.example");
     }
   });
-  test("loopback dev site allows localhost http; unset site too", () => {
+  test("loopback dev site allows localhost http; unset site fails closed", () => {
     expect(safeOAuthRedirect("http://localhost:5173/app", "http://localhost:3000")).toBe("http://localhost:5173/app");
     expect(safeOAuthRedirect("http://127.0.0.1:5173/", "http://localhost:3000")).toBe("http://127.0.0.1:5173/");
-    expect(safeOAuthRedirect("http://localhost:5173/app", "")).toBe("http://localhost:5173/app");
+    expect(safeOAuthRedirect("http://localhost:5173/app", "")).toBe("/");
     // Even on a dev site, https localhost and lookalikes stay out.
     expect(safeOAuthRedirect("https://localhost:5173/", "http://localhost:3000")).toBe("http://localhost:3000");
     expect(safeOAuthRedirect("http://localhost.evil.com/", "http://localhost:3000")).toBe("http://localhost:3000");
