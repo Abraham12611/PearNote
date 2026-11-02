@@ -82,11 +82,25 @@ describe("safeOAuthRedirect — strict origin, no prefix smuggling", () => {
       expect(safeOAuthRedirect(bad, site)).toBe(site);
     }
   });
-  test("localhost http dev exception only", () => {
-    expect(safeOAuthRedirect("http://localhost:5173/app", site)).toBe("http://localhost:5173/app");
-    expect(safeOAuthRedirect("http://127.0.0.1:5173/", site)).toBe("http://127.0.0.1:5173/");
-    expect(safeOAuthRedirect("https://localhost:5173/", site)).toBe(site); // https localhost isn't the dev exception
-    expect(safeOAuthRedirect("http://localhost.evil.com/", site)).toBe(site);
+  test("production origin denies ALL localhost redirects — dev exception is site-scoped", () => {
+    for (const bad of [
+      "http://localhost:5173/app",
+      "http://127.0.0.1:5173/",
+      "http://0.0.0.0:8080/",
+      "http://localhost.evil.com/",
+      "https://localhost:5173/",
+    ]) {
+      expect(safeOAuthRedirect(bad, site)).toBe(site);
+      expect(safeOAuthRedirect(bad, "https://app.pearnotes.example")).toBe("https://app.pearnotes.example");
+    }
+  });
+  test("loopback dev site allows localhost http; unset site too", () => {
+    expect(safeOAuthRedirect("http://localhost:5173/app", "http://localhost:3000")).toBe("http://localhost:5173/app");
+    expect(safeOAuthRedirect("http://127.0.0.1:5173/", "http://localhost:3000")).toBe("http://127.0.0.1:5173/");
+    expect(safeOAuthRedirect("http://localhost:5173/app", "")).toBe("http://localhost:5173/app");
+    // Even on a dev site, https localhost and lookalikes stay out.
+    expect(safeOAuthRedirect("https://localhost:5173/", "http://localhost:3000")).toBe("http://localhost:3000");
+    expect(safeOAuthRedirect("http://localhost.evil.com/", "http://localhost:3000")).toBe("http://localhost:3000");
   });
 });
 

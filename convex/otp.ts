@@ -14,7 +14,7 @@ import { env, type ActionCtx } from "./_generated/server";
 import type { DataModel } from "./_generated/dataModel";
 import { rateLimiter } from "./rateLimits";
 import { signInCodeLifetimeMinutes, signInEmail } from "./emails/signIn";
-import { authErrorCode, classifyOtpSendError, maskEmail } from "./authFlow";
+import { classifyOtpSendError, maskEmail } from "./authFlow";
 
 const API = "https://api.agentmail.to/v0";
 
