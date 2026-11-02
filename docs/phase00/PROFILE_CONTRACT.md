@@ -34,10 +34,15 @@ clover, pepper, kiwi` — each `{id, label, accent}`. Face asset:
   persona too (it survives the join upgrade — same users row).
 - Learning data is never part of this API — attempts/mastery stay in the
   learning surface.
-- **Hydration:** after `initialize`/sign-in, `getMine` always returns
-  `name`, `personaId`, `image`, `color` — the server row is the source of
-  truth. `useAuthIdentity`/Profile must hydrate FROM this and must not
-  push a locally generated name/color over the persisted profile.
+- **Hydration (Issue #76):** after `initialize`/sign-in, `getMine` always
+  returns `name`, `personaId`, `image`, `color` — the server row is the
+  source of truth. `useAuthIdentity` now: (a) restores the tab's own minted
+  base identity on EVERY account transition (sign-out, A→B, guest→joined),
+  so no adopted fields ever cross accounts; (b) hydrates down per joined
+  user via `mergeServerIdentity` (server wins, base fills gaps, personaId
+  derives the face); (c) mirrors local edits UP only after THAT account
+  hydrated and a server profile exists (`mayMirrorLocalEdit`). Profile page
+  must follow the same order: read server first, edit second.
 - **Update precedence:** explicit `image`/`color` args in a call always win
   over the persona auto-swap; a deliberately picked face survives later
   persona changes (the face only follows a swap when it was auto-assigned).
