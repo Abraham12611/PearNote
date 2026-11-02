@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PearNotes E3 — OurSpaces Visual Reference Board</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+:root{--ink:#0B0B0D;--panel:#151517;--lime:#C6F750;--paper:#F5EFDF;--sticker:#E8DDC0;--muted:#bac2c6;--violet:#7C5CFF;--pink:#E63DA8;--orange:#FF7A3D;--blue:#3D6EFF;--teal:#13B8A6;--amber:#FFB020;--red:#FF3B5C}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"IBM Plex Sans",system-ui,sans-serif;background:#e9e4d6;color:var(--ink);padding:40px 22px 80px}
+h1,h2,.disp{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;letter-spacing:-.02em}
+.wrap{max-width:1140px;margin:0 auto}
+header h1{font-size:34px}
+header p{color:#4a4a4a;margin-top:6px;max-width:760px;line-height:1.5}
+section{background:#f8f5ea;border:1px solid #d8d2c0;border-radius:18px;padding:26px 28px;margin-top:32px}
+section h2{font-size:22px;margin-bottom:6px}
+section .note{font-size:13px;color:#6a6a5f;margin-bottom:16px}
+.grid{display:grid;gap:14px}
+.swatches{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+.sw{border-radius:12px;overflow:hidden;border:1px solid #d8d2c0}
+.sw .c{height:64px}
+.sw .l{padding:8px 10px;font-size:11px;background:#fff}
+.sw .l b{display:block;font-size:12px}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.spec{font-size:12.5px;line-height:1.6;background:#fff;border:1px solid #ddd7c4;border-radius:12px;padding:14px 16px;flex:1;min-width:240px}
+.spec b{font-family:"Bricolage Grotesque"}
+.spec ul{margin:6px 0 0 16px}
+.spec li{margin-top:3px}
+/* frame anatomy demos */
+.paper-card{background:var(--paper);border:2.5px solid var(--ink);border-radius:14px;box-shadow:6px 8px 0 rgba(11,11,13,.9);padding:16px 18px;width:220px;transform:rotate(-1.2deg);position:relative}
+.paper-card .tape{position:absolute;top:-11px;left:50%;transform:translateX(-50%) rotate(2deg);width:74px;height:22px;background:rgba(232,221,192,.85);border:1px solid rgba(11,11,13,.15);border-radius:3px}
+.pill{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;border-radius:99px;padding:10px 20px;font-family:"Bricolage Grotesque";font-weight:700;font-size:15px}
+.pill .dot{width:9px;height:9px;border-radius:50%;background:var(--lime)}
+.sticker-demo{width:120px;height:120px;border-radius:26px;background:var(--ink);border:6px solid var(--sticker);box-shadow:4px 6px 0 rgba(11,11,13,.35);display:flex;align-items:center;justify-content:center;transform:rotate(-3deg)}
+.sticker-demo img{width:78%}
+.chip-demo{background:#fff;border:1.5px solid var(--ink);border-radius:99px;padding:6px 14px;font-size:12px;font-weight:600}
+.avatars{grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
+.av{text-align:center}
+.av img{width:88px;height:88px;border-radius:50%;display:block;margin:0 auto;object-fit:cover}
+.av .nm{font-size:11px;margin-top:6px;font-weight:600}
+.av .ring{width:88px;margin:0 auto;border-radius:50%;padding:4px;border:4px solid transparent}
+.av.sel .ring{border-color:var(--lime)}
+.av .cursor-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;margin-top:5px;background:var(--ink);color:#fff;border-radius:99px;padding:2px 8px 2px 2px}
+.av .cursor-chip i{width:14px;height:14px;border-radius:50%;display:inline-block}
+img.sample{border-radius:10px;border:1px solid #ddd7c4;max-height:120px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+td,th{border:1px solid #cfc9b4;padding:6px 10px;text-align:left;vertical-align:top}
+th{background:#efead9}
+code{background:#e4dec9;border-radius:5px;padding:1px 5px;font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>PearNotes — OurSpaces visual reference board</h1>
+  <p><b>E3 · feature/e3-ourspaces-visual-kit.</b> The inherited design DNA, documented for E1/E2: palette roles, material frames, textures, sticker grammar, type, avatar treatment and cursor mapping. Rule: new art sits inside <i>these</i> frames — never re-skinned components. Source of truth: <code>OURSPACES_FIDELITY_CONTRACT.md</code>, <code>ASSET_AND_FLORA_BRIEF.md</code>.</p>
+</header>
+
+<section>
+  <h2>1 · Palette and roles</h2>
+  <p class="note">Ink is structural (outlines, pills, dock). Cream/paper is content ground. Lime is <b>action/active state only</b> — never a dialog body. Scene accents (violet/pink/orange/blue/teal) carry subject + mood variety. Sticker cream <code>#E8DDC0</code> is reserved for die-cut borders (Sticker P, stickers).</p>
+  <div class="grid swatches">
+    <div class="sw"><div class="c" style="background:#0B0B0D"></div><div class="l"><b>ink</b>#0B0B0D · outlines, pills, dock</div></div>
+    <div class="sw"><div class="c" style="background:#F5EFDF"></div><div class="l"><b>paper</b>#F5EFDF · cards, modal body</div></div>
+    <div class="sw"><div class="c" style="background:#E8DDC0"></div><div class="l"><b>sticker edge</b>#E8DDC0 · die-cut borders, tape</div></div>
+    <div class="sw"><div class="c" style="background:#C6F750"></div><div class="l"><b>lime</b>#C6F750 · active/CTA only</div></div>
+    <div class="sw"><div class="c" style="background:#7C5CFF"></div><div class="l"><b>violet</b>#7C5CFF · scene/cursor</div></div>
+    <div class="sw"><div class="c" style="background:#E63DA8"></div><div class="l"><b>pink</b>#E63DA8 · scene/cursor</div></div>
+    <div class="sw"><div class="c" style="background:#FF7A3D"></div><div class="l"><b>orange</b>#FF7A3D · scene/cursor</div></div>
+    <div class="sw"><div class="c" style="background:#3D6EFF"></div><div class="l"><b>blue</b>#3D6EFF · scene/cursor</div></div>
+    <div class="sw"><div class="c" style="background:#13B8A6"></div><div class="l"><b>teal</b>#13B8A6 · canvas/cursor</div></div>
+    <div class="sw"><div class="c" style="background:#FFB020"></div><div class="l"><b>amber</b>#FFB020 · scene/cursor</div></div>
+    <div class="sw"><div class="c" style="background:#FF3B5C"></div><div class="l"><b>red</b>#FF3B5C · scene/cursor</div></div>
+  </div>
+  <p class="note" style="margin-top:10px">Cursor accents are exactly <code>IDENTITY_COLORS</code> in <code>src/live/identity.ts</code>: violet, pink, orange, blue, teal, lime, amber, red — one per persona.</p>
+</section>
+
+<section>
+  <h2>2 · Material frames — anatomy</h2>
+  <p class="note">Four physical primitives carry the whole UI. New illustration must be drawn to fit inside them, not replace them.</p>
+  <div class="row">
+    <div class="paper-card"><span class="tape"></span><b class="disp">paper card / slip</b><p style="font-size:12px;margin-top:6px">2–3px ink outline · 6–8px offset ink shadow (bottom-right) · ±1–2° tilt · optional tape strip · warm cream fill. Reading cards stay level; notes may tilt.</p></div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div><span class="pill"><span class="dot"></span>black pill CTA</span></div>
+      <div><span class="chip-demo">filter chip · 1.5px ink</span> <span class="chip-demo">secondary</span></div>
+      <div class="sticker-demo"><img src="../../public/assets/pearnotes-mark.svg" alt="Sticker P"/></div>
+    </div>
+    <div class="spec"><b>die-cut sticker</b><ul><li>thick cream border hugging silhouette</li><li>slight tilt, contact shadow</li><li>content: single bold motif, ink fill + 1 accent</li><li>works on any stage without recolor — the border <i>is</i> the contrast</li></ul></div>
+    <div class="spec"><b>two-tone modal</b><ul><li>centered 850–1040px, radius 24–30px</li><li>left ~40%: colored art scene (teal/violet)</li><li>right ~60%: cream content, headline, black pill CTA</li><li>close: dark circular control top-right</li></ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>3 · Textures &amp; collage stock (rights-cleared, in repo)</h2>
+  <p class="note">Existing upstream assets — reuse before generating. Audit flag: upstream-provenance, MIT-covered in repo; verify before external marketing reuse.</p>
+  <div class="row">
+    <img class="sample" src="../../public/assets/textures/note-paper.jpg" alt="note paper texture"/>
+    <img class="sample" src="../../public/assets/textures/note-torn-paper.png" alt="torn paper"/>
+    <img class="sample" src="../../public/assets/textures/daily-question-paper.jpg" alt="question paper"/>
+    <img class="sample" src="../../public/assets/textures/link-shelf-ledger.jpg" alt="ledger"/>
+    <img class="sample" src="../../public/assets/ui/quote-pushpin.png" alt="pushpin"/>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <img class="sample" src="../../public/assets/stickers/ours.png" alt="sticker ours"/>
+    <img class="sample" src="../../public/assets/stickers/matcha-cake.png" alt="sticker cake"/>
+    <img class="sample" src="../../public/assets/stickers/glad-ur-here.png" alt="sticker glad"/>
+    <img class="sample" src="../../public/assets/stickers/crew-high-five.png" alt="sticker crew"/>
+    <img class="sample" src="../../public/assets/stickers/holo-smiley.png" alt="sticker holo"/>
+    <img class="sample" src="../../public/assets/stickers/skate-sun.png" alt="sticker sun"/>
+  </div>
+  <table style="margin-top:16px"><tr><th>Family</th><th>Files</th><th>Visual rule</th></tr>
+    <tr><td>Textures</td><td><code>public/assets/textures/*</code></td><td>warm paper grain, torn edges, ledger print — subtle, never below body text</td></tr>
+    <tr><td>Stickers</td><td><code>public/assets/stickers/*</code> (18)</td><td>die-cut border, tilt, single bold motif, photo+illustration mix</td></tr>
+    <tr><td>Space covers</td><td><code>public/assets/space-covers/*</code></td><td>photo collage cutouts w/ paper frames</td></tr>
+    <tr><td>Brand</td><td><code>public/assets/pearnotes-*.svg</code></td><td>Sticker P only — approved, do not alter</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>4 · Avatar treatment — the clay cast</h2>
+  <p class="note">28-person catalog (<code>src/data/avatars.ts</code>); the eight <code>VISITOR_AVATAR_NAMES</code> personas are the canonical set. Style: soft 3D clay/plasticine head-and-shoulders, matching outfit+background color story, expressive friendly face, centered circular crop.</p>
+  <div class="grid avatars">
+    <div class="av"><div class="ring"><img src="../../public/avatars/juno.png" alt="juno"/></div><div class="nm">juno</div><span class="cursor-chip"><i style="background:#7C5CFF"></i>violet</span></div>
+    <div class="av sel"><div class="ring"><img src="../../public/avatars/momo.png" alt="momo"/></div><div class="nm">momo · selected</div><span class="cursor-chip"><i style="background:#E63DA8"></i>pink</span></div>
+    <div class="av"><div class="ring"><img src="../../public/avatars/pico.png" alt="pico"/></div><div class="nm">pico</div><span class="cursor-chip"><i style="background:#FF7A3D"></i>orange</span></div>
+    <div class="av"><div class="ring"><img src="../../public/avatars/wren.png" alt="wren"/></div><div class="nm">wren</div><span class="cursor-chip"><i style="background:#3D6EFF"></i>blue</span></div>
+    <div class="av"><div class="ring"><img src="../../public/avatars/ziggy.png" alt="ziggy"/></div><div class="nm">ziggy</div><span class="cursor-chip"><i style="background:#13B8A6"></i>teal</span></div>
+    <div class="av"><div class="ring"><img src="../../public/avatars/clover.png" alt="clover"/></div><div class="nm">clover</div><span class="cursor-chip"><i style="background:#C6F750"></i>lime</span></div>
+    <div class="av"><div class="ring"><img src="../../public/avatars/pepper.png" alt="pepper"/></div><div class="nm">pepper</div><span class="cursor-chip"><i style="background:#FFB020"></i>amber</span></div>
+    <div class="av"><div class="ring"><img src="../../public/avatars/kiwi.png" alt="kiwi"/></div><div class="nm">kiwi</div><span class="cursor-chip"><i style="background:#FF3B5C"></i>red</span></div>
+  </div>
+  <table style="margin-top:18px"><tr><th>Rule</th><th>Spec</th></tr>
+    <tr><td>Selection ring</td><td>4–6px lime ring outside the disc (see momo) — ring never clips face</td></tr>
+    <tr><td>Cursor</td><td>native OurSpaces pointer + face-chip in persona accent color; initials or tiny face — <b>not</b> a redrawn arrow</td></tr>
+    <tr><td>Face chip</td><td>persona bg color = cursor accent (mapping above); survives at 32px</td></tr>
+    <tr><td>Crop</td><td>head+shoulders, eyes upper-third, ~15% breathing room inside circle</td></tr>
+    <tr><td>New personas</td><td>must match clay finish, lighting, line weight, mono bg+outfit — one cast, not mixed models</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>5 · Type &amp; motion</h2>
+  <div class="row">
+    <div class="spec"><b>Bricolage Grotesque 800</b><ul><li>display: claims, card titles, numbers</li><li>sentence-case editorial breaks, tight tracking -0.02em</li></ul></div>
+    <div class="spec"><b>IBM Plex Sans 400–700</b><ul><li>UI narration, tooltips, body</li><li>tabular numerals for XP/dates</li></ul></div>
+    <div class="spec"><b>motion</b><ul><li>hover lift + shadow deepen; staggered entrances</li><li>collage pieces may drift ±2–3px; reduced-motion = static</li></ul></div>
+    <div class="spec"><b>stages</b><ul><li>teal topographic canvas (rooms/hero fields)</li><li>warm cream board (knows/Home)</li><li>ink void reserved for dock/overlays</li></ul></div>
+  </div>
+</section>
+</div>
+</body>
+</html>
