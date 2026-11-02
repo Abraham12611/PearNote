@@ -12,6 +12,9 @@ export const waitlist = defineTable({ email: v.string() }).index("by_email", ["e
 export const users = defineTable({
   ...authTables.users.validator.fields,
   color: v.optional(v.string()), emoji: v.optional(v.string()),
+  // Issue #66 — one of the eight illustrated personas (convex/personas.ts);
+  // written once by profiles.initialize, never re-rolled.
+  personaId: v.optional(v.string()),
   // a guest seat folded into an account when the person joined with that account's email on it (auth.ts)
   mergedInto: v.optional(v.string()),
 }).index("email", ["email"]).index("phone", ["phone"]);
