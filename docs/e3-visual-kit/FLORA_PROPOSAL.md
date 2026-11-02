@@ -14,7 +14,7 @@
 | Sign-in email header (reuse hero layer) | — | 0 | $0 |
 | **Batch total** | | **10** | **$1.77** |
 
-**Spending cap: $2.00** (total + 1 spot-illustration retry + Sunburst retry). Any run beyond the cap requires re-approval.
+**Proposed spending cap: $2.00 (NOT YET APPROVED).** Base is $1.77; this leaves $0.23, enough for up to four $0.055 Sunburst retries, **not** for a $0.36 Recraft vector retry. Any Recraft retry requires reducing the planned scope first or obtaining explicit additional owner approval. The cap is absolute, not automatic permission to spend.
 
 ## Batch S — Subject discs, path stickers, trophies, dock glyphs (E2)
 
@@ -42,7 +42,7 @@
 |---|---|
 | Base combined (H + S + A) | **$7.03** |
 | +15% contingency | **≈ $8.08** |
-| **Global authorized ceiling (all batches)** | **$9.00 hard cap — never exceed without new approval** |
+| **Global PROPOSED ceiling (all batches; NOT owner-authorized)** | **$9.00 proposed aggregate hard cap — no spend authorized; every batch requires owner approval** |
 
 Phased option: approve **H first ($1.77 est., $2.00 cap)**, owner reviews against the About reference, then release S.
 
