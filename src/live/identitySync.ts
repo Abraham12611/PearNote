@@ -99,6 +99,13 @@ export function createIdentitySync(baseInitial: LocalIdentity, ports: SyncPorts)
   let hydratedFor: string | null = null;
   let joinedId: string | null = null;
   let started = false;
+  // Which auth id the tab identity is currently bound to — null while the
+  // tab is a pure local guest. Sniffed at construction: a restored session
+  // may already hold an adopted (non-uuid) Convex id.
+  const UUIDISH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let adoptedUserId: string | null = UUIDISH.test(ports.getIdentity().userId)
+    ? null
+    : ports.getIdentity().userId;
   let latestUser: SyncServerUser | null | undefined;
   let cancelPush: (() => void) | null = null;
 
@@ -110,29 +117,48 @@ export function createIdentitySync(baseInitial: LocalIdentity, ports: SyncPorts)
   const onUser = (user: SyncServerUser | null | undefined) => {
     latestUser = user;
     const nextJoined = user && user.userId && !user.isAnonymous ? user.userId : null;
+    const transition = nextJoined !== joinedId || !started;
 
-    // Account transition (loading→out, out→in, A→B): neutral display first —
-    // a foreign profile can never render through to the next paint.
-    if (nextJoined !== joinedId || !started) {
+    // userId lifecycle — runs BEFORE the display reset so the reset uses the
+    // right base (post-release mint, not the stale adopted persona).
+    if (user === null) {
+      // Confirmed sign-out: release ONLY a genuinely adopted auth id — a
+      // pure guest keeps its minted identity (original §1 behavior).
+      if (adoptedUserId !== null) {
+        const mint = ports.releaseAuthUserId();
+        // Display fields ONLY — carrying mint.userId into `base` would let a
+        // later setIdentity(base) overwrite a freshly adopted account id.
+        base = { name: mint.name, color: mint.color, emoji: mint.emoji, avatarUrl: mint.avatarUrl };
+        adoptedUserId = null;
+      }
+    } else if (user?.userId) {
+      if (adoptedUserId !== null && user.userId !== adoptedUserId) {
+        // A DIFFERENT account arriving (A→undefined→B, direct A→B): release
+        // A's id + mint first — B can never inherit A's identity/presence.
+        const mint = ports.releaseAuthUserId();
+        base = { name: mint.name, color: mint.color, emoji: mint.emoji, avatarUrl: mint.avatarUrl };
+        adoptedUserId = null;
+      }
+      ports.adoptUserId(user.userId);
+      adoptedUserId = user.userId;
+    }
+    // undefined (loading): keep adoptedUserId — a same-account token refresh
+    // must not re-mint. Display still drops to base below, so nothing of A
+    // renders if a different account is pending.
+
+    if (transition) {
       joinedId = nextJoined;
       hydratedFor = null;
       cancelPendingPush(); // a queued A-fields push must NEVER flush into B
-      if (user === null) {
-        // Confirmed sign-out: forget A's adopted auth id entirely and mint a
-        // fresh guest — the ORIGINAL resetIdentity() semantics (§1). The new
-        // mint becomes the base so later edits start neutral.
-        base = { ...ports.releaseAuthUserId() };
-      }
       ports.setIdentity({ ...base });
       started = true;
     }
 
-    // Bind any authenticated row (anonymous guests included — original
-    // behavior: a guest tab is a real userId, not a random string).
-    if (user?.userId) ports.adoptUserId(user.userId);
-
-    // Down-hydrate: once per joined account, server wins per-field.
-    if (shouldHydrate(joinedId, hydratedFor) && latestUser) {
+    // Joined account: server state ALWAYS wins — first hydrate AND every
+    // subsequent remote update (other device). Not a local edit: the
+    // up-push compares against the latest server snapshot, so an applied
+    // merge reads equal → no write → no feedback loop.
+    if (joinedId !== null && latestUser && latestUser.isAnonymous !== true) {
       hydratedFor = joinedId;
       ports.setIdentity(mergeServerIdentity(latestUser, base));
     }
