@@ -138,6 +138,9 @@
   bottom: 0;
   width: min(54vw, 640px);
   background: #fffaf2;
+  /* Issue #61 — explicit ink: the /app shell inherits --pn-on-dark
+     (white), which used to paint near-invisible text on this cream. */
+  color: var(--pn-on-paper, #1d1712);
   box-shadow: -14px 0 40px rgba(20, 16, 12, 0.25);
   z-index: 70;
   padding: 18px 20px;
@@ -156,12 +159,30 @@
   padding: 6px 14px;
 }
 
+/* Issue #61 — readable empty state: real ink on the cream drawer, an
+   explanation, and working actions instead of a faint dead end. */
 .pns-empty {
   margin-top: 32px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  opacity: 0.75;
+  gap: 8px;
+  max-width: 40ch;
+  color: var(--pn-on-paper, #1d1712);
+}
+
+.pns-empty strong {
+  font-size: 1.05rem;
+}
+
+.pns-empty small {
+  color: #6b5f50;
+  line-height: 1.5;
+}
+
+.pns-empty .pn-cta,
+.pns-empty .pns-link {
+  align-self: flex-start;
+  margin-top: 8px;
 }
 
 /* Lesson — the inherited canvas under minimal chrome. */

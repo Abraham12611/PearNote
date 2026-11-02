@@ -38,7 +38,7 @@ export const FIXTURE_SUBJECTS: PearSubject[] = [
     name: "Organic chemistry",
     avatar: "chemistry",
     color: "var(--pn-subject-chemistry)",
-    status: "generating",
+    status: "needs_review",
   },
 ];
 
@@ -229,3 +229,226 @@ export const FIXTURE_RESUME: ResumePoint = {
   lessonTitle: "Diffusion and osmosis",
   subjectName: "Cell biology",
 };
+
+/* ------------------------------------------------------------------
+ * Keyed per-subject samples (Issue #61) — every fixture subject owns a
+ * real path and every path node deep-links to a real lesson. The old
+ * single FIXTURE_PATH/FIXTURE_LESSON pair left Algebra and Chemistry
+ * staring at a blank drawer; these maps close that. Legacy exports stay
+ * for the prototype preview harness.
+ * ------------------------------------------------------------------ */
+
+const ALG_PATH: LearningPath = {
+  subjectId: "fixture-alg",
+  status: "ready",
+  social: { friendsStudied: 2, names: ["Priya", "Kenji"] },
+  sections: [
+    {
+      id: "fixture-alg-s1",
+      title: "Vectors and spaces",
+      theme: "the geometry under the notation",
+      units: [
+        {
+          id: "fixture-alg-u1",
+          title: "Vector basics",
+          lessons: [
+            {
+              id: "fixture-alg-l1",
+              title: "Vectors as arrows",
+              state: "demonstrated",
+              durationMin: 6,
+              objectives: [
+                "read a vector as displacement, not a pair of numbers",
+                "sketch addition and scalar multiples",
+              ],
+              activityCount: 4,
+              sourceCount: 2,
+            },
+            {
+              id: "fixture-alg-l2",
+              title: "Spans and combinations",
+              state: "in_progress",
+              progress: 0.4,
+              recommended: true,
+              durationMin: 9,
+              social: { studyingNow: 1, friends: ["Priya"] },
+              objectives: [
+                "build linear combinations from two vectors",
+                "say when a span is a line, a plane, or everything",
+              ],
+              activityCount: 5,
+              sourceCount: 2,
+            },
+            {
+              id: "fixture-alg-l3",
+              title: "Linear independence",
+              state: "not_started",
+              durationMin: 7,
+              objectives: [
+                "test whether a set carries redundant vectors",
+                "connect independence to unique combinations",
+              ],
+              activityCount: 4,
+              sourceCount: 2,
+            },
+          ],
+        },
+        {
+          id: "fixture-alg-u2",
+          title: "Matrices as maps",
+          lessons: [
+            {
+              id: "fixture-alg-l4",
+              title: "Matrix multiplication as composition",
+              kind: "lesson",
+              state: "not_started",
+              durationMin: 8,
+              objectives: [
+                "read AB as 'do B, then A' on the plane",
+                "predict what a 2×2 matrix does to a basis",
+              ],
+              activityCount: 4,
+              sourceCount: 1,
+            },
+            {
+              id: "fixture-alg-l5",
+              title: "Unit 1 checkpoint",
+              kind: "checkpoint",
+              state: "unknown",
+              durationMin: 6,
+              objectives: ["check what you know across vector spaces"],
+              activityCount: 5,
+              sourceCount: 0,
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const ORG_PATH: LearningPath = {
+  subjectId: "fixture-org",
+  /* needs_review is renderable (issue #61) and honestly demos the
+     draft-proposal state — "generating" would hide every node. */
+  status: "needs_review",
+  sections: [
+    {
+      id: "fixture-org-s1",
+      title: "Structure and bonding",
+      theme: "draft — proposal being refined",
+      units: [
+        {
+          id: "fixture-org-u1",
+          title: "Functional groups",
+          lessons: [
+            {
+              id: "fixture-org-l1",
+              title: "Reading skeletal structures",
+              state: "unknown",
+              durationMin: 7,
+              objectives: [
+                "decode a line-angle drawing into atoms and bonds",
+                "spot the carbons hiding in plain sight",
+              ],
+              activityCount: 4,
+              sourceCount: 2,
+            },
+            {
+              id: "fixture-org-l2",
+              title: "The usual suspects — alcohols and ketones",
+              state: "unknown",
+              durationMin: 8,
+              objectives: [
+                "name the main oxygen-bearing functional groups",
+                "tell an alcohol from a ketone by position",
+              ],
+              activityCount: 5,
+              sourceCount: 2,
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+/** subject id → its whole path. Every FIXTURE_SUBJECTS id MUST be a key
+ *  here — a missing entry is exactly the blank-drawer bug from #61. */
+export const FIXTURE_PATHS: Record<string, LearningPath> = {
+  "fixture-bio": FIXTURE_PATH,
+  "fixture-alg": ALG_PATH,
+  "fixture-org": ORG_PATH,
+};
+
+/* One honest lesson per path node — built from the node itself so the
+ *  two never drift: title, subject, position and objectives all come
+ *  from the path the learner just saw. `stepIndex` is the real place in
+ *  the path (never null — fixtures always sit on their path). */
+function lessonsFor(path: LearningPath, subjectName: string): LessonSummary[] {
+  const flat = path.sections.flatMap((s) =>
+    s.units.flatMap((u) => u.lessons),
+  );
+  return flat.map((node, i) => ({
+    id: node.id,
+    title: node.title,
+    subjectId: path.subjectId,
+    subjectName,
+    stepIndex: i,
+    stepCount: flat.length,
+    objectives: node.objectives.map((text, o) => ({
+      id: `${node.id}-o${o + 1}`,
+      text,
+      state:
+        node.state === "demonstrated"
+          ? "demonstrated"
+          : node.state === "in_progress" && o === 0
+            ? "learning"
+            : "not_started",
+    })),
+    objects: [
+      ...(node.sourceCount > 0
+        ? [
+            {
+              id: `${node.id}-src`,
+              kind: "source" as const,
+              title: `source excerpt (${node.sourceCount} on the path)`,
+              state: "done" as const,
+            },
+          ]
+        : []),
+      {
+        id: `${node.id}-card`,
+        kind: "lesson_card" as const,
+        title: `${node.title} — in one page`,
+        state: node.state === "demonstrated" ? ("done" as const) : ("todo" as const),
+      },
+      ...Array.from({ length: Math.max(1, node.activityCount) }, (_, a) => ({
+        id: `${node.id}-a${a + 1}`,
+        kind: "challenge" as const,
+        title: `challenge ${a + 1} — ${node.title.toLowerCase()}`,
+        state:
+          node.state === "demonstrated"
+            ? ("done" as const)
+            : a === 0 && node.state === "in_progress"
+              ? ("active" as const)
+              : ("todo" as const),
+      })),
+    ],
+  }));
+}
+
+function buildFixtureLessons() {
+  const byName = new Map(FIXTURE_SUBJECTS.map((s) => [s.id, s.name]));
+  const out: Record<string, LessonSummary> = {};
+  for (const path of Object.values(FIXTURE_PATHS)) {
+    for (const lesson of lessonsFor(path, byName.get(path.subjectId) ?? "subject")) {
+      out[lesson.id] = lesson;
+    }
+  }
+  return out;
+}
+
+/** lesson id → its lesson summary, for every node on every fixture path. */
+export const FIXTURE_LESSONS: Record<string, LessonSummary> =
+  buildFixtureLessons();

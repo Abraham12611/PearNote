@@ -204,6 +204,15 @@ function PearNotesApp({
 
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+
+  /* Issue #61 — selections are per-route: switching subjects or leaving
+     the flow clears them so the next drawer/picker can't paint a stale
+     selection from the previous subject. */
+  useEffect(() => {
+    setSelectedSubjectId(null);
+    setSelectedLessonId(null);
+    setNotice(null);
+  }, [route.kind, route.kind === "path" ? route.subjectId : null]);
   const [lessonMode, setLessonMode] = useState<LessonMode>("guided");
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedWidgetId, setSelectedWidgetId] = useState("");

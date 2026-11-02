@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useDialogA11y } from "./a11y";
 import { SubjectAvatar } from "./SubjectAvatar";
+import { pathHasRenderableNodes } from "./types";
 import type { LearningPath, PathLesson, PathUnit, PearSubject } from "./types";
 
 export interface LearningPathDrawerProps {
@@ -400,7 +401,7 @@ export function LearningPathDrawer({
             </div>
           )}
 
-          {(status === "ready" || status === "needs_review") && (
+          {pathHasRenderableNodes(status) && (
             <>
               {status === "needs_review" && (
                 <div className="pn-slip pn-slip-status" role="status">
