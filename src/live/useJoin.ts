@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { sendFailureCopy } from "../../convex/authFlow";
 
 /**
  * "Join" — the emailed six-digit code (convex/otp.ts). Two steps, one card:
@@ -15,18 +16,13 @@ import { api } from "../../convex/_generated/api";
 export type JoinStage = "email" | "code" | "done";
 
 /**
- * The rate limiter (convex/rateLimits.ts `otpSend`) is by far the likeliest
- * failure here, and "try again" is useless advice without a rough when — so
- * read the retryAfter it hands back rather than guessing.
+ * "Couldn’t send" is NOT proof the address is wrong — the failure taxonomy
+ * lives in convex/authFlow.ts (AUTH_AND_ACCOUNT_RELIABILITY.md): provider
+ * misconfiguration, send rejection and transport faults all get the same
+ * honest retry copy, while rate limits surface the real cooldown.
  */
 function sendFailureMessage(thrown: unknown) {
-  const data = (thrown as { data?: { kind?: string; retryAfter?: number } })
-    ?.data;
-  if (data?.kind === "RateLimited") {
-    const minutes = Math.max(1, Math.ceil((data.retryAfter ?? 0) / 60000));
-    return `too many codes just now — try again in ${minutes} min`;
-  }
-  return "couldn't send that. check the address?";
+  return sendFailureCopy(thrown).message;
 }
 
 export function useJoin() {
