@@ -55,6 +55,7 @@ import { LiveLessonBoard } from "../../learning-widgets";
 import { loadPearNotesUiStyles, pearnotesSlots } from "../slots";
 import type { LearningPath, LessonMode, PearNotesData } from "../types";
 import { PearNotesDock } from "./PearNotesDock";
+import { HomeDesk } from "./HomeDesk";
 import { Boundary } from "./Boundary";
 import {
   AchievementsPage,
@@ -80,7 +81,7 @@ import {
 import { accountStateKey, appAccessPolicy, displayNameFor } from "./policy";
 import "./app.css";
 
-const { Home, SubjectPicker, LearningPathDrawer, LessonShell } = pearnotesSlots;
+const { SubjectPicker, LearningPathDrawer, LessonShell } = pearnotesSlots;
 
 export interface PearNotesAppRoutesProps {
   /** current location path — "/app…"; anything else renders null. */
@@ -310,12 +311,17 @@ function PearNotesApp({
     return pending("subject creation");
   }, [demoMode, liveBackend, demoNote, navigate, pending]);
 
+  /* #64b — the /knows-adapted desk is the Home surface (native grammar);
+     PearNotesHome stays with the legacy hash shell. */
   const homeView = (
-    <Home
-      learnerName={learnerName}
-      subjects={data.subjects}
+    <HomeDesk
+      data={data}
       resume={data.resume}
+      learnerName={learnerName}
       fixtureLabel={fixtureLabel}
+      liveSources={
+        policy.liveReads && authState === "ready" && !fixtureLabel
+      }
       onLearn={() => navigate(appLearnPath())}
       onCreateSubject={() =>
         demoMode
@@ -326,10 +332,6 @@ function PearNotesApp({
       }
       onOpenSubject={openSubject}
       onResume={openLesson}
-      onOpenLibrary={() => navigate("/app/library")}
-      onOpenGroups={() => navigate("/app/groups")}
-      onOpenShelf={() => navigate("/app/achievements")}
-      onOpenProfile={() => navigate("/app/profile")}
     />
   );
 
