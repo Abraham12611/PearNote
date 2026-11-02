@@ -76,97 +76,6 @@ export function NotFoundPage({
 
 /* ---- library --------------------------------------------------------- */
 
-const SOURCE_STATE_LABEL: Record<string, string> = {
-  uploaded: "uploaded",
-  parsing: "being read",
-  indexed: "in your library",
-  failed: "couldn't be read",
-};
-
-function formatBytes(size: number) {
-  if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`;
-  if (size >= 1024) return `${Math.round(size / 1024)} KB`;
-  return `${size} B`;
-}
-
-/** Real owner-scoped rows — `sources.listMine` only returns the signed-in
- *  learner's own uploads; deleted rows never arrive. */
-function LiveSourceList() {
-  const rows = useQuery(api.sources.listMine, {});
-  if (rows === undefined) {
-    return (
-      <p className="pna-hint" role="status">
-        checking your shelf…
-      </p>
-    );
-  }
-  if (rows.length === 0) {
-    return (
-      <div className="pna-empty">
-        <strong>nothing on the shelf yet</strong>
-        <p>
-          PDFs and text you add to a subject are pinned here — private to
-          your account, cited back to the pages they came from.
-        </p>
-      </div>
-    );
-  }
-  return (
-    <ul className="pna-source-list">
-      {rows.map((row) => (
-        <li key={row._id} className="pna-source">
-          <span className="pna-source-kind" aria-hidden="true">
-            {row.mime === "application/pdf" ? "pdf" : "txt"}
-          </span>
-          <span className="pna-source-body">
-            <strong>{row.title}</strong>
-            <span className="pna-source-meta">
-              {formatBytes(row.sizeBytes)} ·{" "}
-              {SOURCE_STATE_LABEL[row.status] ?? row.status}
-              {row.status === "failed" && row.error ? ` — ${row.error}` : ""}
-            </span>
-          </span>
-          <time className="pna-source-date" dateTime={new Date(row.createdAt).toISOString()}>
-            {new Date(row.createdAt).toLocaleDateString()}
-          </time>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-export function LibraryPage({
-  live,
-  onAddMaterial,
-}: {
-  /** Convex provider mounted — the real list renders. */
-  live: boolean;
-  onAddMaterial: () => void;
-}) {
-  return (
-    <PageScaffold
-      kicker="library"
-      title="your sources"
-      lede="every document you've added, with its extraction status. Uploads start from a subject so their citations land in the right place."
-    >
-      {live ? (
-        <LiveSourceList />
-      ) : (
-        <div className="pna-empty">
-          <strong>the shelf needs a live connection</strong>
-          <p>
-            your real source list only loads against the backend — nothing
-            is shown here instead of it.
-          </p>
-        </div>
-      )}
-      <button type="button" className="pn-cta" onClick={onAddMaterial}>
-        add material to a subject →
-      </button>
-    </PageScaffold>
-  );
-}
-
 /* ---- deferred-but-honest pages --------------------------------------- */
 
 export function GroupsPage({ onOpenSpaces }: { onOpenSpaces: () => void }) {
@@ -187,27 +96,6 @@ export function GroupsPage({ onOpenSpaces }: { onOpenSpaces: () => void }) {
       <button type="button" className="pn-cta" onClick={onOpenSpaces}>
         open shared spaces ↗
       </button>
-    </PageScaffold>
-  );
-}
-
-export function AchievementsPage() {
-  return (
-    <PageScaffold
-      kicker="trophy shelf"
-      title="your shelf"
-      lede="stickers and milestones you earn show up here — only after a real attempt verifies them, never before."
-    >
-      <div className="pn-shelf-strip pna-shelf" aria-label="empty trophy shelf">
-        <div className="pn-pegs">
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="pn-peg" aria-hidden="true" />
-          ))}
-        </div>
-        <span className="pn-shelf-hint">
-          nothing earned yet — finish a lesson and this shelf fills itself
-        </span>
-      </div>
     </PageScaffold>
   );
 }
