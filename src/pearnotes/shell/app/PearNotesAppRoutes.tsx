@@ -56,11 +56,11 @@ import { loadPearNotesUiStyles, pearnotesSlots } from "../slots";
 import type { LearningPath, LessonMode, PearNotesData } from "../types";
 import { PearNotesDock } from "./PearNotesDock";
 import { HomeDesk } from "./HomeDesk";
+import { LibraryDesk } from "./LibraryDesk";
+import { ShelfDesk } from "./ShelfDesk";
 import { Boundary } from "./Boundary";
 import {
-  AchievementsPage,
   GroupsPage,
-  LibraryPage,
   LoadingSlip,
   NotFoundPage,
   ProfilePage,
@@ -341,15 +341,16 @@ function PearNotesApp({
     switch (route.kind) {
       case "library":
         return (
-          <LibraryPage
-            live={policy.liveReads && !fixtureLabel}
+          <LibraryDesk
+            live={policy.liveReads && authState === "ready" && !fixtureLabel}
+            learnerName={learnerName}
             onAddMaterial={() => navigate(appLearnPath())}
           />
         );
       case "groups":
         return <GroupsPage onOpenSpaces={openSpaces} />;
       case "achievements":
-        return <AchievementsPage />;
+        return <ShelfDesk learnerName={learnerName} onLearn={() => navigate(appLearnPath())} />;
       case "profile":
         return (
           <ProfilePage
