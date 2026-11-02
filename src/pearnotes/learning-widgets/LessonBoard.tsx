@@ -20,6 +20,7 @@ import type {
 } from "./types";
 import type { RuntimeLesson } from "./runtime";
 import { ChallengeCard } from "./ChallengeCard";
+import { ClassificationChallenge } from "./ClassificationChallenge";
 import { LessonCardWidget } from "./LessonCardWidget";
 import { SourceViewerWidget } from "./SourceViewerWidget";
 import { TeachBackWidget } from "./TeachBackWidget";
@@ -82,6 +83,15 @@ function ActivityWidget({
         />
       );
     case "classify":
+      return (
+        <ClassificationChallenge
+          envelope={envelope}
+          spec={spec}
+          port={port}
+          fixtureLabel={fixtureLabel}
+          onOpenSource={onOpenSource}
+        />
+      );
     case "multipleChoice":
     case "shortAnswer":
       return (
