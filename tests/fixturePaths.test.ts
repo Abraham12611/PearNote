@@ -12,6 +12,7 @@ import {
   FIXTURE_PATHS,
   FIXTURE_SUBJECTS,
 } from "../src/pearnotes/ui/fixtures";
+import { pathHasRenderableNodes } from "../src/pearnotes/ui/types";
 
 function pathLessons(path: (typeof FIXTURE_PATHS)[string]) {
   return path.sections.flatMap((s) => s.units.flatMap((u) => u.lessons));
@@ -40,6 +41,21 @@ describe("keyed fixture coverage (#61)", () => {
         expect(lesson.stepIndex).toBeGreaterThanOrEqual(0);
         expect(lesson.stepCount).toBeGreaterThan(0);
       }
+    }
+  });
+
+  test("every demo subject's path is in a state the drawer actually renders", () => {
+    /* #61 review — `pathHasRenderableNodes` is the REAL gate both
+       drawers use: `ready`/`needs_review` render nodes, everything
+       else shows a status slip. Existence in the map is not enough —
+       the status must render. */
+    for (const subject of FIXTURE_SUBJECTS) {
+      const path = FIXTURE_PATHS[subject.id];
+      expect(
+        pathHasRenderableNodes(path.status),
+        `${subject.name} path status "${path.status}" renders no nodes`,
+      ).toBe(true);
+      expect(pathLessons(path).length).toBeGreaterThan(0);
     }
   });
 

@@ -5,6 +5,7 @@ import { JourneyNode } from "./JourneyNode";
 import { JourneyDoodle, JourneyNote, JourneySticker } from "./JourneySticker";
 import { pickSticker, type JourneyStickerTheme } from "./journeyAssets";
 import type { LearningPathDrawerProps } from "./LearningPathDrawer";
+import { pathHasRenderableNodes } from "./types";
 import type {
   LearningPath,
   PathLesson,
@@ -493,7 +494,7 @@ export function JourneyDrawer({
 
   const selectedId = selectedLessonId !== undefined ? selectedLessonId : internalSelected;
   const status = path?.status ?? "loading";
-  const hasPath = status === "ready" || status === "needs_review";
+  const hasPath = pathHasRenderableNodes(status);
 
   const pick = (lesson: PathLesson) => {
     const next = lesson.id === selectedId ? null : lesson.id;

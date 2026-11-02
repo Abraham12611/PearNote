@@ -38,7 +38,7 @@ export const FIXTURE_SUBJECTS: PearSubject[] = [
     name: "Organic chemistry",
     avatar: "chemistry",
     color: "var(--pn-subject-chemistry)",
-    status: "generating",
+    status: "needs_review",
   },
 ];
 
@@ -329,7 +329,9 @@ const ALG_PATH: LearningPath = {
 
 const ORG_PATH: LearningPath = {
   subjectId: "fixture-org",
-  status: "generating",
+  /* needs_review is renderable (issue #61) and honestly demos the
+     draft-proposal state — "generating" would hide every node. */
+  status: "needs_review",
   sections: [
     {
       id: "fixture-org-s1",

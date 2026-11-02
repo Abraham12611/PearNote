@@ -151,6 +151,13 @@ export type LearningPathStatus =
   | "ready"
   | "error";
 
+/** The only statuses whose sections render as path nodes — shared by
+ *  both drawers (Issue #61: a "generating" path shows a status slip,
+ *  so fixture/demo paths must use a renderable status). */
+export function pathHasRenderableNodes(status: LearningPathStatus): boolean {
+  return status === "ready" || status === "needs_review";
+}
+
 export interface LearningPath {
   subjectId: string;
   status: LearningPathStatus;
