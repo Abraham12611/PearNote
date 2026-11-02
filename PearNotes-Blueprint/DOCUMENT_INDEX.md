@@ -123,3 +123,19 @@ Hackathon submission, tickets, evaluations, privacy and QA
 ## Build and maintenance
 
 The authoring snapshot was created from the 2026-10-27 planning conversation and public source inspections. Validate all path assumptions and current Meta model/contest details before coding. Keep `PROJECT_STATUS.md` up to date with exact deployed build SHA, tests and implemented features. Do not mark speculative requirements as shipped.
+
+### 2026-11-02 owner-directed OurSpaces fidelity reset — additional normative files
+
+These documents were added after the initial planning pack, following owner rejection of the integrated visual UX. They **override ambiguous older visual guidance** while retaining existing privacy, grounding and accessibility rules. They are new specifications, **not proof that the screens are repaired**.
+
+| File | Purpose / owner acceptance |
+|---|---|
+| [OURSPACES_FIDELITY_CONTRACT.md](design/OURSPACES_FIDELITY_CONTRACT.md) | Exact native component ancestry, screenshot matrix, physical interaction contract and automatic rejection rules |
+| [SCREEN_BY_SCREEN_REDESIGN.md](design/SCREEN_BY_SCREEN_REDESIGN.md) | Detailed designs, data states and interactions for landing, original-style modal, Home, dock, Learn, Library, Groups, Shelf, Profile and Settings |
+| [LEARNING_PATH_AND_LESSON_CANVAS.md](design/LEARNING_PATH_AND_LESSON_CANVAS.md) | Fix all three demo subjects, prevent empty path/contrast regressions, build true lesson canvas from inherited room with breadcrumb/activity pill and widget inheritance |
+| [IDENTITY_FRIENDS_GROUPS.md](design/IDENTITY_FRIENDS_GROUPS.md) | One stable illustrated profile for each new account, original avatar chooser/cursors, authorized friend summaries and group rooms |
+| [ASSET_AND_FLORA_BRIEF.md](design/ASSET_AND_FLORA_BRIEF.md) | Flora artwork briefs and production/licensing quality without unauthorized spending or replacement of owner-approved Sticker P |
+| [AUTH_AND_ACCOUNT_RELIABILITY.md](engineering/AUTH_AND_ACCOUNT_RELIABILITY.md) | Gmail OTP failure investigation, safe error taxonomy, Google OAuth and full verified account lifecycle |
+| [REDESIGN_RELEASE_GATES.md](delivery/REDESIGN_RELEASE_GATES.md) | Four-engineer dependency plan, exact route/interaction QA, priority blockers, source UI regression and owner release evidence |
+
+At creation, current known merged baseline was `develop@2f6dc9744e310d2af7814387ca857886eb7a3fb6`; the screenshots 01–13 are user attachments described in the fidelity contract, not committed binary sources. Treat that SHA as a historical checkpoint and verify latest develop before any code work.
