@@ -4,31 +4,47 @@
 
 **Models (verified on `flora_list_models`):** `t2i-recraft-v4-1-pro-vector-t2i` Recraft V4.1 Pro Vector — **$0.36/run**, true SVG for stickers/icons/discs · `t2i-gpt-image-2-5-sunburst` GPT Image 2.5 Sunburst — **$0.055/run**, raster collage/avatar renders · `t2i-gemini-3-pro` Nano Banana Pro — $0.18/run (optional higher-fidelity raster). Workspace `ws_qd7b0svaf2xr5w45pg702365nx84f3qm`; provenance recorded per run (prompt, model, run_id, asset_id, cost).
 
-## Batch H — Hero & entry surfaces (E1) — est. **$1.67**
+## Batch H — Hero & entry surfaces (E1)
 
 | Item | Model | Runs | Cost |
 |---|---|---|---|
 | Hero collage master + mobile crop (2 candidates ×2) | GPT 2.5 Sunburst | 4 | $0.22 |
 | Modal scene panel (2 candidates) | GPT 2.5 Sunburst | 2 | $0.11 |
-| 4 section spot illustrations | Recraft Vector | 4 | $1.44 |
+| 4 section spot illustrations | Recraft V4.1 Pro Vector | 4 | $1.44 |
 | Sign-in email header (reuse hero layer) | — | 0 | $0 |
+| **Batch total** | | **10** | **$1.77** |
 
-## Batch S — Subject discs, path stickers, trophies, dock glyphs (E2) — est. **$4.32**
+**Spending cap: $2.00** (total + 1 spot-illustration retry + Sunburst retry). Any run beyond the cap requires re-approval.
 
-| Item | Model | Runs | Cost |
-|---|---|---|---|
-| Subject discs ×4 (bio/algebra/chem/custom) | Recraft Vector | 4 | $1.44 |
-| Path-node sticker family (3 subjects + lesson/quiz/practice generic) | Recraft Vector | 6 | $2.16 |
-| Trophy set ×6 | Recraft Vector | 2 (grid gen, split locally) → 6 if singles preferred | $0.72 |
-| Dock icon family ×7 (one sheet or singles) | Recraft Vector | 2 | $0.72 |
-
-## Batch A — Optional avatar expansion (+2 personas) — est. **$0.17**
+## Batch S — Subject discs, path stickers, trophies, dock glyphs (E2)
 
 | Item | Model | Runs | Cost |
 |---|---|---|---|
-| 2 personas + 1 retry each | GPT 2.5 Sunburst | 4 | $0.22 → cursor crops derived locally, $0 |
+| Subject discs ×4 (bio/algebra/chem/custom) | Recraft V4.1 Pro Vector | 4 | $1.44 |
+| Path-node sticker family (3 subjects + lesson/quiz/practice generic) | Recraft V4.1 Pro Vector | 6 | $2.16 |
+| Trophy set ×6 (grid generation, split locally; singles if grids under-deliver) | Recraft V4.1 Pro Vector | 2 | $0.72 |
+| Dock icon family ×7 (sheet or singles) | Recraft V4.1 Pro Vector | 2 | $0.72 |
+| **Batch total** | | **14** | **$5.04** |
 
-**Grand total proposed: ~$6.16–6.40** (H $1.67 + S $4.32 + A $0.22 + ~15% retry slack). Phased option: approve **H first ($1.67)**, review against About-side-by-side, then S.
+**Spending cap: $5.50** (total + ~1 retry). Any run beyond the cap requires re-approval.
+
+## Batch A — OPTIONAL avatar expansion (+2 personas) — deferred
+
+| Item | Model | Runs | Cost |
+|---|---|---|---|
+| 2 personas + 1 retry each | GPT 2.5 Sunburst | 4 | $0.22 |
+
+**Spending cap: $0.25.** Default remains the existing eight OurSpaces-style avatars at zero cost; batch A runs only if the owner separately approves additional profiles.
+
+## Totals
+
+| Scope | Amount |
+|---|---|
+| Base combined (H + S + A) | **$7.03** |
+| +15% contingency | **≈ $8.08** |
+| **Global authorized ceiling (all batches)** | **$9.00 hard cap — never exceed without new approval** |
+
+Phased option: approve **H first ($1.77 est., $2.00 cap)**, owner reviews against the About reference, then release S.
 
 ## Method per batch (per `ASSET_AND_FLORA_BRIEF.md` §7)
 
