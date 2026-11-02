@@ -59,3 +59,19 @@
 ## Implementation source of truth
 
 The documentation describes **proposed behavior**. Once a feature ships, update its file with links to the exact code, API contracts, automated tests, evidence, and any deviations. If code disagrees with this pack, record the discrepancy in [decision log](delivery/DECISIONS_RISKS.md) before silently changing the specification.
+
+## Owner-directed visual reset — 2026-11-02 (required reading)
+
+The owner rejected the new generic PearNotes landing, Get Started popup, independent left rail, flat Home and blank non-Biology demo paths. **PearNotes must adapt OurSpaces' actual components, materials and UX**, particularly the original dock at `/#/space/crew`, the paper-card composition at `/#/space/crew/knows`, the editorial `/#/about` page, the original split modal, and original spatial lesson room gestures. The approved Sticker P logo is retained. This is a new **normative direction**, not proof of implemented revisions.
+
+Read these new detailed specifications **before** proposing further frontend work:
+
+1. [OurSpaces-first fidelity contract](design/OURSPACES_FIDELITY_CONTRACT.md) — visual authority, source-code ancestors, screenshots and mandatory reuse ledger.
+2. [Full screen-by-screen redesign](design/SCREEN_BY_SCREEN_REDESIGN.md) — landing, popup, auth, dock, Home, Learn, Library, Groups, Shelf, Profile, Settings and global states.
+3. [Path and lesson canvas](design/LEARNING_PATH_AND_LESSON_CANVAS.md) — right drawer, distinct sample paths for all subjects, original room breadcrumb/activity pill and educational widget adaptation.
+4. [Identity, friends and groups](design/IDENTITY_FRIENDS_GROUPS.md) — eight+ illustrated default avatars, stable account profile, cursor and opt-in friends.
+5. [Visual/Flora production brief](design/ASSET_AND_FLORA_BRIEF.md) — consistent source-inspired art, no unapproved new paid generation.
+6. [Gmail/Google account reliability](engineering/AUTH_AND_ACCOUNT_RELIABILITY.md) — P0 diagnosis and real end-to-end OTP acceptance; generic "check the address" is not a verified diagnosis.
+7. [Redesign/release gates](delivery/REDESIGN_RELEASE_GATES.md) — delivery sequence, developer QA, original UI regression and required owner sign-off.
+
+**Precedence:** explicit 2026-11-02 owner direction governs visual implementation wherever earlier design prose is ambiguous or permits second-system UI. Existing privacy/permission/grounding/accessibility constraints remain mandatory. `develop` with #55–#58 is a functional integration baseline, **not visually approved**. Do not merge `main` or deploy production without separate owner authorization.

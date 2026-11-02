@@ -39,3 +39,11 @@ For each ticket: inspect relevant code, write exact file-change plan, update val
 ## Reporting format
 
 `What changed` / `Files changed` / `Tests run (actual outcomes)` / `Known gaps` / `Next ticket` / `Spec updates`. No unverified claims of passing tests. When a spec conflicts with source, add ADR in `delivery/DECISIONS_RISKS.md` before improvising major behavior.
+
+## Mandatory owner visual correction (2026-11-02)
+
+Before building or reviewing **any** PearNotes frontend screen, read `design/OURSPACES_FIDELITY_CONTRACT.md`, `design/SCREEN_BY_SCREEN_REDESIGN.md`, `design/LEARNING_PATH_AND_LESSON_CANVAS.md`, `design/IDENTITY_FRIENDS_GROUPS.md` and `delivery/REDESIGN_RELEASE_GATES.md`. The owner rejected the generic separate UI produced on `develop`. New screens MUST adapt real original OurSpaces components (Rail, /knows, About, modal, lesson room/widget runtime) with screenshot/source ancestry proof; do not start a second UI kit. Native original room regression is required. The demo must have authored paths for *every displayed sample subject*; genuine new accounts begin with zero subjects/friends/awards.
+
+**Authentication is P0:** `engineering/AUTH_AND_ACCOUNT_RELIABILITY.md` explains the reported Gmail OTP failure and diagnostic steps. Do not dismiss a valid Gmail address based on `useJoin.ts`'s generic error text. Fix the actual provider/backend problem with redacted proof of successful send, receive and verify on the isolated deployment. Keep approved Sticker P and follow `design/ASSET_AND_FLORA_BRIEF.md` for new art, with fresh spending approval where necessary.
+
+These are owner-selected **design and QA requirements**, not implemented features. Engineering smoke/CI is not owner browser acceptance. No `main` merge or production Convex push without explicit approval.
