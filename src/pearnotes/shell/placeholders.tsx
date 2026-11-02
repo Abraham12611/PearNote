@@ -101,22 +101,40 @@ export function LearningPathDrawerPlaceholder({
   open,
   subject,
   path,
+  onBack,
   onClose,
+  onAddMaterials,
+  onBrowseSources,
 }: LearningPathDrawerProps) {
   if (!open) return null;
   return (
     <aside className="pns-drawer" role="dialog" aria-label="learning path">
-      <button type="button" className="pns-drawer-back" onClick={onClose}>
+      <button type="button" className="pns-drawer-back" onClick={onBack ?? onClose}>
         ← back
       </button>
       {path ? null : (
-        <p className="pns-empty">
-          nothing on this path yet
+        /* Issue #61 — a real subject with no approved curriculum is an
+           intentional empty state with working actions, never a blank
+           panel or an invented lesson. */
+        <div className="pns-empty">
+          <strong>no approved path yet</strong>
           <small>
-            {subject ? subject.name : "path"} — learning data arrives with the
-            backend (Phase 01)
+            {subject ? `"${subject.name}"` : "this subject"} is real but has
+            no curriculum on the wall — add a source, approve its proposal,
+            and the lessons appear here. Nothing is sketched in the
+            meantime.
           </small>
-        </p>
+          {onAddMaterials && (
+            <button type="button" className="pn-cta" onClick={onAddMaterials}>
+              add a source →
+            </button>
+          )}
+          {onBrowseSources && (
+            <button type="button" className="pns-link" onClick={onBrowseSources}>
+              review pending sources
+            </button>
+          )}
+        </div>
       )}
     </aside>
   );

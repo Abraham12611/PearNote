@@ -256,8 +256,9 @@ export function pearnotesFixturesRequested(): boolean {
 
 type FixtureBundle = {
   subjects: PearSubject[];
-  path: LearningPath | null;
-  lesson: LessonSummary | null;
+  /** Issue #61 — keyed per subject/lesson; never one shared sample. */
+  paths: Record<string, LearningPath>;
+  lessons: Record<string, LessonSummary>;
   resume: ResumePoint | null;
   label: string;
 };
@@ -282,6 +283,10 @@ export function usePearNotesFixtures(
       if (!live) return;
       const f = mod as {
         FIXTURE_SUBJECTS?: PearSubject[];
+        FIXTURE_PATHS?: Record<string, LearningPath>;
+        FIXTURE_LESSONS?: Record<string, LessonSummary>;
+        /* legacy single-sample exports — kept only as a fallback for
+           older fixture modules */
         FIXTURE_PATH?: LearningPath;
         FIXTURE_LESSON?: LessonSummary;
         FIXTURE_RESUME?: ResumePoint;
@@ -289,8 +294,12 @@ export function usePearNotesFixtures(
       };
       setBundle({
         subjects: f.FIXTURE_SUBJECTS ?? [],
-        path: f.FIXTURE_PATH ?? null,
-        lesson: f.FIXTURE_LESSON ?? null,
+        paths:
+          f.FIXTURE_PATHS ??
+          (f.FIXTURE_PATH ? { [f.FIXTURE_PATH.subjectId]: f.FIXTURE_PATH } : {}),
+        lessons:
+          f.FIXTURE_LESSONS ??
+          (f.FIXTURE_LESSON ? { [f.FIXTURE_LESSON.id]: f.FIXTURE_LESSON } : {}),
         resume: f.FIXTURE_RESUME ?? null,
         label: f.PROTOTYPE_FIXTURE_LABEL ?? "prototype fixture",
       });
@@ -306,8 +315,8 @@ export function usePearNotesFixtures(
     subjects: bundle.subjects,
     resume: bundle.resume,
     subjectFor: (id) => bundle.subjects.find((s) => s.id === id) ?? null,
-    pathFor: (id) => (bundle.path?.subjectId === id ? bundle.path : null),
-    lessonFor: (id) => (bundle.lesson?.id === id ? bundle.lesson : null),
+    pathFor: (id) => bundle.paths[id] ?? null,
+    lessonFor: (id) => bundle.lessons[id] ?? null,
     label: bundle.label,
   };
 }
