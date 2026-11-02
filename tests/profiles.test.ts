@@ -9,9 +9,10 @@ import { describe, expect, test } from "vitest";
 import schema from "../convex/schema";
 import { PERSONA_IDS, personaById } from "../convex/personas";
 import { seedPersona } from "../convex/profiles";
+import { createOrUpdateUserInner } from "../convex/auth";
 
 const api = anyApi;
-const modules = import.meta.glob(["../convex/{profiles,personas}.ts", "../convex/_generated/api.js"]);
+const modules = import.meta.glob(["../convex/{profiles,personas,auth,auth.config,otp,rateLimits,agentmail,firecrawl,inbox,http}.ts", "../convex/emails/*.ts", "../convex/_generated/api.js"]);
 
 async function seed() {
   const t = convexTest(schema, modules);
@@ -124,6 +125,63 @@ describe("seedPersona — the sign-in handoff (createOrUpdateUser)", () => {
     const id = await t3.run(async (ctx) => ctx.db.insert("users", { name: "juno", isAnonymous: true }));
     await t3.run((ctx) => seedPersona(ctx.db, id));
     expect((await t3.run(async (ctx) => ctx.db.get(id)))!.name).toBe("juno");
+  });
+});
+
+describe("account-creation defaults — Google/email/guest/returning", () => {
+  const google = { existingUserId: null, type: "oauth" as const, provider: { id: "google" },
+    profile: { email: "g@x.co", name: "G Name", image: "https://lh3.googleusercontent.com/x" } };
+  test("NEW Google user: curated face, NOT the remote Google photo", async () => {
+    const t = convexTest(schema, modules);
+    const id = await t.run((ctx) => createOrUpdateUserInner(ctx as never, google));
+    await t.run((ctx) => seedPersona(ctx.db, id));
+    const u = await t.run(async (ctx) => ctx.db.get(id));
+    expect(u!.image).toBe(`/avatars/${u!.personaId}.png`); // illustrated catalog face
+    expect(u!.image).not.toContain("googleusercontent");
+    expect(u!.name).toBe("g");
+  });
+  test("NEW verified-email user: full persona identity", async () => {
+    const t = convexTest(schema, modules);
+    const id = await t.run(async (ctx) => ctx.db.insert("users", { email: "e@x.co", emailVerificationTime: 1 }));
+    await t.run((ctx) => seedPersona(ctx.db, id));
+    const u = await t.run(async (ctx) => ctx.db.get(id));
+    expect(PERSONA_IDS).toContain(u!.personaId);
+    expect(u!.image).toBe(`/avatars/${u!.personaId}.png`);
+    expect(u!.name).toBe(personaById(u!.personaId!)!.label.toLowerCase());
+  });
+  test("guest upgrade + returning account: persona stable, custom face kept", async () => {
+    const t = convexTest(schema, modules);
+    const id = await t.run(async (ctx) => ctx.db.insert("users", { name: "rio", isAnonymous: true }));
+    await t.run((ctx) => seedPersona(ctx.db, id)); // guest seeded at anonymous sign-in
+    const first = (await t.run(async (ctx) => ctx.db.get(id)))!.personaId;
+    await t.run(async (ctx) => ctx.db.patch(id, { image: "/avatars/wren.png", isAnonymous: false }));
+    await t.run((ctx) => seedPersona(ctx.db, id)); // upgrade sign-in
+    await t.run((ctx) => seedPersona(ctx.db, id)); // returning sign-in
+    const u = await t.run(async (ctx) => ctx.db.get(id));
+    expect(u!.personaId).toBe(first);            // durable
+    expect(u!.image).toBe("/avatars/wren.png");   // chosen photo preserved
+    expect(u!.name).toBe("rio");
+  });
+});
+
+describe("legacy auth.updateProfile — unified validation", () => {
+  test("malicious/bad writes rejected; valid edits pass", async () => {
+    const { asA } = await seed();
+    await expect(asA.mutation(api.auth.updateProfile, { color: "javascript:x" }))
+      .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+    await expect(asA.mutation(api.auth.updateProfile, { image: "https://evil.example/t.png" }))
+      .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+    await expect(asA.mutation(api.auth.updateProfile, { name: "x".repeat(41) }))
+      .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+    const r = await asA.mutation(api.auth.updateProfile, { name: "Ada", color: "#a1b2c3", emoji: "🍒", image: "/avatars/wren.png" });
+    expect(r).toBeNull();
+  });
+  test("guest rows are inert; account A never reaches account B", async () => {
+    const t = convexTest(schema, modules);
+    const gId = await t.run(async (ctx) => ctx.db.insert("users", { isAnonymous: true, name: "g" }));
+    const r = await t.withIdentity({ subject: `${gId}|s` }).mutation(api.auth.updateProfile, { name: "hax" });
+    expect(r).toBeNull();
+    expect((await t.run(async (ctx) => ctx.db.get(gId)))!.name).toBe("g");
   });
 });
 

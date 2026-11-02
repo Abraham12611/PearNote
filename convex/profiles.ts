@@ -102,7 +102,8 @@ export const initialize = mutation({
  * matching cursor accent (the "matching cursor" contract) unless the caller
  * also passes an explicit color. All other fields are whitelist-validated.
  */
-const COLOR_RE = /^#[0-9a-f]{6}$/i;
+export const COLOR_RE = /^#[0-9a-f]{6}$/i;
+export const PROFILE_NAME_MAX = 40;
 
 /**
  * Curated image refs only (review #72-3): a persona face path or an
@@ -110,7 +111,7 @@ const COLOR_RE = /^#[0-9a-f]{6}$/i;
  * images — never enter shared profile displays. Owner-uploaded photos via
  * verified storage refs are a follow-up, not a free string.
  */
-function checkImageRef(image: string): string | undefined {
+export function checkImageRef(image: string): string | undefined {
   const trimmed = image.trim();
   if (trimmed === "") return undefined; // clear → fallback face
   const match = /^\/avatars\/([a-z0-9]+)\.png$/.exec(trimmed);

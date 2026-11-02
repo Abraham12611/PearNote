@@ -16,7 +16,7 @@ import Google from "@auth/core/providers/google";
 import { EmailOtp, OTP_PROVIDER_ID } from "./otp";
 import type { DataModel, Id } from "./_generated/dataModel";
 import { env, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { safeOAuthRedirect } from "./authFlow";
 
 /**
@@ -32,9 +32,9 @@ import { safeOAuthRedirect } from "./authFlow";
  * name, colour and membership all survive because the id never changed.
  * That's §1's "upgrade, don't fork", with no data migration at all.
  */
-import { seedPersona } from "./profiles";
+import { COLOR_RE, PROFILE_NAME_MAX, checkImageRef, seedPersona } from "./profiles";
 
-async function createOrUpdateUserInner(
+export async function createOrUpdateUserInner(
   rawCtx: GenericMutationCtx<AnyDataModel>,
   {
     existingUserId,
@@ -71,7 +71,10 @@ async function createOrUpdateUserInner(
     }
     const seed = {
       name: firstName(profile.name),
-      image: typeof profile.image === "string" ? profile.image : undefined,
+      // Deliberately NOT profile.image (review #72): a Google photo is an
+      // external URL — new accounts get a curated illustrated face from
+      // seedPersona instead. A deliberately chosen photo is only ever
+      // written through the validated update path, so linked accounts keep it.
     };
     if (userId !== null) {
       const row = await db.get(userId);
@@ -285,6 +288,12 @@ export const currentUser = query({
  * stay in the tab (§1 — guest is complete without ever writing here), so
  * there is nothing to carry to a second device until they join.
  */
+/**
+ * Legacy browser-identity sync (src/live/useAuthIdentity.ts). Same
+ * validation contract as profiles.update — this path can't smuggle an
+ * arbitrary URL or oversized name past the curated profile rules. Emoji is
+ * an original OurSpaces field; bounded, not free-form.
+ */
 export const updateProfile = mutation({
   args: {
     name: v.optional(v.string()),
@@ -298,7 +307,35 @@ export const updateProfile = mutation({
     if (userId === null) return null;
     const user = await ctx.db.get(userId);
     if (!user || user.isAnonymous === true) return null;
-    await ctx.db.patch(userId, args);
+    const patch: Record<string, string | undefined> = {};
+    if (args.name !== undefined) {
+      const name = args.name.trim();
+      if (name.length === 0 || name.length > PROFILE_NAME_MAX) {
+        throw new ConvexError({ code: "INVALID_INPUT", message: `name must be 1..${PROFILE_NAME_MAX} characters` });
+      }
+      patch.name = name;
+    }
+    if (args.color !== undefined) {
+      if (!COLOR_RE.test(args.color)) {
+        throw new ConvexError({ code: "INVALID_INPUT", message: "color must be a #rrggbb hex value" });
+      }
+      patch.color = args.color;
+    }
+    if (args.emoji !== undefined) {
+      const emoji = args.emoji.trim();
+      if (emoji.length > 16) {
+        throw new ConvexError({ code: "INVALID_INPUT", message: "emoji too long" });
+      }
+      patch.emoji = emoji === "" ? undefined : emoji;
+    }
+    if (args.image !== undefined) {
+      // Authorized custom photos only: catalog paths (checkImageRef) or a
+      // Convex storage ref — never an arbitrary external URL.
+      patch.image = args.image.startsWith("_storage/") || args.image.startsWith("storage:")
+        ? args.image
+        : checkImageRef(args.image);
+    }
+    if (Object.keys(patch).length > 0) await ctx.db.patch(userId, patch);
     return null;
   },
 });
