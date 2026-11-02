@@ -1,20 +1,22 @@
 /* ------------------------------------------------------------------
- * Entry chrome — landing, gateway modal, auth pages, recovery screens,
- * demo ribbon (Assignment E1). Scoped `.entry-*` on the PearNotes
- * tokens; imports the shared pn-* primitives for buttons/kickers.
+ * Entry chrome (Issue #63, OurSpaces-fidelity redesign).
+ *
+ * The landing reuses the original About page's `about-*` grammar and
+ * the modal/auth cards reuse the original `demo-waitlist` split dialog
+ * — this file only covers what the natives don't already style:
+ * recovery scaffolds, the demo ribbon, and the small entry-* payload
+ * pieces inside the borrowed frames.
  * ------------------------------------------------------------------ */
 
 @import "../pearnotes/styles/pearnotes.css";
 
-/* --- shared scaffold ------------------------------------------------ */
+/* --- shared scaffold / recovery ------------------------------------- */
 
 .entry-scaffold {
   min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 24px;
-  background: var(--pn-ink);
-  color: var(--pn-on-dark);
   font-family: var(--pn-font-sans);
 }
 
@@ -48,12 +50,11 @@
   border-radius: 24px;
   background: var(--pn-panel);
   border: 1.5px solid rgba(255, 255, 255, 0.1);
+  color: var(--pn-on-dark);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
-.entry-recovery h1,
-.entry-auth-card h1,
-.entry-modal-card h2 {
+.entry-recovery h1 {
   margin: 8px 0 12px;
   font-family: var(--pn-font-display);
   font-size: clamp(28px, 4vw, 36px);
@@ -82,16 +83,17 @@
 .entry-fine {
   margin-top: 18px;
   font-size: 12.5px;
-  color: var(--pn-faint-on-dark);
+  color: var(--pn-muted-on-dark, #6b5f50);
   line-height: 1.5;
 }
 
 .entry-fine button {
-  color: var(--pn-lime);
+  color: inherit;
   background: none;
   border: none;
   padding: 0;
   font: inherit;
+  font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -99,276 +101,118 @@
 .entry-error {
   margin-top: 10px;
   font-size: 13px;
-  color: var(--pn-danger);
+  color: var(--pn-danger, #c23d2e);
 }
 
-.entry-back {
-  align-self: flex-start;
-  background: none;
-  border: none;
-  color: var(--pn-muted-on-dark);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 14px;
-}
+/* --- landing payload (inside the borrowed about-* frame) ------------ */
 
-.entry-back:hover { color: var(--pn-on-dark); }
-
-/* --- landing --------------------------------------------------------- */
-
-.entry-landing {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(201, 255, 61, 0.07), transparent 60%),
-    var(--pn-ink);
-  color: var(--pn-on-dark);
-  font-family: var(--pn-font-sans);
-}
-
-.entry-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 32px;
-}
-
-.entry-mark {
-  font-family: var(--pn-font-display);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+.entry-brand {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-
-.entry-mark img { height: 26px; width: auto; display: block; }
-
-.entry-top-nav {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.entry-top-nav a,
-.entry-top-nav button:not(.pn-cta) {
-  color: var(--pn-muted-on-dark);
-  font: inherit;
-  font-size: 14px;
-  text-decoration: none;
   background: none;
   border: none;
+  font: inherit;
+  cursor: pointer;
   padding: 0;
+}
+
+.entry-brand img { width: 26px; height: 26px; display: block; }
+
+.entry-back-link {
+  background: none;
+  border: none;
+  font: inherit;
   cursor: pointer;
 }
 
-.entry-top-nav a:hover,
-.entry-top-nav button:not(.pn-cta):hover {
-  color: var(--pn-on-dark);
-}
-
-.entry-hero {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  max-width: 720px;
-  padding: 64px 32px 40px;
-}
-
-.entry-hero h1 {
-  margin: 14px 0 18px;
-  font-family: var(--pn-font-display);
-  font-size: clamp(38px, 6.5vw, 64px);
-  line-height: 1.02;
-  letter-spacing: -0.03em;
-}
-
-.entry-hero .entry-lede {
-  max-width: 540px;
-  font-size: 17px;
-}
-
-.entry-hero-cta { font-size: 16px; padding: 14px 26px; }
-
-.entry-steps {
+/* the lesson-board collage inside the borrowed .about-board frame */
+.entry-lesson-board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-  padding: 24px 32px 40px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-content: start;
 }
 
-.entry-step {
-  position: relative;
-  padding: 22px;
-  border-radius: 18px;
-  background: var(--pn-panel);
-  border: 1.5px solid rgba(255, 255, 255, 0.09);
+.entry-board-source {
+  grid-column: 1 / -1;
+  transform: rotate(-1.2deg);
 }
 
-.entry-step-n {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  font-family: var(--pn-font-display);
-  font-size: 13px;
-  color: var(--pn-faint-on-dark);
+.entry-board-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
-.entry-step h2 {
-  margin: 0 0 8px;
-  font-family: var(--pn-font-display);
-  font-size: 18px;
-  letter-spacing: -0.01em;
+.entry-board-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
 }
 
-.entry-step p {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--pn-muted-on-dark);
+.entry-path-node {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--pn-sticker, #0b0b0e);
+  background: var(--pn-paper, #f5efdf);
 }
 
+.entry-path-node.is-next {
+  background: var(--pn-lime, #c9ff3d);
+}
+
+/* the promise chips under the "yours, not ours" section */
 .entry-promises {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 28px;
-  padding: 0 32px 32px;
-  font-size: 13.5px;
-  color: var(--pn-muted-on-dark);
-}
-
-.entry-promises strong { color: var(--pn-lime); margin-right: 4px; }
-
-.entry-footer {
-  padding: 18px 32px 28px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  font-size: 12.5px;
-  color: var(--pn-faint-on-dark);
-}
-
-.entry-footer a { color: var(--pn-muted-on-dark); }
-
-/* --- get-started modal ------------------------------------------------ */
-
-.entry-modal {
-  border: none;
-  padding: 0;
-  background: transparent;
-  max-width: min(480px, calc(100vw - 32px));
-  width: 100%;
-}
-
-.entry-modal::backdrop {
-  background: rgba(6, 6, 8, 0.66);
-  backdrop-filter: blur(6px);
-}
-
-.entry-modal-card {
-  padding: 32px;
-  border-radius: 24px;
-  background: var(--pn-panel);
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
-  color: var(--pn-on-dark);
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.55);
-  display: flex;
-  flex-direction: column;
-}
-
-.entry-modal-options {
-  display: flex;
-  flex-direction: column;
   gap: 10px;
-  margin: 8px 0 20px;
 }
 
-.entry-modal-options button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  text-align: left;
+.entry-promise {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--pn-sticker, #0b0b0e);
+  font-size: 13px;
+  font-weight: 600;
+  transform: rotate(-1deg);
 }
 
-.entry-modal-options small {
-  font-size: 12px;
-  font-weight: 400;
-  opacity: 0.7;
-}
+.entry-promise:nth-child(2) { transform: rotate(1.2deg); }
+.entry-promise:nth-child(3) { transform: rotate(-0.6deg); }
 
-.entry-shortlist {
-  border-top: 1px dashed rgba(255, 255, 255, 0.14);
-  padding-top: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.entry-shortlist label,
-.entry-auth-form label {
+.entry-about-footer {
+  padding: 18px 0 28px;
   font-size: 12.5px;
-  color: var(--pn-muted-on-dark);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  opacity: 0.75;
 }
 
-.entry-shortlist-row {
-  display: flex;
-  gap: 8px;
+/* --- get-started choices (inside the borrowed split dialog) --------- */
+
+.entry-door-list h2 {
+  margin: 0 0 14px;
+  font-family: var(--pn-font-display);
+  font-size: 26px;
+  letter-spacing: -0.02em;
 }
 
-.entry-shortlist-row input,
-.entry-auth-form input[type="email"] {
-  flex: 1;
-  min-width: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1.5px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--pn-on-dark);
-  font: inherit;
-  font-size: 14px;
+.entry-door-list .demo-waitlist-submit { width: 100%; margin-bottom: 8px; }
+.entry-door-list .demo-waitlist-submit.is-quiet { opacity: 0.92; }
+
+.entry-door-note {
+  margin-top: 10px;
+  font-size: 12px;
+  opacity: 0.75;
 }
 
-.entry-shortlist-row input:focus,
-.entry-auth-form input[type="email"]:focus {
-  outline: none;
-  border-color: var(--pn-lime);
-}
+/* --- auth split page ------------------------------------------------- */
 
-.entry-shortlist-done {
-  border-top: 1px dashed rgba(255, 255, 255, 0.14);
-  padding-top: 18px;
-  font-size: 14px;
-  color: var(--pn-muted-on-dark);
-}
-
-.entry-shortlist-done button {
-  color: var(--pn-lime);
-  background: none;
-  border: none;
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.entry-modal .pn-close { align-self: center; margin-top: 14px; }
-
-/* --- auth pages -------------------------------------------------------- */
-
-.entry-auth-card {
-  width: min(440px, 100%);
-  padding: 36px;
+.entry-auth-shell {
+  width: min(860px, 100%);
   border-radius: 24px;
-  background: var(--pn-panel);
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
 }
 
 .entry-auth-form {
@@ -384,9 +228,40 @@
   gap: 8px;
 }
 
+.entry-auth-form label {
+  font-size: 12.5px;
+  opacity: 0.75;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.entry-shortlist-row {
+  display: flex;
+  gap: 8px;
+}
+
+.entry-shortlist-row input,
+.entry-auth-form input[type="email"] {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--pn-sticker, #0b0b0e);
+  background: var(--pn-paper, #f5efdf);
+  color: var(--pn-on-paper, #1d1712);
+  font: inherit;
+  font-size: 14px;
+}
+
+.entry-shortlist-row input:focus,
+.entry-auth-form input[type="email"]:focus {
+  outline: 2px solid var(--pn-lime, #c9ff3d);
+  outline-offset: 1px;
+}
+
 .entry-google { margin-top: 4px; }
 
-/* --- demo chrome ------------------------------------------------------- */
+/* --- demo chrome ------------------------------------------------------ */
 
 .entry-demo { min-height: 100dvh; }
 
@@ -448,14 +323,10 @@
 
 @media (max-width: 720px) {
   .entry-demo-note { display: none; }
-  .entry-top { padding: 16px 20px; }
-  .entry-top-nav { gap: 12px; }
-  .entry-hero { padding: 40px 20px 32px; }
-  .entry-steps,
-  .entry-promises,
-  .entry-footer { padding-left: 20px; padding-right: 20px; }
-  .entry-recovery,
-  .entry-auth-card { padding: 26px; }
+  .entry-auth-shell { border-radius: 18px; }
+  /* the borrowed split dialog stacks on small screens */
+  .entry-auth-shell .demo-poster { display: none; }
+  .entry-recovery { padding: 26px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
