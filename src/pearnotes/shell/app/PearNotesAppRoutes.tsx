@@ -54,7 +54,7 @@ import { CreateSubjectSheet } from "../../ingestion/CreateSubjectSheet";
 import { LiveLessonBoard } from "../../learning-widgets";
 import { loadPearNotesUiStyles, pearnotesSlots } from "../slots";
 import type { LearningPath, LessonMode, PearNotesData } from "../types";
-import { AppRail } from "./AppRail";
+import { PearNotesDock } from "./PearNotesDock";
 import { Boundary } from "./Boundary";
 import {
   AchievementsPage,
@@ -301,6 +301,14 @@ function PearNotesApp({
 
   const navKey = appNavKeyFor(route);
   const showRail = route.kind !== "lesson";
+  /* The dock's dashed `+` keeps the original's create semantics — a new
+     subject. Same fail-closed order as every other write: demo notices,
+     live routes to the sheet, offline admits it isn't there. */
+  const onCreate = useCallback(() => {
+    if (demoMode) return demoNote("subject creation");
+    if (liveBackend) return navigate(appNewPath());
+    return pending("subject creation");
+  }, [demoMode, liveBackend, demoNote, navigate, pending]);
 
   const homeView = (
     <Home
@@ -361,7 +369,19 @@ function PearNotesApp({
   return (
     <main className="pna-app" data-route={route.kind}>
       {showRail && (
-        <AppRail active={navKey} learnerName={learnerName} onNavigate={navigate} />
+        <PearNotesDock
+          active={navKey}
+          onNavigate={navigate}
+          onCreate={onCreate}
+          settingsOpen={route.kind === "settings"}
+          self={{
+            name: learnerName,
+            /* The native rail-you wears your colour — demo keeps the
+               fixed nonpersonal look, real users keep their identity. */
+            color: demoMode ? "#1d9e8c" : getIdentity().color,
+            emoji: demoMode ? undefined : getIdentity().emoji,
+          }}
+        />
       )}
 
       <div className="pna-main">
