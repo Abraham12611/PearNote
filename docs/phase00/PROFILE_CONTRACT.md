@@ -34,3 +34,10 @@ clover, pepper, kiwi` — each `{id, label, accent}`. Face asset:
   persona too (it survives the join upgrade — same users row).
 - Learning data is never part of this API — attempts/mastery stay in the
   learning surface.
+- **Hydration:** after `initialize`/sign-in, `getMine` always returns
+  `name`, `personaId`, `image`, `color` — the server row is the source of
+  truth. `useAuthIdentity`/Profile must hydrate FROM this and must not
+  push a locally generated name/color over the persisted profile.
+- **Update precedence:** explicit `image`/`color` args in a call always win
+  over the persona auto-swap; a deliberately picked face survives later
+  persona changes (the face only follows a swap when it was auto-assigned).

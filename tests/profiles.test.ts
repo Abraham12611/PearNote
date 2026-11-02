@@ -8,6 +8,7 @@ import { anyApi } from "convex/server";
 import { describe, expect, test } from "vitest";
 import schema from "../convex/schema";
 import { PERSONA_IDS, personaById } from "../convex/personas";
+import { seedPersona } from "../convex/profiles";
 
 const api = anyApi;
 const modules = import.meta.glob(["../convex/{profiles,personas}.ts", "../convex/_generated/api.js"]);
@@ -87,6 +88,70 @@ describe("profiles.update — whitelisted edits", () => {
       .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
     const ok = await asA.mutation(api.profiles.update, { image: "/avatars/wren.png" });
     expect(ok.image).toBe("/avatars/wren.png");
+  });
+});
+
+describe("seedPersona — the sign-in handoff (createOrUpdateUser)", () => {
+  test("fresh account gets full catalog identity: name + persona + accent + face", async () => {
+    const t = convexTest(schema, modules);
+    // Brand-new user with NO fields — the verified-email insert shape.
+    const aId = await t.run(async (ctx) => ctx.db.insert("users", { email: "n@example.com" }));
+    await t.run((ctx) => seedPersona(ctx.db, aId));
+    const u = await t.run(async (ctx) => ctx.db.get(aId));
+    expect(PERSONA_IDS).toContain(u!.personaId);
+    expect(u!.name).toBe(personaById(u!.personaId!)!.label.toLowerCase());
+    expect(u!.color).toBe(personaById(u!.personaId!)!.accent);
+    expect(u!.image).toBe(`/avatars/${u!.personaId}.png`);
+  });
+  test("existing name/photo/color are never overwritten — only absent fields fill", async () => {
+    const t2 = convexTest(schema, modules);
+    const id = await t2.run(async (ctx) =>
+      ctx.db.insert("users", { name: "chosen name", image: "/avatars/kiwi.png", color: "#abcdef" }),
+    );
+    await t2.run((ctx) => seedPersona(ctx.db, id));
+    const u = await t2.run(async (ctx) => ctx.db.get(id));
+    expect(u!.name).toBe("chosen name");
+    expect(u!.image).toBe("/avatars/kiwi.png");
+    expect(u!.color).toBe("#abcdef");
+    expect(PERSONA_IDS).toContain(u!.personaId); // persona still assigned
+    // Second seed is a complete no-op.
+    await t2.run((ctx) => seedPersona(ctx.db, id));
+    expect((await t2.run(async (ctx) => ctx.db.get(id)))!.name).toBe("chosen name");
+  });
+  test("guest-upgrade rows (name already set by the guest) keep their name", async () => {
+    const t3 = convexTest(schema, modules);
+    // Guest path: getIdentity-written row with an existing display name.
+    const id = await t3.run(async (ctx) => ctx.db.insert("users", { name: "juno", isAnonymous: true }));
+    await t3.run((ctx) => seedPersona(ctx.db, id));
+    expect((await t3.run(async (ctx) => ctx.db.get(id)))!.name).toBe("juno");
+  });
+});
+
+describe("update precedence — explicit args beat persona auto-swap", () => {
+  test("args.image in the same call always wins over the persona face", async () => {
+    const { asA } = await seed();
+    await asA.mutation(api.profiles.initialize); // juno-face auto-set
+    const p = await asA.mutation(api.profiles.update, { personaId: "wren", image: "/avatars/momo.png" });
+    expect(p.image).toBe("/avatars/momo.png"); // explicit, NOT wren.png
+    expect(p.personaId).toBe("wren");
+  });
+  test("a deliberately chosen face is preserved across later persona swaps", async () => {
+    const { asA } = await seed();
+    const init = await asA.mutation(api.profiles.initialize);
+    // Pick a face that is NOT the auto-assigned persona's — whatever the hash gave.
+    const chosen = PERSONA_IDS.find((id) => `/avatars/${id}.png` !== init.image)!;
+    await asA.mutation(api.profiles.update, { image: `/avatars/${chosen}.png` });
+    const p = await asA.mutation(api.profiles.update, { personaId: "kiwi" });
+    expect(p.image).toBe(`/avatars/${chosen}.png`); // NOT auto-swapped to kiwi.png
+    expect(p.personaId).toBe("kiwi");
+  });
+  test("an auto-assigned face follows a persona swap", async () => {
+    const { asA } = await seed();
+    const init = await asA.mutation(api.profiles.initialize);
+    const p = await asA.mutation(api.profiles.update, { personaId: "clover" });
+    // Face was auto-set from the old persona → follows the new one.
+    expect(p.image).toBe("/avatars/clover.png");
+    expect(init.image).not.toBe("/avatars/clover.png");
   });
 });
 

@@ -153,7 +153,14 @@ export const update = mutation({
       // The persona-matched accent is the default cursor look; an explicit
       // validated color wins only when deliberately supplied.
       patch.color = args.color ?? persona.accent;
-      if (u.image === undefined || u.image === personaImagePath((u.personaId ?? "") as PersonaId)) {
+      // Image precedence (review): an explicit args.image in THIS call always
+      // wins. Otherwise the face only auto-swaps when the old image was
+      // unset or was the previous persona's own auto-assigned face — a face
+      // the user deliberately picked is preserved.
+      if (
+        args.image === undefined &&
+        (u.image === undefined || u.image === personaImagePath((u.personaId ?? "") as PersonaId))
+      ) {
         patch.image = personaImagePath(persona.id);
       }
     } else if (args.color !== undefined) {
@@ -210,6 +217,11 @@ export async function seedPersona(
   const persona = defaultPersonaFor(String(userId));
   await db.patch(userId, {
     personaId: persona.id,
+    // A server-side name is REQUIRED at seed time — `useAuthIdentity` skips
+    // hydration when `saved.name` is absent and would push a locally made-up
+    // identity over the account profile (review follow-up). Only fill when
+    // absent: custom names, guest-upgrade names and photos always win.
+    ...(u.name === undefined || u.name === "" ? { name: persona.label.toLowerCase() } : {}),
     ...(u.color === undefined ? { color: persona.accent } : {}),
     ...(u.image === undefined ? { image: personaImagePath(persona.id) } : {}),
   });
