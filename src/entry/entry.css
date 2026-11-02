@@ -110,6 +110,13 @@
   color: var(--pn-danger, #c23d2e);
 }
 
+.entry-error-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-muted, #6b5f50);
+  font-size: 12px;
+}
+
 /* --- landing payload (inside the borrowed about-* frame) ------------ */
 
 .entry-brand {
