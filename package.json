@@ -13,7 +13,8 @@
     "deploy": "echo 'ERROR: deploy disabled. The inherited Netlify target (site 3b6e9f86-…, --prod) pointed at the upstream OurSpaces infrastructure. PearNotes deploys via Vercel previews only — see docs/phase00/DEPLOYMENT.md.' && exit 1",
     "deploy:convex": "echo 'ERROR: deploy:convex disabled. static-hosting deploy would push to whatever CONVEX_DEPLOYMENT resolves to, including upstream deployments. Provision a PearNotes deployment first — see docs/phase00/DEPLOYMENT.md.' && exit 1",
     "sync:storyboard": "./scripts/sync-storyboard.sh",
-    "sync:skills": "./scripts/sync-codex-skills.sh"
+    "sync:skills": "./scripts/sync-codex-skills.sh",
+    "test:responsive": "node scripts/responsive-check.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.52",
@@ -57,6 +58,7 @@
     "imagetracerjs": "^1.2.6",
     "jpeg-js": "^0.4.4",
     "oxlint": "^1.79.0",
+    "puppeteer-core": "^25.16.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",

@@ -1,78 +1,27 @@
 /* ------------------------------------------------------------------
- * GetStartedModal — the deliberate-choice door (Assignment E1).
+ * GetStartedModal — Issue #63.
  *
- * Four real ways in, none silent: create an account, sign in, explore
- * the labelled demo, or leave an email for the shortlist. The shortlist
- * is the existing `waitlist.join` mutation — offered only when the
- * build actually has a backend, and honest when it doesn't.
+ * An ADAPTATION of the original OurSpaces split editorial dialog —
+ * the `demo-waitlist` shell from components/DemoBanner.tsx:
+ * illustrated poster on the left (brand, collage, caption), heading +
+ * choices on the right, native close. Same classes on purpose; only
+ * the caption and the body are PearNotes.
+ *
+ * Three real ways in, none silent: create an account, sign in, or
+ * explore the labelled demo. Waitlist/shortlist enrollment is a
+ * separate surface — registration and enrollment never share a dialog
+ * (review on #70).
  * ------------------------------------------------------------------ */
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useEffect, useRef } from "react";
 import { navigate } from "./location";
 import { SITE_PATHS } from "./paths";
 
-function ShortlistForm({ onDone }: { onDone: () => void }) {
-  const join = useMutation(api.waitlist.join);
-  const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      await join({ email: email.trim() });
-      setSaved(true);
-    } catch {
-      setError("couldn't save that email — check it and try again?");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (saved) {
-    return (
-      <p className="entry-shortlist-done">
-        you&apos;re on the list — we&apos;ll write when accounts open wider.{" "}
-        <button type="button" onClick={onDone}>
-          close
-        </button>
-      </p>
-    );
-  }
-  return (
-    <form className="entry-shortlist" onSubmit={submit}>
-      <label htmlFor="shortlist-email">join the shortlist</label>
-      <div className="entry-shortlist-row">
-        <input
-          id="shortlist-email"
-          type="email"
-          required
-          placeholder="you@somewhere.edu"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-        <button type="submit" className="pn-cta-dark" disabled={busy}>
-          {busy ? "saving…" : "save"}
-        </button>
-      </div>
-      {error ? <p className="entry-error">{error}</p> : null}
-    </form>
-  );
-}
-
 export function GetStartedModal({
   open,
-  live,
   onClose,
 }: {
   open: boolean;
-  live: boolean;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -92,51 +41,86 @@ export function GetStartedModal({
   return (
     <dialog
       ref={dialog}
-      className="entry-modal"
+      className="demo-waitlist entry-get-started"
       onClose={onClose}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="entry-modal-card">
-        <span className="pn-kicker">start with PearNotes</span>
-        <h2>pick a door</h2>
-        <div className="entry-modal-options">
-          <button
-            type="button"
-            className="pn-cta"
-            onClick={() => go(SITE_PATHS.signUp)}
-          >
-            create your account
-            <small>your own desk — empty until you add a source</small>
-          </button>
-          <button
-            type="button"
-            className="pn-cta-dark"
-            onClick={() => go(SITE_PATHS.signIn)}
-          >
-            sign in
-            <small>you&apos;ve been here before</small>
-          </button>
-          <button
-            type="button"
-            className="pn-cta-dark"
-            onClick={() => go(SITE_PATHS.demoRoot)}
-          >
-            explore the demo
-            <small>labelled sample data — no account touched</small>
-          </button>
+      <div className="demo-waitlist-layout">
+        <div className="demo-poster" aria-hidden="true">
+          <div className="demo-poster-brand">
+            <img src="/assets/pearnotes-mark.svg" alt="" />
+            <span>PearNotes</span>
+          </div>
+          <div className="demo-poster-collage">
+            <div className="demo-poster-paper" />
+            <figure className="demo-poster-photo">
+              <img src="/assets/stickers/moon-sparkle.png" alt="" />
+            </figure>
+            <img
+              className="demo-poster-sticker"
+              src="/assets/stickers/sparkle-burst.png"
+              alt=""
+            />
+          </div>
+          <div className="demo-poster-caption">
+            <strong>
+              Your sources.
+              <br />
+              Your path.
+            </strong>
+            <span>A little corner of the syllabus, together.</span>
+          </div>
         </div>
-        {live ? (
-          <ShortlistForm onDone={onClose} />
-        ) : (
-          <p className="entry-fine">
-            the shortlist opens on builds connected to the backend.
-          </p>
-        )}
-        <button type="button" className="pn-close" onClick={onClose}>
-          close
-        </button>
+
+        <div className="demo-waitlist-content">
+          <div className="demo-waitlist-topline">
+            <span className="demo-waitlist-eyebrow">get started</span>
+            <button
+              className="demo-waitlist-close"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="demo-waitlist-body entry-door-list">
+            <h2>
+              make a place
+              <br />
+              <em>to learn.</em>
+            </h2>
+            <button
+              type="button"
+              className="demo-waitlist-submit"
+              onClick={() => go(SITE_PATHS.signUp)}
+              data-testid="entry-signup"
+            >
+              create your account <span>↗</span>
+            </button>
+            <button
+              type="button"
+              className="demo-waitlist-submit is-quiet"
+              onClick={() => go(SITE_PATHS.signIn)}
+              data-testid="entry-signin"
+            >
+              sign in <span>↗</span>
+            </button>
+            <button
+              type="button"
+              className="demo-waitlist-submit is-quiet"
+              onClick={() => go(SITE_PATHS.demoRoot)}
+              data-testid="entry-demo"
+            >
+              explore the demo <span>↗</span>
+            </button>
+            <p className="entry-door-note">
+              the demo runs on labelled sample data — no account touched
+            </p>
+          </div>
+        </div>
       </div>
     </dialog>
   );

@@ -1,11 +1,17 @@
 /* ------------------------------------------------------------------
- * The PearNotes public landing — Assignment E1.
+ * The PearNotes public landing — Issue #63.
  *
- * What a stranger sees at `/`: an original page for the product the
- * Blueprint describes — source-grounded spatial learning — not a door
- * dropped onto a workspace. "Get started" opens the deliberate-choice
- * modal; a returning registered visitor gets a straight path back to
- * their desk instead.
+ * An ADAPTATION of the original OurSpaces editorial page
+ * (src/pages/About.tsx) — same layout grammar: brand bar, hero copy
+ * beside an illustrated board collage, native black/text buttons,
+ * section headings with a leaning subtitle, three "way" cards and a
+ * room-coloured footer strip. `about-*` classes are reused on purpose
+ * so the page stays in the original material family; only the words
+ * and the board's payload are PearNotes.
+ *
+ * Copy tells the real loop: source upload → approved learning path →
+ * interactive lesson → evidence-based progress. Nothing signs the
+ * visitor in.
  * ------------------------------------------------------------------ */
 
 import { useState } from "react";
@@ -16,34 +22,77 @@ import { navigate } from "./location";
 import { SITE_PATHS } from "./paths";
 import { GetStartedModal } from "./GetStartedModal";
 
-const STEPS = [
+/* The steps the page explains — the actual product loop, in order. */
+const WAYS = [
   {
-    n: "01",
-    title: "bring a source",
-    body: "a PDF, a chapter, pasted notes. Your material is the whole curriculum — nothing is invented.",
+    mark: "↗",
+    color: "var(--color-couple)",
+    title: "Upload what you need to learn.",
+    body: "A PDF, a chapter, pasted notes. Your source is the whole curriculum — PearNotes never invents one.",
+    note: "the upload, the paste, the page",
   },
   {
-    n: "02",
-    title: "review the proposal",
-    body: "PearNotes suggests subjects and a path. Rename, split, merge — nothing learns itself without your say.",
+    mark: "✳",
+    color: "var(--color-crew)",
+    title: "Approve the path it proposes.",
+    body: "You review suggested subjects, sections and lessons — rename, split, merge — before anything becomes your curriculum.",
+    note: "your call, every time",
   },
   {
-    n: "03",
-    title: "study on the canvas",
-    body: "each lesson is a spatial board: source segments, challenges and teach-back, all pinned to your material.",
+    mark: "◔",
+    color: "var(--color-trip)",
+    title: "Study it on a living canvas.",
+    body: "Each lesson is a board: source segments, challenges and teach-back pinned where your hands can reach them.",
+    note: "the lesson, the source, the board",
   },
   {
-    n: "04",
-    title: "show what you know",
-    body: "mastery comes from graded evidence — never from clicks, and never quietly seeded.",
+    mark: "✓",
+    color: "var(--color-couple)",
+    title: "Show proof, not clicks.",
+    body: "Progress comes from graded evidence against your material — and untracked means untracked, never a fake bar.",
+    note: "evidence you can open",
   },
 ] as const;
 
-const PROMISES = [
-  ["grounded", "every claim cites the segment it came from"],
-  ["honest", "untracked progress says so — no fake bars"],
-  ["yours", "your sources and attempts stay inside your account"],
-] as const;
+/* Hero collage — the About board preview's grammar (frame, labelled
+   board, paper cards, path strip, one sticker, tail chip) carrying
+   PearNotes' payload: a source becoming a lesson. Paper cards replace
+   the party photo/stickers so it reads as study, not a birthday board. */
+function LessonBoardPreview() {
+  return (
+    <div className="about-preview" aria-hidden="true">
+      <div className="about-board-frame">
+        <div className="about-board entry-lesson-board">
+          <span className="about-board-label">
+            a source, becoming a lesson <span>✳</span>
+          </span>
+          <div className="entry-board-source">
+            <strong>your source</strong>
+            <span>page 14 — the part you highlighted</span>
+          </div>
+          <span className="entry-board-arrow">→</span>
+          <div className="entry-board-lesson">
+            <strong>your lesson</strong>
+            <span className="entry-board-path">
+              <span className="entry-path-node" />
+              <span className="entry-path-node" />
+              <span className="entry-path-node is-next" />
+            </span>
+            <span className="entry-board-claim">
+              every claim stays pinned to its page
+            </span>
+          </div>
+          <img
+            className="entry-board-sticker"
+            src="/assets/stickers/sparkle-burst.png"
+            alt=""
+          />
+          <span className="about-board-tag">a lesson worth keeping.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** The right hero button for who's standing here (live builds only). */
 function HeroCta({ onGetStarted }: { onGetStarted: () => void }) {
@@ -55,98 +104,139 @@ function HeroCta({ onGetStarted }: { onGetStarted: () => void }) {
     return (
       <button
         type="button"
-        className="pn-cta entry-hero-cta"
+        className="about-button"
         onClick={() => navigate(SITE_PATHS.appRoot)}
       >
-        open your desk{user?.name ? `, ${user.name.split(" ")[0]}` : ""} →
+        open your desk{user?.name ? `, ${user.name.split(" ")[0]}` : ""} <span>↗</span>
       </button>
     );
   }
   return (
-    <button type="button" className="pn-cta entry-hero-cta" onClick={onGetStarted}>
-      get started →
+    <button type="button" className="about-button" onClick={onGetStarted}>
+      get started <span>↗</span>
     </button>
   );
 }
 
 export function LandingPage({ live }: { live: boolean }) {
-  const [modalOpen, setModalOpen] = useState(false);
+  /* `/?getstarted` deep-links straight into the dialog — a shareable
+     "start here" link, and how automated captures see the modal. */
+  const [modalOpen, setModalOpen] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("getstarted"),
+  );
   const openModal = () => setModalOpen(true);
 
   return (
-    <main className="entry-landing" data-entry-screen="landing">
-      <header className="entry-top">
-        <span className="entry-mark">
-          <img src="/assets/pearnotes-mark.svg" alt="" aria-hidden="true" /> PearNotes
-        </span>
-        <nav className="entry-top-nav">
-          <a href="#how-it-works">how it works</a>
-          <button type="button" onClick={() => navigate(SITE_PATHS.demoRoot)}>
-            demo
-          </button>
-          <button type="button" onClick={() => navigate(SITE_PATHS.signIn)}>
-            sign in
-          </button>
-          <button type="button" className="pn-cta" onClick={openModal}>
-            get started
-          </button>
-        </nav>
+    <main className="about-page entry-landing" data-entry-screen="landing">
+      <nav className="about-bar about-wrap">
+        <button
+          type="button"
+          className="about-brand entry-brand"
+          onClick={() => navigate(SITE_PATHS.landing)}
+        >
+          <img src="/assets/pearnotes-mark.svg" alt="" /> PearNotes
+        </button>
+        <button
+          type="button"
+          className="about-back entry-back-link"
+          onClick={() => navigate(SITE_PATHS.demoRoot)}
+        >
+          <span>↗</span> explore the demo
+        </button>
+      </nav>
+
+      <header className="about-hero about-wrap">
+        <div className="about-hero-copy">
+          <p className="about-intro">learn from your own sources.</p>
+          <h1>
+            Your sources.
+            <br />
+            Your path.
+            <br />
+            <span>Your proof.</span>
+          </h1>
+          <p className="about-lede">
+            PearNotes turns the material you upload into a learning path
+            on a spatial canvas — and keeps every claim pinned to the
+            page it came from.
+          </p>
+          <div className="about-hero-actions">
+            {live ? (
+              <HeroCta onGetStarted={openModal} />
+            ) : (
+              <button type="button" className="about-button" onClick={openModal}>
+                get started <span>↗</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="about-text-button"
+              onClick={() => navigate(SITE_PATHS.demoRoot)}
+            >
+              see the demo <span>↓</span>
+            </button>
+          </div>
+          <p className="about-invitation">
+            Upload. Approve the path. Study the board. Show the proof.
+          </p>
+        </div>
+        <LessonBoardPreview />
       </header>
 
-      <section className="entry-hero">
-        <span className="pn-kicker">spatial learning, grounded in your sources</span>
-        <h1>
-          Your material becomes a place
-          <br />
-          you can learn in.
-        </h1>
-        <p className="entry-lede">
-          Upload what you need to learn. PearNotes turns it into a versioned
-          path of lessons on a canvas you can touch — every challenge traced
-          back to the page it came from.
-        </p>
-        <div className="entry-actions">
-          {live ? (
-            <HeroCta onGetStarted={openModal} />
-          ) : (
-            <button type="button" className="pn-cta entry-hero-cta" onClick={openModal}>
-              get started →
-            </button>
-          )}
-          <button
-            type="button"
-            className="pn-cta-dark"
-            onClick={() => navigate(SITE_PATHS.demoRoot)}
-          >
-            explore the demo
-          </button>
-        </div>
-        <p className="entry-fine">
-          the demo runs on labelled sample data — your account stays untouched
-        </p>
-      </section>
-
-      <section className="entry-steps" id="how-it-works">
-        {STEPS.map((step) => (
-          <article key={step.n} className="entry-step">
-            <span className="entry-step-n" aria-hidden="true">
-              {step.n}
-            </span>
-            <h2>{step.title}</h2>
-            <p>{step.body}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="entry-promises">
-        {PROMISES.map(([word, line]) => (
-          <p key={word}>
-            <strong>{word}.</strong> {line}
+      <section className="about-how about-wrap">
+        <div className="about-how-heading">
+          <h2>
+            How a source
+            <br />
+            becomes a skill.
+          </h2>
+          <p>
+            Four moves, all yours.
+            <br />
+            Nothing is seeded, nothing is faked.
           </p>
-        ))}
+        </div>
+        <div className="about-ways">
+          {WAYS.map((way) => (
+            <div key={way.title} className="about-way">
+              <span
+                className="about-way-mark"
+                style={{ "--way-color": way.color } as React.CSSProperties}
+              >
+                {way.mark}
+              </span>
+              <div>
+                <h3>{way.title}</h3>
+                <p>{way.body}</p>
+                <span className="about-way-note">{way.note}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
-      <footer className="entry-footer">
+      <section className="about-made about-wrap">
+        <div className="about-section-heading">
+          <h2>
+            Yours,
+            <br />
+            not ours.
+          </h2>
+          <p>
+            Sources, attempts and progress stay inside your account —
+            grounded, private and honestly reported.
+          </p>
+        </div>
+        <div className="entry-promises">
+          <span className="entry-promise">every claim cites a segment</span>
+          <span className="entry-promise">untracked says so</span>
+          <span className="entry-promise">your data stays yours</span>
+        </div>
+      </section>
+
+      <footer className="entry-about-footer about-wrap">
         <p>
           PearNotes grows out of the MIT-licensed{" "}
           <a href="https://ourspaces.io" rel="noreferrer">
@@ -157,11 +247,7 @@ export function LandingPage({ live }: { live: boolean }) {
         </p>
       </footer>
 
-      <GetStartedModal
-        open={modalOpen}
-        live={live}
-        onClose={() => setModalOpen(false)}
-      />
+      <GetStartedModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </main>
   );
 }

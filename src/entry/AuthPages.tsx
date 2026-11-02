@@ -36,56 +36,140 @@ export function AuthScreen({
     SITE_PATHS.appRoot;
   const signingUp = kind === "sign-up";
 
+  /* Issue #63: the split editorial dialog becomes the page — poster
+     left (brand, collage, caption), form right. Same demo-waitlist
+     grammar as the Get Started modal. */
   return (
     <main className="entry-scaffold entry-auth" data-entry-screen={kind}>
-      <div className="entry-auth-card">
-        <button
-          type="button"
-          className="entry-back"
-          onClick={() => navigate(SITE_PATHS.landing)}
-        >
-          ‹ PearNotes
-        </button>
-        <span className="pn-kicker">
-          {signingUp ? "start learning" : "welcome back"}
-        </span>
-        <h1>{signingUp ? "create your account" : "sign in"}</h1>
-        <p className="entry-lede">
-          {signingUp
-            ? "an emailed code is the whole password — six digits, no form to remember."
-            : "same code as always — we'll email you six digits."}
-        </p>
-        {live ? <AuthForm kind={kind} next={next} /> : <BackendMissing />}
-        <p className="entry-fine">
-          {signingUp ? (
-            <>
-              been here before?{" "}
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(`${SITE_PATHS.signIn}?next=${encodeURIComponent(next)}`)
-                }
-              >
-                sign in instead
-              </button>
-            </>
-          ) : (
-            <>
-              new to PearNotes?{" "}
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(`${SITE_PATHS.signUp}?next=${encodeURIComponent(next)}`)
-                }
-              >
-                create an account
-              </button>
-            </>
-          )}
-        </p>
+      <div className="demo-waitlist-layout entry-auth-shell">
+        <div className="demo-poster" aria-hidden="true">
+          <div className="demo-poster-brand">
+            <img src="/assets/pearnotes-mark.svg" alt="" />
+            <span>PearNotes</span>
+          </div>
+          <div className="demo-poster-collage">
+            <div className="demo-poster-paper" />
+            <figure className="demo-poster-photo">
+              <img src="/assets/stickers/moon-sparkle.png" alt="" />
+            </figure>
+            <img
+              className="demo-poster-sticker"
+              src="/assets/stickers/sparkle-burst.png"
+              alt=""
+            />
+          </div>
+          <div className="demo-poster-caption">
+            <strong>
+              {signingUp ? (
+                <>
+                  Your place
+                  <br />
+                  to learn.
+                </>
+              ) : (
+                <>
+                  Welcome
+                  <br />
+                  back.
+                </>
+              )}
+            </strong>
+            <span>
+              {signingUp
+                ? "your desk starts empty — your sources fill it."
+                : "same you, same desk, same work."}
+            </span>
+          </div>
+        </div>
+
+        <div className="demo-waitlist-content">
+          <div className="demo-waitlist-topline">
+            <button
+              type="button"
+              className="demo-waitlist-back"
+              onClick={() => navigate(SITE_PATHS.landing)}
+            >
+              ← PearNotes
+            </button>
+            <button
+              type="button"
+              className="demo-waitlist-close"
+              onClick={() => navigate(SITE_PATHS.landing)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="demo-waitlist-body">
+            <h1 className="entry-auth-title">
+              {signingUp ? (
+                <>
+                  create your
+                  <br />
+                  <em>account.</em>
+                </>
+              ) : (
+                <>
+                  welcome
+                  <br />
+                  <em>back.</em>
+                </>
+              )}
+            </h1>
+            <p>
+              {signingUp
+                ? "an emailed code is the whole password — six digits, no form to remember."
+                : "same code as always — we'll email you six digits."}
+            </p>
+            {live ? <AuthForm kind={kind} next={next} /> : <BackendMissing />}
+            <p className="entry-fine">
+              {signingUp ? (
+                <>
+                  been here before?{" "}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        `${SITE_PATHS.signIn}?next=${encodeURIComponent(next)}`,
+                      )
+                    }
+                  >
+                    sign in instead
+                  </button>
+                </>
+              ) : (
+                <>
+                  new to PearNotes?{" "}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        `${SITE_PATHS.signUp}?next=${encodeURIComponent(next)}`,
+                      )
+                    }
+                  >
+                    create an account
+                  </button>
+                </>
+              )}
+            </p>
+          </div>
+        </div>
       </div>
     </main>
   );
+}
+
+/**
+ * Copy guard until E4's error taxonomy lands (AUTH_AND_ACCOUNT_RELIABILITY):
+ * the generic send failure must not read as "your address is wrong" —
+ * provider faults, quota and timeouts all land in the same string today.
+ */
+function friendlyAuthError(error: string): string {
+  return error === "couldn't send that. check the address?"
+    ? "couldn't send your code right now — your address may be fine. try again shortly."
+    : error;
 }
 
 /** The real form — mounted only inside ConvexAuthProvider (live). */
@@ -156,7 +240,7 @@ function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string })
           onComplete={(code) => void submitCode(code)}
           disabled={busy}
         />
-        {error ? <p className="entry-error">{error}</p> : null}
+        {error ? <p className="entry-error">{friendlyAuthError(error)}</p> : null}
         <button type="button" className="entry-back" onClick={restart}>
           ‹ use a different email
         </button>
@@ -189,7 +273,7 @@ function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string })
             {busy ? "sending…" : "send the code"}
           </button>
         </div>
-        {error ? <p className="entry-error">{error}</p> : null}
+        {error ? <p className="entry-error">{friendlyAuthError(error)}</p> : null}
       </form>
       {options?.google ? (
         <button
