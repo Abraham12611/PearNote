@@ -1,13 +1,17 @@
 # E3 · Zero-cost asset slots — usable TODAY, no Flora spend
 
-Everything below already ships in the repo (MIT-cleared upstream assets + approved E3 brand files). E1/E2 can build every listed slot at **$0**. Gaps stay gated behind `FLORA_PROPOSAL.md` batch approval. Status legend for `ASSET_MANIFEST.md`: these are the **E** (exists) and **C** (compose) slots made concrete.
+Everything below already ships in the repo — E1/E2 can build every listed slot at **$0**, no generation needed. Gaps stay gated behind `FLORA_PROPOSAL.md` batch approval. Status legend for `ASSET_MANIFEST.md`: these are the **E** (exists) and **C** (compose) slots made concrete.
+
+> **Rights note:** the repository's *code* is MIT-licensed OurSpaces. **Media assets are not automatically MIT-cleared** — illustrated avatars, stickers, textures and brand files are in-repo and safe for in-app use, but anything containing stock/third-party photography (people photos, demo-video scenes, link-card art, space covers, the email header) needs a per-asset rights confirmation before use beyond the app (marketing, OG, external). Items flagged ⚠ below.
 
 ## Avatars — persona pack (E2: profile, chooser, cursor, friends capsule)
 
+Repository holds **27 unique avatar PNGs**: 8 canonical starter portraits + 19 additional unique portraits.
+
 | Slot | Use | Notes |
 |---|---|---|
-| 8 personas | `public/avatars/{juno,momo,pico,wren,ziggy,clover,pepper,kiwi}.png` | canonical set — `VISITOR_AVATAR_NAMES` in `src/data/avatars.ts`; cursor accent per `AVATAR_PLAN.md` |
-| +20 alternates | `public/avatars/{alex,ash,casey,dev,gigi,jordan,jules,kenji,marco,maya,morgan,noor,priya,ren,riley,rio,sam,sky,theo,momo}.png` | same clay family — reserve as chooser overflow/custom fallback |
+| 8 canonical personas | `public/avatars/{juno,momo,pico,wren,ziggy,clover,pepper,kiwi}.png` | starter set — `VISITOR_AVATAR_NAMES` in `src/data/avatars.ts`; cursor accent per `AVATAR_PLAN.md` |
+| 19 alternates | `public/avatars/{alex,ash,casey,dev,gigi,jordan,jules,kenji,marco,maya,morgan,noor,priya,ren,riley,rio,sam,sky,theo}.png` | same clay family — chooser overflow / demo people / custom fallback |
 | Cursor face chips | derive 64px center-crops from each persona PNG locally | $0 — PIL/sips resize, face stays upper-third |
 | `people-capsule` | overlapping rings of the same PNGs | DOM composition — `MemberFace` ancestor |
 
@@ -23,14 +27,14 @@ Everything below already ships in the repo (MIT-cleared upstream assets + approv
 | Paper textures ×5 | `public/assets/textures/{note-paper,note-torn-paper,daily-question-paper,link-shelf-ledger,widget-paper-v1}.*` | card/slip backgrounds, library stack, calendar board |
 | Hardware | `public/assets/ui/quote-pushpin.png` | pinned-note accents |
 | Posters ×3 | `public/assets/cozy-{color-poster,poster-starry,poster-wave}.svg` | hero field backgrounds, section breaks |
-| Link-card art ×4 palettes | `public/assets/link-card-{ceramic,collage-amber,collage-teal,collage-violet,riso,textile}.{png,webp}` + `link-card-fallback.*` | landing "study in a space" spot, Library card faces |
-| Space covers ×4 | `public/assets/space-covers/{game-day,the-family,the-house,us-two}.png` | Groups room cards — real groups get own covers |
+| Link-card art ×4 palettes | `public/assets/link-card-{ceramic,collage-amber,collage-teal,collage-violet,riso,textile}.{png,webp}` + `link-card-fallback.*` ⚠ | landing "study in a space" spot, Library card faces — stock-derived art, confirm before external use |
+| Space covers ×4 | `public/assets/space-covers/{game-day,the-family,the-house,us-two}.png` ⚠ | Groups room cards — photo covers, real groups get own covers |
 
-## Photo collage stock (E1: hero + story sections)
+## Photo collage stock (E1: hero + story sections) ⚠ rights-confirm
 
-- `public/photos/crew/*.jpg` — camera-roll, friday-at-mayas, paint-night, pizza-night, rio-socks, roof-dusk, tahoe-sunrise (7 full scenes + `thumbs/`)
-- `public/photos/couple`, `hackathon` dirs; `compare.svg`, `lotus-night.svg`, `same-moon.svg`, `window-garden.svg`
-- `public/demo-video-assets/*.jpg` — desk/board scenes (holly-desk, thomas-desk, build-room-pile, crawl-strip, reading-circle, keep-takeaway, link-card-arrival, myspace-glitter, chat-crew, feed-photos) — hero collage "mini canvas" frames, modal scene panel base
+- `public/photos/crew/*.jpg` — camera-roll, friday-at-mayas, paint-night, pizza-night, rio-socks, roof-dusk, tahoe-sunrise (7 full scenes + `thumbs/`) ⚠ contains people/photography — confirm rights before external use
+- `public/photos/couple`, `hackathon` dirs; `compare.svg`, `lotus-night.svg`, `same-moon.svg`, `window-garden.svg` ⚠
+- `public/demo-video-assets/*.jpg` — desk/board scenes (holly-desk, thomas-desk, build-room-pile, crawl-strip, reading-circle, keep-takeaway, link-card-arrival, myspace-glitter, chat-crew, feed-photos) — hero collage "mini canvas" frames, modal scene panel base ⚠ third-party/stock imagery — in-app reuse OK pending audit, not for OG/marketing
 
 ## Icon treatments (E2: dock + widget chrome)
 
