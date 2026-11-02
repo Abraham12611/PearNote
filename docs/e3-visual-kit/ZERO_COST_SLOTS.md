@@ -2,7 +2,7 @@
 
 Everything below already ships in the repo — E1/E2 can build every listed slot at **$0**, no generation needed. Gaps stay gated behind `FLORA_PROPOSAL.md` batch approval. Status legend for `ASSET_MANIFEST.md`: these are the **E** (exists) and **C** (compose) slots made concrete.
 
-> **Rights note:** the repository's *code* is MIT-licensed OurSpaces. **Media assets are not automatically MIT-cleared** — illustrated avatars, stickers, textures and brand files are in-repo and safe for in-app use, but anything containing stock/third-party photography (people photos, demo-video scenes, link-card art, space covers, the email header) needs a per-asset rights confirmation before use beyond the app (marketing, OG, external). Items flagged ⚠ below.
+> **Rights note:** the repository's *code* is MIT-licensed OurSpaces. **Media assets are not automatically MIT-cleared** — illustrated avatars, stickers, textures and brand files exist in-repo but are not independently cleared by this manifest; anything containing stock/third-party photography (people photos, demo-video scenes, link-card art, space covers, the email header) needs a per-asset rights confirmation before use beyond the app (marketing, OG, external). Items flagged ⚠ below.
 
 ## Avatars — persona pack (E2: profile, chooser, cursor, friends capsule)
 
@@ -34,11 +34,11 @@ Repository holds **27 unique avatar PNGs**: 8 canonical starter portraits + 19 a
 
 - `public/photos/crew/*.jpg` — camera-roll, friday-at-mayas, paint-night, pizza-night, rio-socks, roof-dusk, tahoe-sunrise (7 full scenes + `thumbs/`) ⚠ contains people/photography — confirm rights before external use
 - `public/photos/couple`, `hackathon` dirs; `compare.svg`, `lotus-night.svg`, `same-moon.svg`, `window-garden.svg` ⚠
-- `public/demo-video-assets/*.jpg` — desk/board scenes (holly-desk, thomas-desk, build-room-pile, crawl-strip, reading-circle, keep-takeaway, link-card-arrival, myspace-glitter, chat-crew, feed-photos) — hero collage "mini canvas" frames, modal scene panel base ⚠ third-party/stock imagery — in-app reuse OK pending audit, not for OG/marketing
+- `public/demo-video-assets/*.jpg` — desk/board scenes (holly-desk, thomas-desk, build-room-pile, crawl-strip, reading-circle, keep-takeaway, link-card-arrival, myspace-glitter, chat-crew, feed-photos) — hero collage "mini canvas" frames, modal scene panel base ⚠ third-party/stock imagery — verify permissions for all uses, especially OG/marketing
 
 ## Icon treatments (E2: dock + widget chrome)
 
-- **Dock glyph family exists** — `src/pearnotes/shell/app/AppRail.tsx` `ICONS` map: 7 inline SVGs (home/learn/library/groups/achievements/profile/settings), consistent `viewBox 96`, shared stroke props. **Keep this family**, restyle stroke to the 2–3px ink spec if needed — no new icon art required for v1.
+- **Custom SVG dock icons already exist in the baseline** — the original `src/pearnotes/shell/app/AppRail.tsx` `ICONS` map contains 7 inline SVGs (home/learn/library/groups/achievements/profile/settings), consistent `viewBox 96`. Dock refactor PR #73 may remove that file: **migrate/reuse its existing SVG icon shapes before deletion**, inside the actual OurSpaces native Rail frame. Don't substitute emoji/text glyphs for the owner's requested custom icons; no new generated icon art is needed for v1.
 - **Journey stickers in code** — `src/pearnotes/ui/journeyAssets.ts` `JOURNEY_STICKERS` theme map (`pickSticker`) already supplies path stickers; extend the theme list rather than replacing it.
 - **Path node states** — `JourneyNode.tsx` draws current/completed/locked in code; keep states out of artwork.
 
