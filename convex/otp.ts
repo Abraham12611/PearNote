@@ -8,11 +8,13 @@
 // create one (docs/firecrawl-agentmail-setup.md § Gotchas).
 import { Email } from "@convex-dev/auth/providers/Email";
 import type { EmailConfig } from "@convex-dev/auth/server";
+import { ConvexError } from "convex/values";
 import { components } from "./_generated/api";
 import { env, type ActionCtx } from "./_generated/server";
 import type { DataModel } from "./_generated/dataModel";
 import { rateLimiter } from "./rateLimits";
 import { signInCodeLifetimeMinutes, signInEmail } from "./emails/signIn";
+import { classifyOtpSendError, maskEmail } from "./authFlow";
 
 const API = "https://api.agentmail.to/v0";
 
@@ -36,18 +38,38 @@ const sendCode = (async (
   { identifier: email, token }: { identifier: string; token: string },
   ctx: ActionCtx,
 ) => {
+  // Deployment fault → explicit category BEFORE any provider call: without
+  // the key every send fails, and the old code surfaced that to the owner
+  // as "check the address?" — the exact reported bug's blind spot.
+  if (!env.AGENTMAIL_API_KEY) {
+    console.error(
+      JSON.stringify({ otpSend: "PROVIDER_UNCONFIGURED", reason: "AGENTMAIL_API_KEY unset", to: maskEmail(email) }),
+    );
+    throw new ConvexError({ code: "PROVIDER_UNCONFIGURED", message: "email provider not configured" });
+  }
   await rateLimiter.limit(ctx, "otpSend", {
     key: email.toLowerCase(),
     throws: true,
   });
-  await ctx.runAction(components.agentMail.lib.sendMessage, {
-    apiKey: env.AGENTMAIL_API_KEY,
-    baseUrl: API,
-    inboxId: OTP_INBOX_ID,
-    to: [email],
-    ...signInEmail(token, env.CONVEX_SITE_URL),
-    labels: ["otp"],
-  });
+  try {
+    await ctx.runAction(components.agentMail.lib.sendMessage, {
+      apiKey: env.AGENTMAIL_API_KEY,
+      baseUrl: API,
+      inboxId: OTP_INBOX_ID,
+      to: [email],
+      ...signInEmail(token, env.CONVEX_SITE_URL ?? ""),
+      labels: ["otp"],
+    });
+  } catch (thrown) {
+    // Structured category + correlation id for the runbook; masked address
+    // only — never the key, token or full email in logs or client errors.
+    const { code, operatorHint } = classifyOtpSendError(thrown);
+    const corr = crypto.randomUUID().slice(0, 8);
+    console.error(
+      JSON.stringify({ otpSend: code, hint: operatorHint, corr, to: maskEmail(email) }),
+    );
+    throw new ConvexError({ code, message: `email send failed [${corr}]` });
+  }
 }) as unknown as EmailConfig["sendVerificationRequest"];
 
 export const EmailOtp = Email<DataModel>({

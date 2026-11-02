@@ -17,6 +17,7 @@ import { EmailOtp, OTP_PROVIDER_ID } from "./otp";
 import type { DataModel, Id } from "./_generated/dataModel";
 import { env, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { safeOAuthRedirect } from "./authFlow";
 
 /**
  * Which `users` row a sign-in resolves to. Supplying this means we own ALL
@@ -174,13 +175,10 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     createOrUpdateUser,
     // Where Google sends people back. The client passes its own full URL so
     // a dev server on localhost round-trips too; anything else falls back
-    // to the site.
-    redirect: async ({ redirectTo }) => {
-      const site = env.SITE_URL ?? "";
-      if (redirectTo.startsWith("/") || redirectTo.startsWith("?")) return `${site}${redirectTo}`;
-      if (redirectTo.startsWith(site) || /^http:\/\/localhost:\d+\//.test(redirectTo)) return redirectTo;
-      return site;
-    },
+    // to the site. Strict origin match — `startsWith(site)` alone would let
+    // https://<site>.evil.com/... slip through (AUTH_AND_ACCOUNT_RELIABILITY
+    // §Google OAuth checklist).
+    redirect: async ({ redirectTo }) => safeOAuthRedirect(redirectTo, env.SITE_URL ?? ""),
   },
 });
 
