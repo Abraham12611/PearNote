@@ -16,8 +16,14 @@
  * regardless of stylesheet order.
  * ------------------------------------------------------------------ */
 
-.pnj {
+.pn-drawer.pnj {
   position: relative;
+  /* above the desk wall (.room-knows sits at 100500) — the path drawer
+     overlays the desk it slides in from */
+  z-index: 100600;
+}
+
+.pnj {
   /* flat dark body — the reference has no dot-grid texture */
   background-image: none;
 }
