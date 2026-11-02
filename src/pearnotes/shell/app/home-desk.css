@@ -1,0 +1,106 @@
+/* HomeDesk (#64b) — desk-scoped adjustments to the reused .knows-*
+   grammar. Everything heavy (sheets, sections, faces, empties) lives in
+   src/components/room-knows.css; these are only the PearNotes
+   adaptations. */
+
+.pna-desk {
+  /* knows page is absolute over the board; the desk flows in .pna-main */
+  position: relative;
+  min-height: 100%;
+  inset: auto;
+  border-radius: 0;
+}
+
+.pna-desk-scroll {
+  padding: 42px 40px 64px;
+}
+
+.pna-desk-ctas {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  align-items: center;
+}
+
+/* subjects in the knows-people portrait row are buttons here */
+.pna-desk-person {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+}
+
+.pna-desk-person.is-add .knows-face {
+  border-style: dashed;
+  background: transparent;
+  color: var(--pn-lime);
+}
+
+/* subject tile = person sticker + honest source-status line */
+.pna-desk-subjects {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 14px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pna-desk-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pna-desk-tile em {
+  font-size: 11px;
+  font-style: normal;
+  color: #6b5f50;
+}
+
+/* resume card — a paper tile in the knows line-tile spirit */
+.pna-desk-resume {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid #2a251e;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 3px 4px 0 rgba(29, 23, 18, 0.18);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: translate 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.pna-desk-resume:hover {
+  translate: 0 -2px;
+  box-shadow: 4px 6px 0 rgba(29, 23, 18, 0.22);
+}
+
+.pna-desk-resume em {
+  font-size: 11px;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: #6b5f50;
+}
+
+.pna-desk-resume .pn-cta { margin-top: 8px; }
+
+@media (max-width: 800px) {
+  .pna-desk-scroll { padding: 26px 18px 96px; }
+}
