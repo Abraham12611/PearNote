@@ -84,7 +84,11 @@ for (const surface of SURFACES) {
     if (report.over.length) bad.push(`overflow: ${report.over.join(" | ")}`);
     for (const want of surface.controls) {
       const hit = report.controls.find((c) => c.text.includes(want));
-      if (hit && (hit.left < -0.5 || hit.right > report.vw + 0.5)) {
+      /* a missing control is a failure too — before, absence simply
+         skipped the bounds check and silently passed (review #70). */
+      if (!hit) {
+        bad.push(`required control "${want}" missing`);
+      } else if (hit.left < -0.5 || hit.right > report.vw + 0.5) {
         bad.push(`control "${want}" clipped [${Math.round(hit.left)}..${Math.round(hit.right)}]`);
       }
     }

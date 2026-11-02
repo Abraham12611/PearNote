@@ -2,7 +2,8 @@ import { useCallback, useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { sendFailureCopy } from "../../convex/authFlow";
+import { maskEmail, sendFailureCopy } from "../../convex/authFlow";
+import { verifyFailureCopy } from "../entry/authErrors";
 
 /**
  * "Join" — the emailed six-digit code (convex/otp.ts). Two steps, one card:
@@ -19,18 +20,17 @@ export type JoinStage = "email" | "code" | "done";
  * "Couldn’t send" is NOT proof the address is wrong — the failure taxonomy
  * lives in convex/authFlow.ts (AUTH_AND_ACCOUNT_RELIABILITY.md): provider
  * misconfiguration, send rejection and transport faults all get the same
- * honest retry copy, while rate limits surface the real cooldown.
+ * honest retry copy, while rate limits surface the real cooldown. The
+ * hook carries the structured `errorCode` alongside the message so the
+ * form can answer each category properly.
  */
-function sendFailureMessage(thrown: unknown) {
-  return sendFailureCopy(thrown).message;
-}
-
 export function useJoin() {
   const { signIn } = useAuthActions();
   const [stage, setStage] = useState<JoinStage>("email");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const sendCode = useCallback(
     async (value: string) => {
@@ -41,12 +41,15 @@ export function useJoin() {
       }
       setBusy(true);
       setError(null);
+      setErrorCode(null);
       try {
         await signIn("email-otp", { email: address });
         setEmail(address);
         setStage("code");
       } catch (thrown) {
-        setError(sendFailureMessage(thrown));
+        const copy = sendFailureCopy(thrown);
+        setError(copy.message);
+        setErrorCode(copy.code);
       } finally {
         setBusy(false);
       }
@@ -63,12 +66,15 @@ export function useJoin() {
       }
       setBusy(true);
       setError(null);
+      setErrorCode(null);
       try {
         await signIn("email-otp", { email, code: digits });
         setStage("done");
         return true;
-      } catch {
-        setError("that code didn't work. check it, or start over");
+      } catch (thrown) {
+        const copy = verifyFailureCopy(thrown);
+        setError(copy.message);
+        setErrorCode(copy.code);
         return false;
       } finally {
         setBusy(false);
@@ -80,6 +86,7 @@ export function useJoin() {
   const restart = useCallback(() => {
     setStage("email");
     setError(null);
+    setErrorCode(null);
   }, []);
 
   /* Google: a redirect round-trip. The page leaves, Google asks, the page
@@ -97,7 +104,18 @@ export function useJoin() {
     }
   }, [signIn]);
 
-  return { stage, email, busy, error, sendCode, verify, restart, google };
+  return {
+    stage,
+    email,
+    maskedEmail: email ? maskEmail(email) : "",
+    busy,
+    error,
+    errorCode,
+    sendCode,
+    verify,
+    restart,
+    google,
+  };
 }
 
 /**

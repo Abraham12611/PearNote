@@ -18,6 +18,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { CodeSlots } from "../components/CodeSlots";
 import { useJoin } from "../live/useJoin";
+import { errorHint } from "./authErrors";
 import { navigate } from "./location";
 import { safeNextPath, SITE_PATHS } from "./paths";
 import { BackendMissing } from "./screens";
@@ -161,24 +162,14 @@ export function AuthScreen({
   );
 }
 
-/**
- * Copy guard until E4's error taxonomy lands (AUTH_AND_ACCOUNT_RELIABILITY):
- * the generic send failure must not read as "your address is wrong" —
- * provider faults, quota and timeouts all land in the same string today.
- */
-function friendlyAuthError(error: string): string {
-  return error === "couldn't send that. check the address?"
-    ? "couldn't send your code right now — your address may be fine. try again shortly."
-    : error;
-}
-
 /** The real form — mounted only inside ConvexAuthProvider (live). */
 function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string }) {
   const { isLoading, isAuthenticated } = useConvexAuth();
   const { signIn } = useAuthActions();
   const user = useQuery(api.auth.currentUser, {});
   const options = useQuery(api.auth.signInOptions, {});
-  const { stage, email, busy, error, sendCode, verify, restart } = useJoin();
+  const { stage, maskedEmail, busy, error, errorCode, sendCode, verify, restart } =
+    useJoin();
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -232,7 +223,8 @@ function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string })
         }}
       >
         <p className="entry-lede">
-          six numbers, on their way to <strong>{email}</strong>.
+          six numbers, on their way to <strong>{maskedEmail}</strong> — check
+          Inbox and Spam.
         </p>
         <CodeSlots
           value={draft}
@@ -240,9 +232,11 @@ function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string })
           onComplete={(code) => void submitCode(code)}
           disabled={busy}
         />
-        {error ? <p className="entry-error">{friendlyAuthError(error)}</p> : null}
+        {error ? <p className="entry-error">{error}</p> : null}
         <button type="button" className="entry-back" onClick={restart}>
-          ‹ use a different email
+          {errorCode === "CODE_EXPIRED" || errorCode === "CODE_CONSUMED"
+            ? "‹ request a new code"
+            : "‹ use a different email"}
         </button>
       </form>
     );
@@ -273,7 +267,16 @@ function AuthForm({ kind, next }: { kind: "sign-in" | "sign-up"; next: string })
             {busy ? "sending…" : "send the code"}
           </button>
         </div>
-        {error ? <p className="entry-error">{friendlyAuthError(error)}</p> : null}
+        {error ? (
+          <p className="entry-error">
+            {error}
+            {errorHint(errorCode, options?.google === true) ? (
+              <span className="entry-error-hint">
+                {errorHint(errorCode, options?.google === true)}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
       </form>
       {options?.google ? (
         <button
