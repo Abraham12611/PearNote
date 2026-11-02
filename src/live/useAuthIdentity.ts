@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useAuthActions, useConvexAuth } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import { adoptAuthUserId, updateIdentity, useIdentity } from "./identity";
+import { mayMirrorLocalEdit, mergeServerIdentity, shouldHydrate, type LocalIdentity } from "./identitySync";
 
 /**
  * Silent guest sign-in. Runs once the provider has settled and reports the
@@ -55,36 +56,58 @@ export function useAuthIdentity(options?: { silentGuest?: boolean }) {
   const latestUser = useRef(user);
   latestUser.current = user;
 
+  /* The tab's OWN minted persona, captured once before any adoption. Every
+     account transition restores THIS — so A's profile can never render
+     inside B's session and stale A-fields can't be mirrored into B's row
+     (Issue #76). Guests keep it the whole time — original behavior. */
+  const base = useRef<LocalIdentity | null>(null);
+  if (base.current === null) {
+    base.current = {
+      name: identity.name,
+      color: identity.color,
+      emoji: identity.emoji,
+      avatarUrl: identity.avatarUrl,
+    };
+  }
+
   useEffect(() => {
     if (user?.userId) adoptAuthUserId(user.userId);
   }, [user?.userId]);
 
   const joinedId = user && !user.isAnonymous ? user.userId : null;
 
-  // Down: once per joined user.
+  // Transition: account switch OR sign-out — back to the neutral base and
+  // re-arm hydration. Same joinedId (token refresh, reload) never resets.
+  const prevJoined = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    if (!joinedId || hydratedFor.current === joinedId) return;
-    hydratedFor.current = joinedId;
-    const saved = latestUser.current;
-    if (!saved?.name) return;
-    updateIdentity({
-      name: saved.name,
-      ...(saved.color ? { color: saved.color } : {}),
-      ...(saved.emoji ? { emoji: saved.emoji } : {}),
-      ...(saved.image ? { avatarUrl: saved.image } : {}),
-    });
+    if (prevJoined.current === joinedId) return;
+    prevJoined.current = joinedId;
+    hydratedFor.current = null;
+    if (base.current) updateIdentity({ ...base.current });
   }, [joinedId]);
 
-  // Up: mirror edits, after hydration, only when the row would change.
+  // Down: once per joined user — server profile wins per-field.
   useEffect(() => {
-    if (!joinedId || hydratedFor.current !== joinedId) return;
+    if (!shouldHydrate(joinedId, hydratedFor.current)) return;
+    hydratedFor.current = joinedId;
+    const saved = latestUser.current;
+    if (saved === undefined || saved === null || !base.current) return;
+    updateIdentity(mergeServerIdentity(saved, base.current));
+  }, [joinedId, user]);
+
+  // Up: mirror edits — only for the hydrated account, only when the row
+  // would change. The A→logout→B window (hydratedFor still A/null) is
+  // structurally locked out.
+  useEffect(() => {
+    if (!mayMirrorLocalEdit({ joinedId, hydratedFor: hydratedFor.current, hasServerProfile: !!user })) return;
     const timer = window.setTimeout(() => {
       const saved = latestUser.current;
+      if (!saved || String(saved.userId) !== String(joinedId)) return;
       if (
-        saved?.name === identity.name &&
-        saved?.color === identity.color &&
-        saved?.emoji === identity.emoji &&
-        saved?.image === identity.avatarUrl
+        saved.name === identity.name &&
+        saved.color === identity.color &&
+        saved.emoji === identity.emoji &&
+        saved.image === identity.avatarUrl
       ) {
         return;
       }
@@ -98,7 +121,7 @@ export function useAuthIdentity(options?: { silentGuest?: boolean }) {
       });
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [joinedId, identity.name, identity.color, identity.emoji, identity.avatarUrl, updateProfile]);
+  }, [joinedId, user, identity.name, identity.color, identity.emoji, identity.avatarUrl, updateProfile]);
 }
 
 /** Renderless mount point, so the hook only runs inside the Convex provider. */
