@@ -58,13 +58,13 @@ import { PearNotesDock } from "./PearNotesDock";
 import { HomeDesk } from "./HomeDesk";
 import { LibraryDesk } from "./LibraryDesk";
 import { ShelfDesk } from "./ShelfDesk";
+import { GroupsDesk } from "./GroupsDesk";
+import { ProfileDesk } from "./ProfileDesk";
+import { SettingsDesk } from "./SettingsDesk";
 import { Boundary } from "./Boundary";
 import {
-  GroupsPage,
   LoadingSlip,
   NotFoundPage,
-  ProfilePage,
-  SettingsPage,
   UnauthorizedPage,
 } from "./pages";
 import {
@@ -73,6 +73,7 @@ import {
   appLessonPath,
   appNavKeyFor,
   appNewPath,
+  appProfilePath,
   appRouteFromPathname,
   appSourcesPath,
   appSubjectPath,
@@ -348,18 +349,31 @@ function PearNotesApp({
           />
         );
       case "groups":
-        return <GroupsPage onOpenSpaces={openSpaces} />;
+        return (
+          <GroupsDesk
+            learnerName={learnerName}
+            live={policy.liveReads && authState === "ready" && !fixtureLabel}
+            onOpenSpace={(slug) => goExternal(`#/space/${slug}`)}
+            onOpenSpaces={openSpaces}
+          />
+        );
       case "achievements":
         return <ShelfDesk learnerName={learnerName} onLearn={() => navigate(appLearnPath())} />;
       case "profile":
         return (
-          <ProfilePage
+          <ProfileDesk
             learnerName={learnerName}
-            live={policy.liveReads && !fixtureLabel}
+            live={policy.liveReads && authState === "ready" && !fixtureLabel}
           />
         );
       case "settings":
-        return <SettingsPage />;
+        return (
+          <SettingsDesk
+            learnerName={learnerName}
+            live={policy.liveReads && authState === "ready" && !fixtureLabel}
+            onOpenProfile={() => navigate(appProfilePath())}
+          />
+        );
       case "notfound":
         return <NotFoundPage path={route.path} onHome={goHome} />;
       /* home, learn, new, path, sources — the desk with modal overlays;

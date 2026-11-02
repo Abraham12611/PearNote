@@ -86,3 +86,8 @@
 @media (max-width: 800px) {
   .pna-desk-scroll { padding: 26px 18px 96px; }
 }
+
+/* profile face card — a .knows-person sticker made larger for the page */
+.pna-profile-face-card { pointer-events: none; padding: 16px 22px; }
+.pna-face-img { border-radius: 50%; object-fit: cover; }
+.knows-person.is-picked { outline: 3px solid var(--pn-lime); }
