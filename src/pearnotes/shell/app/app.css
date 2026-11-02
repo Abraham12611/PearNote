@@ -194,7 +194,7 @@
 
 /* ---- responsive: rail becomes a bottom bar ------------------------------- */
 
-@media (max-width: 720px) {
+@media (max-width: 800px) {
   .pna-app { flex-direction: column-reverse; }
   .pna-main { padding-left: 0; padding-bottom: 100px; }
   
@@ -215,12 +215,24 @@
   margin: 0 auto;
 }
 
-/* #64 — E1's demo ribbon (.entry-demo-ribbon, fixed bottom pill, z60)
-   overlaps the native bottom dock on narrow screens. Lift the dock
-   clear of it when both are present — mobile only; the desktop rail
-   sits top-left and never collides. */
+/* #64 — the mobile bottom dock gets the native horizontally-accessible
+   arrangement: .space-list becomes a scrollable strip (six tiles always
+   reachable), while the create tile and rail-you stay pinned at the
+   ends. Original geometry/shape/animation untouched — the strip only
+   scrolls what can't fit, on the real native 800px breakpoint. */
 @media (max-width: 800px) {
-  body:has(.entry-demo-ribbon) .space-rail {
-    bottom: 76px;
+  .pna-app .space-list {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding: 6px 4px;
   }
+  .pna-app .space-list::-webkit-scrollbar { display: none; }
+  .pna-app .space-list .space-link-wrap { flex: 0 0 auto; }
+  /* E1's demo ribbon (fixed bottom pill, z60) overlapped the bottom
+     dock — lift the dock clear when both render. */
+  body:has(.entry-demo-ribbon) .pna-app .space-rail { bottom: 76px; }
 }

@@ -178,21 +178,24 @@ export function PearNotesDock({
           );
         })}
 
-        <div
-          className="space-link-wrap"
-          style={{ "--i": DOCK_ITEMS.length } as CSSProperties}
+      </div>
+
+      {/* `+` stays pinned outside the scrollable strip (mobile keeps it
+          a tap away at the rail's end, like the original's create tile). */}
+      <div
+        className="space-link-wrap"
+        style={{ "--i": DOCK_ITEMS.length } as CSSProperties}
+      >
+        <button
+          type="button"
+          className="create-space-button"
+          aria-label={DOCK_CREATE.label}
+          data-testid="nav-create"
+          onClick={onCreate}
         >
-          <button
-            type="button"
-            className="create-space-button"
-            aria-label={DOCK_CREATE.label}
-            data-testid="nav-create"
-            onClick={onCreate}
-          >
-            <span>+</span>
-          </button>
-          <span className="space-tooltip">{DOCK_CREATE.label}</span>
-        </div>
+          <span>+</span>
+        </button>
+        <span className="space-tooltip">{DOCK_CREATE.label}</span>
       </div>
 
       {self && (
