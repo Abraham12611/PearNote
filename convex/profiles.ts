@@ -214,18 +214,18 @@ export async function seedPersona(
   userId: Id<"users">,
 ) {
   const u = await db.get(userId);
-  if (u === null || u.personaId !== undefined) return;
-  const persona = defaultPersonaFor(String(userId));
-  await db.patch(userId, {
-    personaId: persona.id,
-    // A server-side name is REQUIRED at seed time — `useAuthIdentity` skips
-    // hydration when `saved.name` is absent and would push a locally made-up
-    // identity over the account profile (review follow-up). Only fill when
-    // absent: custom names, guest-upgrade names and photos always win.
-    ...(u.name === undefined || u.name === "" ? { name: persona.label.toLowerCase() } : {}),
-    ...(u.color === undefined ? { color: persona.accent } : {}),
-    ...(u.image === undefined ? { image: personaImagePath(persona.id) } : {}),
-  });
+  if (u === null) return;
+  // Repair, never re-roll (review): a partially initialized account keeps
+  // its ASSIGNED persona and only has the missing display fields filled.
+  const known = personaById(u.personaId ?? "");
+  const persona = known ?? defaultPersonaFor(String(userId));
+  const patch: Record<string, string> = {};
+  // Unknown/legacy persona ids are repaired to a valid catalog persona too.
+  if (u.personaId === undefined || known === undefined) patch.personaId = persona.id;
+  if (u.name === undefined || u.name === "") patch.name = persona.label.toLowerCase();
+  if (u.color === undefined) patch.color = persona.accent;
+  if (u.image === undefined) patch.image = personaImagePath(persona.id);
+  if (Object.keys(patch).length > 0) await db.patch(userId, patch);
 }
 
 /** Exported so E2's UI can render the same catalog (ids are stable). */

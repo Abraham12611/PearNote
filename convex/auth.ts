@@ -329,11 +329,13 @@ export const updateProfile = mutation({
       patch.emoji = emoji === "" ? undefined : emoji;
     }
     if (args.image !== undefined) {
-      // Authorized custom photos only: catalog paths (checkImageRef) or a
-      // Convex storage ref — never an arbitrary external URL.
-      patch.image = args.image.startsWith("_storage/") || args.image.startsWith("storage:")
-        ? args.image
-        : checkImageRef(args.image);
+      // Catalog paths only. Raw storage refs are REJECTED (review): a
+      // storage:_storage/ prefix doesn't prove the object exists or is
+      // owned by the caller — foreign storageIds are observable in room
+      // data. A verified avatar-upload flow needs an owner-bound commit
+      // recorded atomically with the upload — until it exists, custom
+      // profile photos via ref are closed.
+      patch.image = checkImageRef(args.image);
     }
     if (Object.keys(patch).length > 0) await ctx.db.patch(userId, patch);
     return null;

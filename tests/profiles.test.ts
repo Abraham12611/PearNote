@@ -176,12 +176,44 @@ describe("legacy auth.updateProfile — unified validation", () => {
     const r = await asA.mutation(api.auth.updateProfile, { name: "Ada", color: "#a1b2c3", emoji: "🍒", image: "/avatars/wren.png" });
     expect(r).toBeNull();
   });
-  test("guest rows are inert; account A never reaches account B", async () => {
+  test("guest rows are inert — the identity-sync mutation can't write them", async () => {
     const t = convexTest(schema, modules);
     const gId = await t.run(async (ctx) => ctx.db.insert("users", { isAnonymous: true, name: "g" }));
     const r = await t.withIdentity({ subject: `${gId}|s` }).mutation(api.auth.updateProfile, { name: "hax" });
     expect(r).toBeNull();
     expect((await t.run(async (ctx) => ctx.db.get(gId)))!.name).toBe("g");
+  });
+  test("forged/foreign storage references are rejected — no owner binding exists", async () => {
+    const { asA } = await seed();
+    for (const forged of [
+      "storage:kg2abc123def456",
+      "_storage/kg2abc123def456",
+      "storage://kg2abc123def456",
+      "_storage/../../../../etc",
+      " storage:kg2abc",
+    ]) {
+      await expect(asA.mutation(api.auth.updateProfile, { image: forged }))
+        .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+      await expect(asA.mutation(api.profiles.update, { image: forged }))
+        .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+    }
+  });
+  test("partially initialized account repaired: persona kept, missing fields filled", async () => {
+    const t = convexTest(schema, modules);
+    // personaId set, but no name/image/color — the legacy partial state.
+    const id = await t.run(async (ctx) => ctx.db.insert("users", { personaId: "wren" }));
+    await t.run((ctx) => seedPersona(ctx.db, id));
+    const u = await t.run(async (ctx) => ctx.db.get(id));
+    expect(u!.personaId).toBe("wren");                     // not re-rolled
+    expect(u!.name).toBe("wren");
+    expect(u!.color).toBe(personaById("wren")!.accent);
+    expect(u!.image).toBe("/avatars/wren.png");
+    // Bogus legacy personaId is repaired to a valid catalog persona.
+    const bad = await t.run(async (ctx) => ctx.db.insert("users", { personaId: "ghost", name: "x" }));
+    await t.run((ctx) => seedPersona(ctx.db, bad));
+    const bu = await t.run(async (ctx) => ctx.db.get(bad));
+    expect(PERSONA_IDS).toContain(bu!.personaId);
+    expect(bu!.name).toBe("x"); // existing name preserved even on repair
   });
 });
 
