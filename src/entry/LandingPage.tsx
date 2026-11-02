@@ -55,31 +55,36 @@ const WAYS = [
 ] as const;
 
 /* Hero collage — the About board preview's grammar (frame, labelled
-   board, photo, note, sticker) carrying PearNotes' payload: a lesson
-   board mid-study. Illustrative, like the original birthday board. */
+   board, paper cards, path strip, one sticker, tail chip) carrying
+   PearNotes' payload: a source becoming a lesson. Paper cards replace
+   the party photo/stickers so it reads as study, not a birthday board. */
 function LessonBoardPreview() {
   return (
     <div className="about-preview" aria-hidden="true">
       <div className="about-board-frame">
         <div className="about-board entry-lesson-board">
           <span className="about-board-label">
-            your first lesson <span>✳</span>
+            a source, becoming a lesson <span>✳</span>
           </span>
-          <div className="entry-board-source about-note">
+          <div className="entry-board-source">
             <strong>your source</strong>
-            <span>page 14 — highlighted</span>
+            <span>page 14 — the part you highlighted</span>
           </div>
-          <figure className="about-photo entry-board-photo">
-            <img src="/assets/stickers/ours.png" alt="" />
-          </figure>
-          <div className="about-preview-poll entry-board-path">
-            <span className="entry-path-node" />
-            <span className="entry-path-node" />
-            <span className="entry-path-node is-next" />
+          <span className="entry-board-arrow">→</span>
+          <div className="entry-board-lesson">
+            <strong>your lesson</strong>
+            <span className="entry-board-path">
+              <span className="entry-path-node" />
+              <span className="entry-path-node" />
+              <span className="entry-path-node is-next" />
+            </span>
+            <span className="entry-board-claim">
+              every claim stays pinned to its page
+            </span>
           </div>
           <img
-            className="about-cake"
-            src="/assets/stickers/glad-ur-here.png"
+            className="entry-board-sticker"
+            src="/assets/stickers/sparkle-burst.png"
             alt=""
           />
           <span className="about-board-tag">a lesson worth keeping.</span>
@@ -114,7 +119,13 @@ function HeroCta({ onGetStarted }: { onGetStarted: () => void }) {
 }
 
 export function LandingPage({ live }: { live: boolean }) {
-  const [modalOpen, setModalOpen] = useState(false);
+  /* `/?getstarted` deep-links straight into the dialog — a shareable
+     "start here" link, and how automated captures see the modal. */
+  const [modalOpen, setModalOpen] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("getstarted"),
+  );
   const openModal = () => setModalOpen(true);
 
   return (
@@ -139,6 +150,13 @@ export function LandingPage({ live }: { live: boolean }) {
       <header className="about-hero about-wrap">
         <div className="about-hero-copy">
           <p className="about-intro">learn from your own sources.</p>
+          <h1>
+            Your sources.
+            <br />
+            Your path.
+            <br />
+            <span>Your proof.</span>
+          </h1>
           <p className="about-lede">
             PearNotes turns the material you upload into a learning path
             on a spatial canvas — and keeps every claim pinned to the
@@ -229,11 +247,7 @@ export function LandingPage({ live }: { live: boolean }) {
         </p>
       </footer>
 
-      <GetStartedModal
-        open={modalOpen}
-        live={live}
-        onClose={() => setModalOpen(false)}
-      />
+      <GetStartedModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </main>
   );
 }

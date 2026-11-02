@@ -50,11 +50,11 @@ export function AuthScreen({
           <div className="demo-poster-collage">
             <div className="demo-poster-paper" />
             <figure className="demo-poster-photo">
-              <img src="/assets/stickers/ours.png" alt="" />
+              <img src="/assets/stickers/moon-sparkle.png" alt="" />
             </figure>
             <img
               className="demo-poster-sticker"
-              src="/assets/stickers/glad-ur-here.png"
+              src="/assets/stickers/sparkle-burst.png"
               alt=""
             />
           </div>
@@ -102,7 +102,21 @@ export function AuthScreen({
           </div>
 
           <div className="demo-waitlist-body">
-            <h1>{signingUp ? "create your account" : "sign in"}</h1>
+            <h1 className="entry-auth-title">
+              {signingUp ? (
+                <>
+                  create your
+                  <br />
+                  <em>account.</em>
+                </>
+              ) : (
+                <>
+                  welcome
+                  <br />
+                  <em>back.</em>
+                </>
+              )}
+            </h1>
             <p>
               {signingUp
                 ? "an emailed code is the whole password — six digits, no form to remember."

@@ -7,79 +7,21 @@
  * choices on the right, native close. Same classes on purpose; only
  * the caption and the body are PearNotes.
  *
- * Four real ways in, none silent: create an account, sign in, explore
- * the labelled demo, or leave an email for the shortlist (the existing
- * `waitlist.join` mutation, offered only when the build has a backend).
+ * Three real ways in, none silent: create an account, sign in, or
+ * explore the labelled demo. Waitlist/shortlist enrollment is a
+ * separate surface — registration and enrollment never share a dialog
+ * (review on #70).
  * ------------------------------------------------------------------ */
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useEffect, useRef } from "react";
 import { navigate } from "./location";
 import { SITE_PATHS } from "./paths";
 
-function ShortlistForm({ onDone }: { onDone: () => void }) {
-  const join = useMutation(api.waitlist.join);
-  const [email, setEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      await join({ email: email.trim() });
-      setSaved(true);
-    } catch {
-      setError("couldn't save that email — check it and try again?");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (saved) {
-    return (
-      <p className="demo-waitlist-body" data-testid="entry-shortlist-done">
-        <strong>you&apos;re on the list.</strong>
-        <span>we&apos;ll write when accounts open wider.</span>
-        <button type="button" className="demo-waitlist-submit" onClick={onDone}>
-          close <span>↗</span>
-        </button>
-      </p>
-    );
-  }
-  return (
-    <form className="demo-waitlist-body" onSubmit={submit}>
-      <h2>or join the shortlist</h2>
-      <p>leave an email — we&apos;ll tell you when your desk opens.</p>
-      <div className="entry-shortlist-row">
-        <input
-          aria-label="email for the shortlist"
-          type="email"
-          required
-          placeholder="you@somewhere.edu"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-        <button type="submit" className="demo-waitlist-submit" disabled={busy}>
-          {busy ? "saving…" : "save ↗"}
-        </button>
-      </div>
-      {error ? <p className="entry-error">{error}</p> : null}
-    </form>
-  );
-}
-
 export function GetStartedModal({
   open,
-  live,
   onClose,
 }: {
   open: boolean;
-  live: boolean;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -114,11 +56,11 @@ export function GetStartedModal({
           <div className="demo-poster-collage">
             <div className="demo-poster-paper" />
             <figure className="demo-poster-photo">
-              <img src="/assets/stickers/ours.png" alt="" />
+              <img src="/assets/stickers/moon-sparkle.png" alt="" />
             </figure>
             <img
               className="demo-poster-sticker"
-              src="/assets/stickers/glad-ur-here.png"
+              src="/assets/stickers/sparkle-burst.png"
               alt=""
             />
           </div>
@@ -145,7 +87,11 @@ export function GetStartedModal({
           </div>
 
           <div className="demo-waitlist-body entry-door-list">
-            <h2>pick a door</h2>
+            <h2>
+              make a place
+              <br />
+              <em>to learn.</em>
+            </h2>
             <button
               type="button"
               className="demo-waitlist-submit"
@@ -174,14 +120,6 @@ export function GetStartedModal({
               the demo runs on labelled sample data — no account touched
             </p>
           </div>
-
-          {live ? (
-            <ShortlistForm onDone={onClose} />
-          ) : (
-            <p className="entry-door-note">
-              the shortlist opens on builds connected to the backend.
-            </p>
-          )}
         </div>
       </div>
     </dialog>

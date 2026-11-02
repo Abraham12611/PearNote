@@ -87,6 +87,12 @@
   line-height: 1.5;
 }
 
+/* inside the borrowed card surfaces the fine print reads on paper */
+.entry-auth-shell .entry-fine,
+.demo-waitlist .entry-fine {
+  color: var(--color-muted, #6b5f50);
+}
+
 .entry-fine button {
   color: inherit;
   background: none;
@@ -126,42 +132,90 @@
   cursor: pointer;
 }
 
-/* the lesson-board collage inside the borrowed .about-board frame */
-.entry-lesson-board {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  align-content: start;
-}
-
+/* the lesson-board collage inside the borrowed .about-board frame —
+   the original board positions every piece absolutely on a 600×540
+   canvas; these entries keep that grammar. */
 .entry-board-source {
-  grid-column: 1 / -1;
-  transform: rotate(-1.2deg);
+  position: absolute;
+  left: 28px;
+  top: 96px;
+  width: 252px;
+  padding: 15px 18px 13px;
+  background: var(--color-card);
+  color: var(--color-ink);
+  rotate: -6deg;
 }
 
-.entry-board-photo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+.entry-board-source > strong {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.entry-board-source > span {
+  color: var(--color-couple);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.entry-board-arrow {
+  position: absolute;
+  left: 196px;
+  top: 208px;
+  font-size: 44px;
+  color: var(--color-sticker);
+  rotate: -4deg;
+}
+
+.entry-board-lesson {
+  position: absolute;
+  left: 296px;
+  top: 210px;
+  width: 280px;
+  padding: 15px 18px 13px;
+  background: var(--color-card);
+  color: var(--color-ink);
+  rotate: 1.5deg;
+}
+
+.entry-board-lesson > strong {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 8px;
 }
 
 .entry-board-path {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px;
+  margin-bottom: 8px;
 }
 
 .entry-path-node {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid var(--pn-sticker, #0b0b0e);
-  background: var(--pn-paper, #f5efdf);
+  border: 2px solid var(--color-sticker, #0b0b0e);
+  background: var(--color-cream, #f5efdf);
 }
 
 .entry-path-node.is-next {
-  background: var(--pn-lime, #c9ff3d);
+  background: var(--color-lime, #c9ff3d);
+}
+
+.entry-board-claim {
+  color: var(--color-couple);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.entry-board-sticker {
+  position: absolute;
+  width: 150px;
+  height: auto;
+  top: 64px;
+  right: 24px;
+  rotate: 8deg;
 }
 
 /* the promise chips under the "yours, not ours" section */
@@ -191,12 +245,9 @@
 
 /* --- get-started choices (inside the borrowed split dialog) --------- */
 
-.entry-door-list h2 {
-  margin: 0 0 14px;
-  font-family: var(--pn-font-display);
-  font-size: 26px;
-  letter-spacing: -0.02em;
-}
+/* the borrowed .demo-waitlist h2 rule (56px nowrap + em accent) already
+   carries the heading — only spacing adjustments live here */
+.entry-door-list h2 { margin-bottom: 18px; }
 
 .entry-door-list .demo-waitlist-submit { width: 100%; margin-bottom: 8px; }
 .entry-door-list .demo-waitlist-submit.is-quiet { opacity: 0.92; }
@@ -213,6 +264,25 @@
   width: min(860px, 100%);
   border-radius: 24px;
   overflow: hidden;
+  /* the borrowed layout only grids — a real dialog supplies the card
+     surface; the standalone page must paint it */
+  background: var(--color-card, #faf7f0);
+  color: var(--color-ink, #1d1712);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* the auth h1 matches the borrowed dialog's h2 grammar (56px, accent) —
+   scoped so the original demo-waitlist h2 stays untouched */
+.entry-auth-title {
+  margin: 0;
+  font-size: 56px;
+  line-height: 0.99;
+  letter-spacing: -0.035em;
+}
+
+.entry-auth-title em {
+  font-style: normal;
+  color: var(--color-crew, #7c5cfc);
 }
 
 .entry-auth-form {
