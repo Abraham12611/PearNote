@@ -161,6 +161,17 @@ export function resetIdentity() {
   current = null;
 }
 
+/**
+ * Drop the adopted auth userId AND the adopted display fields — mint a
+ * fresh local guest and return it (#76). `updateIdentity` can't touch
+ * userId by design, so without this the previous account's id stayed in
+ * the tab identity (and its presence rows) after sign-out.
+ */
+export function releaseAuthUserId(): LiveIdentity {
+  resetIdentity();
+  return getIdentity();
+}
+
 export function useIdentity() {
   return useSyncExternalStore(
     (listener) => {

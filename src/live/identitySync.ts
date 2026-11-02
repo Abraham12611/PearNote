@@ -60,3 +60,112 @@ export function mayMirrorLocalEdit(args: {
 export function shouldHydrate(joinedId: string | null, hydratedFor: string | null): boolean {
   return joinedId !== null && hydratedFor !== joinedId;
 }
+
+/* ── The orchestrator — framework-free so the whole state machine is unit-
+ * testable with delayed user emissions, fake timers and a fake mutation.
+ * `useAuthIdentity` is a thin adapter that forwards query/store changes. */
+
+export interface SyncServerUser extends ServerIdentityFields {
+  userId: string;
+  isAnonymous?: boolean;
+}
+
+export interface SyncPorts {
+  /** Current full identity incl. userId. */
+  getIdentity(): LocalIdentity & { userId: string };
+  /** Merge display fields only (never userId). */
+  setIdentity(patch: Partial<LocalIdentity>): void;
+  /** Bind the tab to an authenticated Convex user id. */
+  adoptUserId(userId: string): void;
+  /** Signed out: forget the adopted auth id AND mint a fresh local guest
+   * identity. Returns the new minted identity (it becomes the new base). */
+  releaseAuthUserId(): LocalIdentity;
+  /** Mirror local display fields to the account row. */
+  pushProfile(fields: { name: string; color?: string; emoji?: string; image?: string }): void;
+  /** Debounce: returns a cancel handle. */
+  schedule(fn: () => void, ms: number): () => void;
+}
+
+const PUSH_DEBOUNCE_MS = 400;
+
+/**
+ * createIdentitySync — one per mount. Call `onUser` whenever the
+ * `currentUser` query emits (including undefined during load) and
+ * `onLocalEdit` whenever the tab identity changes. Ordering is the whole
+ * contract: transition-reset → hydrate → gated debounced push.
+ */
+export function createIdentitySync(baseInitial: LocalIdentity, ports: SyncPorts) {
+  let base = { ...baseInitial };
+  let hydratedFor: string | null = null;
+  let joinedId: string | null = null;
+  let started = false;
+  let latestUser: SyncServerUser | null | undefined;
+  let cancelPush: (() => void) | null = null;
+
+  const cancelPendingPush = () => {
+    cancelPush?.();
+    cancelPush = null;
+  };
+
+  const onUser = (user: SyncServerUser | null | undefined) => {
+    latestUser = user;
+    const nextJoined = user && user.userId && !user.isAnonymous ? user.userId : null;
+
+    // Account transition (loading→out, out→in, A→B): neutral display first —
+    // a foreign profile can never render through to the next paint.
+    if (nextJoined !== joinedId || !started) {
+      joinedId = nextJoined;
+      hydratedFor = null;
+      cancelPendingPush(); // a queued A-fields push must NEVER flush into B
+      if (user === null) {
+        // Confirmed sign-out: forget A's adopted auth id entirely and mint a
+        // fresh guest — the ORIGINAL resetIdentity() semantics (§1). The new
+        // mint becomes the base so later edits start neutral.
+        base = { ...ports.releaseAuthUserId() };
+      }
+      ports.setIdentity({ ...base });
+      started = true;
+    }
+
+    // Bind any authenticated row (anonymous guests included — original
+    // behavior: a guest tab is a real userId, not a random string).
+    if (user?.userId) ports.adoptUserId(user.userId);
+
+    // Down-hydrate: once per joined account, server wins per-field.
+    if (shouldHydrate(joinedId, hydratedFor) && latestUser) {
+      hydratedFor = joinedId;
+      ports.setIdentity(mergeServerIdentity(latestUser, base));
+    }
+  };
+
+  const onLocalEdit = () => {
+    if (!mayMirrorLocalEdit({ joinedId, hydratedFor, hasServerProfile: !!latestUser?.userId })) return;
+    cancelPendingPush();
+    const capturedJoined = joinedId;
+    cancelPush = ports.schedule(() => {
+      cancelPush = null;
+      const saved = latestUser;
+      // Flush-time guards: still the same account, still joined, and the
+      // identity we're about to push belongs to THIS account's session.
+      if (!saved?.userId || saved.isAnonymous === true) return;
+      if (String(saved.userId) !== String(capturedJoined)) return;
+      const cur = ports.getIdentity();
+      if (
+        saved.name === cur.name &&
+        saved.color === cur.color &&
+        saved.emoji === cur.emoji &&
+        saved.image === cur.avatarUrl
+      ) {
+        return;
+      }
+      ports.pushProfile({ name: cur.name, color: cur.color, emoji: cur.emoji, image: cur.avatarUrl });
+    }, PUSH_DEBOUNCE_MS);
+  };
+
+  return {
+    onUser,
+    onLocalEdit,
+    /** Test/debug visibility into the state machine. */
+    state: () => ({ joinedId, hydratedFor, base: { ...base } }),
+  };
+}

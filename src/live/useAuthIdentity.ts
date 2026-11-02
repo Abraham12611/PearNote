@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useAuthActions, useConvexAuth } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
-import { adoptAuthUserId, updateIdentity, useIdentity } from "./identity";
-import { mayMirrorLocalEdit, mergeServerIdentity, shouldHydrate, type LocalIdentity } from "./identitySync";
+import { adoptAuthUserId, getIdentity, releaseAuthUserId, updateIdentity, useIdentity } from "./identity";
+import { createIdentitySync, type LocalIdentity } from "./identitySync";
 
 /**
  * Silent guest sign-in. Runs once the provider has settled and reports the
@@ -52,76 +52,44 @@ export function useAuthIdentity(options?: { silentGuest?: boolean }) {
   const user = useQuery(api.auth.currentUser, {});
   const identity = useIdentity();
   const updateProfile = useMutation(api.auth.updateProfile);
-  const hydratedFor = useRef<string | null>(null);
-  const latestUser = useRef(user);
-  latestUser.current = user;
 
-  /* The tab's OWN minted persona, captured once before any adoption. Every
-     account transition restores THIS — so A's profile can never render
-     inside B's session and stale A-fields can't be mirrored into B's row
-     (Issue #76). Guests keep it the whole time — original behavior. */
-  const base = useRef<LocalIdentity | null>(null);
-  if (base.current === null) {
-    base.current = {
+  /* The sync state machine lives in identitySync.createIdentitySync —
+     framework-free, so its whole lifecycle is covered by the integration
+     test. useLayoutEffect (not useEffect) so transition resets and the
+     down-hydrate land BEFORE paint: no rendered frame can show a previous
+     account's fields under the new one (first-render privacy, #76). */
+  const sync = useRef<ReturnType<typeof createIdentitySync> | null>(null);
+  if (sync.current === null) {
+    const base: LocalIdentity = {
       name: identity.name,
       color: identity.color,
       emoji: identity.emoji,
       avatarUrl: identity.avatarUrl,
     };
+    sync.current = createIdentitySync(base, {
+      getIdentity,
+      setIdentity: updateIdentity,
+      adoptUserId: adoptAuthUserId,
+      releaseAuthUserId,
+      pushProfile: (fields) => {
+        void updateProfile(fields).catch(() => {
+          // A guest token that hasn't refreshed yet; the next edit retries.
+        });
+      },
+      schedule: (fn, ms) => {
+        const t = window.setTimeout(fn, ms);
+        return () => window.clearTimeout(t);
+      },
+    });
   }
 
-  useEffect(() => {
-    if (user?.userId) adoptAuthUserId(user.userId);
-  }, [user?.userId]);
+  useLayoutEffect(() => {
+    sync.current!.onUser(user === undefined ? undefined : user);
+  }, [user]);
 
-  const joinedId = user && !user.isAnonymous ? user.userId : null;
-
-  // Transition: account switch OR sign-out — back to the neutral base and
-  // re-arm hydration. Same joinedId (token refresh, reload) never resets.
-  const prevJoined = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    if (prevJoined.current === joinedId) return;
-    prevJoined.current = joinedId;
-    hydratedFor.current = null;
-    if (base.current) updateIdentity({ ...base.current });
-  }, [joinedId]);
-
-  // Down: once per joined user — server profile wins per-field.
-  useEffect(() => {
-    if (!shouldHydrate(joinedId, hydratedFor.current)) return;
-    hydratedFor.current = joinedId;
-    const saved = latestUser.current;
-    if (saved === undefined || saved === null || !base.current) return;
-    updateIdentity(mergeServerIdentity(saved, base.current));
-  }, [joinedId, user]);
-
-  // Up: mirror edits — only for the hydrated account, only when the row
-  // would change. The A→logout→B window (hydratedFor still A/null) is
-  // structurally locked out.
-  useEffect(() => {
-    if (!mayMirrorLocalEdit({ joinedId, hydratedFor: hydratedFor.current, hasServerProfile: !!user })) return;
-    const timer = window.setTimeout(() => {
-      const saved = latestUser.current;
-      if (!saved || String(saved.userId) !== String(joinedId)) return;
-      if (
-        saved.name === identity.name &&
-        saved.color === identity.color &&
-        saved.emoji === identity.emoji &&
-        saved.image === identity.avatarUrl
-      ) {
-        return;
-      }
-      void updateProfile({
-        name: identity.name,
-        color: identity.color,
-        emoji: identity.emoji,
-        image: identity.avatarUrl,
-      }).catch(() => {
-        // A guest token that hasn't refreshed yet; the next edit retries.
-      });
-    }, 400);
-    return () => window.clearTimeout(timer);
-  }, [joinedId, user, identity.name, identity.color, identity.emoji, identity.avatarUrl, updateProfile]);
+  useLayoutEffect(() => {
+    sync.current!.onLocalEdit();
+  }, [identity]);
 }
 
 /** Renderless mount point, so the hook only runs inside the Convex provider. */
