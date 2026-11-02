@@ -41,3 +41,12 @@ clover, pepper, kiwi` — each `{id, label, accent}`. Face asset:
 - **Update precedence:** explicit `image`/`color` args in a call always win
   over the persona auto-swap; a deliberately picked face survives later
   persona changes (the face only follows a swap when it was auto-assigned).
+- **Verified photo upload (#77):** `profiles.avatarUploadUrl` → client
+  PUTs bytes → `profiles.commitAvatar({storageId})`. Commit verifies the
+  object exists (`getUrl`) and records the `avatarUploads` owner binding —
+  first-committer-wins; a foreign storageId can never be bound. `image`
+  stores `storage:<id>` internally; `getMine`/`getDisplay` resolve it to a
+  signed URL at read time. Raw `storage:` strings in `update`/`updateProfile`
+  are still rejected — commit is the ONLY write path. Content-type
+  (image/*) is enforced by the chooser UI; a `getMetadata` server check is
+  a follow-up (unsupported by convex-test).

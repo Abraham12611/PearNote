@@ -14,6 +14,7 @@ export default defineSchema({
 
   // the room
   users: rooms.users, // a person: auth fields plus the colour and emoji that follow them (docs/accounts.md)
+  avatarUploads: rooms.avatarUploads, // owner-bound profile photos (#77)
   waitlist: rooms.waitlist, // emails from the landing page
   spaces: rooms.spaces, // a room: name, colour, slug, its inbox
   members: rooms.members, // who is in which room, by name and colour

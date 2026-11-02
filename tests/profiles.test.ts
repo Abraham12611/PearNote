@@ -245,6 +245,48 @@ describe("update precedence — explicit args beat persona auto-swap", () => {
   });
 });
 
+describe("verified owner-bound avatar upload (#77)", () => {
+  test("commitAvatar binds a real image blob → storage marker → resolved URL on read", async () => {
+    const { t, asA } = await seed();
+    const storageId = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob(["png"], { type: "image/png" })),
+    );
+    const p = await asA.mutation(api.profiles.commitAvatar, { storageId });
+    expect(p.image).toBe(`storage:${storageId}`);
+    const mine = await asA.query(api.profiles.getMine);
+    expect(mine?.image).toContain("http"); // resolved signed URL, not the marker
+    // Idempotent re-commit by the same owner.
+    const again = await asA.mutation(api.profiles.commitAvatar, { storageId });
+    expect(again.image).toBe(`storage:${storageId}`);
+  });
+  test("forged/missing/non-image storage ids rejected; foreign binding refused", async () => {
+    const { t, asA, asB } = await seed();
+    // Forged id that parses but doesn't exist.
+    const forged = await t.run(async (ctx) => {
+      const id = await ctx.storage.store(new Blob(["x"], { type: "image/png" }));
+      await ctx.storage.delete(id);
+      return id;
+    });
+    await expect(asA.mutation(api.profiles.commitAvatar, { storageId: forged }))
+      .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+    // A binds it → B cannot steal the same storageId.
+    const real = await t.run(async (ctx) =>
+      ctx.storage.store(new Blob(["x"], { type: "image/png" })),
+    );
+    await asA.mutation(api.profiles.commitAvatar, { storageId: real });
+    await expect(asB.mutation(api.profiles.commitAvatar, { storageId: real }))
+      .rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
+    // Raw storage strings still rejected through the update paths.
+    await expect(asB.mutation(api.profiles.update, { image: `storage:${real}` }))
+      .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
+  });
+  test("avatarUploadUrl requires sign-in", async () => {
+    const { t, asA } = await seed();
+    await expect(t.mutation(api.profiles.avatarUploadUrl)).rejects.toMatchObject({ data: { code: "UNAUTHORIZED" } });
+    expect(await asA.mutation(api.profiles.avatarUploadUrl)).toContain("http");
+  });
+});
+
 describe("owner-scoped privacy", () => {
   test("getMine is self-only; getDisplay exposes no email/flags/study data", async () => {
     const { t, asA, asB, aId, bId } = await seed();

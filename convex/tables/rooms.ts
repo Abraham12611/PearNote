@@ -19,6 +19,17 @@ export const users = defineTable({
   mergedInto: v.optional(v.string()),
 }).index("email", ["email"]).index("phone", ["phone"]);
 
+// Issue #77 — owner-bound profile photos. The binding is the ONLY owner
+// metadata a storage object has: commitAvatar records it atomically at
+// upload-commit time, so a forged or foreign storageId can never become
+// someone's profile image. by_storage makes "already bound to another
+// account" a first-committer-wins check.
+export const avatarUploads = defineTable({
+  userId: v.id("users"),
+  storageId: v.id("_storage"),
+  createdAt: v.number(),
+}).index("by_storage", ["storageId"]).index("by_user", ["userId"]);
+
 export const spaces = defineTable({
   name: v.string(), type: v.union(v.literal("ongoing"), v.literal("event")),
   icon: v.string(), color: v.string(), createdAt: v.number(), lastActivityAt: v.number(),
