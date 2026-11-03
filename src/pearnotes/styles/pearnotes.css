@@ -659,7 +659,13 @@
 
 /* ---------- S04 learning path drawer -------------------------------- */
 
-.pn-layer-drawer { place-items: stretch; justify-items: end; }
+.pn-layer-drawer {
+  place-items: stretch;
+  justify-items: end;
+  /* above the desk wall (.room-knows sits at 100500) — the layer, not
+     the drawer inside it, owns the stacking context */
+  z-index: 100600;
+}
 
 .pn-scrim-drawer { backdrop-filter: blur(5px); }
 

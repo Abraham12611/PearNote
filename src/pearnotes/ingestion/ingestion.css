@@ -2,7 +2,9 @@
 
 .pni-sheet {
   position: absolute;
-  z-index: 20;
+  /* above the desk wall (.room-knows sits at 100500) or the sheet is
+     painted — and click-blocked — under the desk at every width */
+  z-index: 100600;
   top: 0;
   right: 0;
   bottom: 0;
