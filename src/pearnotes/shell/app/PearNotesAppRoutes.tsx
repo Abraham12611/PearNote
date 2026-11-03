@@ -56,6 +56,7 @@ import { IntakeReview } from "../../ingestion/IntakeReview";
 import type { JobId } from "../../ingestion/api";
 import { CreateSubjectSheet } from "../../ingestion/CreateSubjectSheet";
 import { LiveLessonBoard } from "../../learning-widgets";
+import { LessonRoom } from "./LessonRoom";
 import { loadPearNotesUiStyles, pearnotesSlots } from "../slots";
 import type { DeskData, LearningPath, LessonMode, PearNotesData } from "../types";
 import { PearNotesDock } from "./PearNotesDock";
@@ -494,12 +495,21 @@ function PearNotesApp({
               }
               fixtureLabel={fixtureLabel}
             >
-              {lessonCanvas}
-              {policy.liveMutations &&
-                !fixtureLabel &&
-                CONVEX_ID.test(route.lessonId) && (
-                  <LiveLessonBoard lessonId={route.lessonId} />
-                )}
+              {/* W5: when the lesson owns a provisioned room, the
+                  inherited OurSpaces runtime IS the canvas. Otherwise
+                  the existing board keeps rendering — no dead frame. */}
+              {policy.liveReads || policy.demoReads ? (
+                <LessonRoom lessonId={route.lessonId} demoMode={demoMode}>
+                  {lessonCanvas}
+                  {policy.liveMutations &&
+                    !fixtureLabel &&
+                    CONVEX_ID.test(route.lessonId) && (
+                      <LiveLessonBoard lessonId={route.lessonId} />
+                    )}
+                </LessonRoom>
+              ) : (
+                lessonCanvas
+              )}
             </LessonShell>
           )
         ) : (
