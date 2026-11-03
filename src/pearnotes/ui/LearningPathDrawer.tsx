@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useDialogA11y } from "./a11y";
 import { SubjectAvatar } from "./SubjectAvatar";
 import { pathHasRenderableNodes } from "./types";
+import type { ReactNode } from "react";
 import type { LearningPath, PathLesson, PathUnit, PearSubject } from "./types";
 
 export interface LearningPathDrawerProps {
@@ -15,6 +16,8 @@ export interface LearningPathDrawerProps {
   /** restore scroll on re-open — S04: "preserve scroll and selected node" */
   initialScrollTop?: number;
   fixtureLabel?: string;
+  /** live-only publish affordance slot (DraftPublish) — null in demo */
+  publishSlot?: ReactNode;
   onSelectLesson?: (lessonId: string | null) => void;
   onStartLesson?: (lessonId: string) => void;
   /** visible back affordance (e.g. return to the subject picker) */
@@ -244,6 +247,7 @@ export function LearningPathDrawer({
   selectedLessonId,
   initialScrollTop,
   fixtureLabel,
+  publishSlot,
   onSelectLesson,
   onStartLesson,
   onBack,
@@ -311,6 +315,7 @@ export function LearningPathDrawer({
         style={{ "--subject-hue": subject?.color ?? "var(--pn-subject-general)" } as CSSProperties}
       >
         {fixtureLabel && <span className="pn-fixture-tag">{fixtureLabel}</span>}
+        {publishSlot}
 
         <header className="pn-drawer-head">
           {subject ? (
