@@ -11,6 +11,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { requireLearnerId } from "./learningAuth";
 import type { Doc, Id } from "./_generated/dataModel";
 import { activitySpec, masteryState, sourceRef } from "./tables/learning";
+import { randomSuffix, slugify } from "./spaces";
 
 import { evaluateForRemediation } from "../src/pearnotes/learning-engine/remediation";
 import { deriveMastery } from "../src/pearnotes/learning-engine/mastery";
@@ -820,5 +821,38 @@ export const reviewPractice = mutation({
     });
     await ctx.db.patch(proposalId, { state: "accepted", activityId, updatedAt: now });
     return { state: "accepted" as const, activityId };
+  },
+});
+
+/** W5 — provision the lesson's inherited-room canvas.
+ *  Idempotent: an already-provisioned lesson returns its space; the room
+ *  is owned by the subject's owner and named after the lesson so it reads
+ *  correctly in the rail/spaces list. Internal only — provisioning comes
+ *  from the approval path (learningReview) or the demo seed. */
+export const ensureLessonSpace = internalMutation({
+  args: { lessonId: v.id("lessons") },
+  returns: v.id("spaces"),
+  handler: async (ctx, { lessonId }) => {
+    const lesson = await ctx.db.get(lessonId);
+    if (lesson === null) throw err("UNAUTHORIZED", "lesson not found");
+    if (lesson.canvasSpaceId !== undefined) return lesson.canvasSpaceId;
+    const unit = await ctx.db.get(lesson.unitId);
+    const section = unit === null ? null : await ctx.db.get(unit.sectionId);
+    const version = section === null ? null : await ctx.db.get(section.versionId);
+    const subject = version === null ? null : await ctx.db.get(version.subjectId);
+    const now = Date.now();
+    const name = `${subject?.name ?? "lesson"} · ${lesson.title ?? "lesson"}`;
+    const spaceId = await ctx.db.insert("spaces", {
+      name,
+      type: "ongoing",
+      icon: "lesson",
+      color: subject?.theme ?? "#7c5cff",
+      ownerId: subject?.ownerId,
+      slug: `${slugify(name)}-${randomSuffix()}`,
+      createdAt: now,
+      lastActivityAt: now,
+    });
+    await ctx.db.patch(lessonId, { canvasSpaceId: spaceId });
+    return spaceId;
   },
 });
