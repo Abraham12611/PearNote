@@ -430,3 +430,18 @@
   .pnd-grid { grid-template-columns: 1fr; }
   .pnd-sticky { position: static; display: inline-block; margin-top: 18px; }
 }
+
+/* cold-start review — stale demonstrated objectives resurface */
+.pnd-revisit { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pnd-revisit button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  border: none; background: none; padding: 4px 2px;
+  font: inherit; font-size: 0.88rem; text-align: left; cursor: pointer;
+}
+.pnd-revisit-dot {
+  flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--pn-purple, #7c5cff);
+}
+.pnd-revisit-text b { display: block; line-height: 1.3; }
+.pnd-revisit-text em { font-style: normal; opacity: 0.55; font-size: 0.76rem; }
+.pnd-revisit button:hover { translate: 0 -1px; }

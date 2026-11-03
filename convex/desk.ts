@@ -142,6 +142,16 @@ export const deskShape = v.object({
   ),
   xpTotal: v.number(),
   sourceCount: v.number(),
+  /* demonstrated objectives stale enough to revisit (cold-start review) */
+  revisit: v.array(
+    v.object({
+      objectiveId: v.id("objectives"),
+      subjectId: v.id("subjects"),
+      statement: v.string(),
+      subjectName: v.string(),
+      lastAt: v.number(),
+    }),
+  ),
 });
 
 export type DeskAggregate = {
@@ -160,6 +170,13 @@ export type DeskAggregate = {
   crewNote: { authorName: string; text: string; happenedAt: number } | null;
   xpTotal: number;
   sourceCount: number;
+  revisit: {
+    objectiveId: Id<"objectives">;
+    subjectId: Id<"subjects">;
+    statement: string;
+    subjectName: string;
+    lastAt: number;
+  }[];
 };
 
 /**
@@ -264,6 +281,37 @@ export async function deskAggregate(ctx: DbCtx, userId: Id<"users">): Promise<De
 
   const crewNoteEvent = activity.find((e) => e.kind === "crew_message") ?? null;
 
+  /* Cold-start review: objectives the learner already demonstrated but
+     hasn't revisited recently resurface for spaced review — evidence
+     older than REVISIT_AGE_MS earns a slot, stalest first. */
+  const REVISIT_AGE_MS = 5 * DAY_MS;
+  const masteryRows = await ctx.db
+    .query("mastery")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .take(200);
+  const revisitBase = masteryRows
+    .filter((m) => m.state === "demonstrated" && m.evidence.length > 0)
+    .map((m) => ({ m, lastAt: Math.max(...m.evidence.map((e) => e.at)) }))
+    .filter((c) => now - c.lastAt > REVISIT_AGE_MS)
+    .sort((a, b) => a.lastAt - b.lastAt)
+    .slice(0, 3);
+  const revisit = (
+    await Promise.all(
+      revisitBase.map(async (c) => {
+        const obj = await ctx.db.get(c.m.objectiveId);
+        if (obj === null) return null;
+        const sub = await ctx.db.get(obj.subjectId);
+        return {
+          objectiveId: obj._id,
+          subjectId: obj.subjectId,
+          statement: obj.statement,
+          subjectName: sub?.name ?? "subject",
+          lastAt: c.lastAt,
+        };
+      }),
+    )
+  ).filter((r): r is NonNullable<typeof r> => r !== null);
+
   return {
     learner: {
       name: user?.name ?? "learner",
@@ -288,6 +336,7 @@ export async function deskAggregate(ctx: DbCtx, userId: Id<"users">): Promise<De
         : { authorName: crewNoteEvent.actorName, text: crewNoteEvent.text, happenedAt: crewNoteEvent.happenedAt },
     xpTotal: allXp.reduce((n, x) => n + x.points, 0),
     sourceCount: sources.filter((s) => s.status !== "deleted").length,
+    revisit,
   };
 }
 
@@ -325,6 +374,7 @@ export const deskToView = (agg: DeskAggregate) => ({
   crewNote: agg.crewNote,
   xpTotal: agg.xpTotal,
   sourceCount: agg.sourceCount,
+  revisit: agg.revisit,
 });
 
 /** `desk.get` — the signed-in learner's desk. Empty/honest for a new account. */
