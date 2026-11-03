@@ -232,7 +232,9 @@
   border-radius: 999px;
   padding: 10px 18px;
   font-size: 14px;
-  z-index: 90;
+  /* transient notices must clear the knows desk wall (100500) in /app —
+     at 90 the demo/pending explanations were painted under the sheet */
+  z-index: 100600;
   margin: 0;
 }
 

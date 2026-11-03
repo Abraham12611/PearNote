@@ -347,7 +347,10 @@
   left: 50%;
   bottom: 14px;
   translate: -50% 0;
-  z-index: 60;
+  /* above the knows desk wall (100500) — the mandatory demo label was
+     hidden behind it on /demo — but below the overlay band (100600)
+     so modal scrims still dim it */
+  z-index: 100550;
   display: flex;
   align-items: center;
   gap: 12px;
