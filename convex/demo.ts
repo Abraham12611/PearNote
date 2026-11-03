@@ -194,3 +194,18 @@ export const isSeeded = query({
   returns: v.boolean(),
   handler: async (ctx) => (await demoOwner(ctx)) !== null,
 });
+
+/** W5 — same room handle for the public demo surface. */
+export const getLessonSpace = query({
+  args: { lessonId: v.id("lessons") },
+  returns: v.union(v.object({ spaceId: v.id("spaces"), slug: v.string() }), v.null()),
+  handler: async (ctx, { lessonId }) => {
+    const owner = await demoOwner(ctx);
+    if (owner === null) return null;
+    const found = await ownedLesson(ctx as never, lessonId, owner._id);
+    if (found === null || found.lesson.canvasSpaceId === undefined) return null;
+    const space = await ctx.db.get(found.lesson.canvasSpaceId);
+    if (space === null || space.slug === undefined) return null;
+    return { spaceId: space._id, slug: space.slug };
+  },
+});

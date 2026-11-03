@@ -290,6 +290,11 @@ export const review = mutation({
             await ctx.scheduler.runAfter(0, internal.ingestMeta.generateLessonActivities, {
               lessonId: newLessonId,
             });
+            // W5: every approved lesson owns a real OurSpaces room
+            // (lessons.canvasSpaceId) — idempotent provisioning.
+            await ctx.scheduler.runAfter(0, internal.learningRuntime.ensureLessonSpace, {
+              lessonId: newLessonId,
+            });
           }
         }
       }
