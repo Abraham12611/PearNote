@@ -127,6 +127,23 @@ export function stripKeys(spec: Doc<"activities">["spec"]): Doc<"activities">["s
 }
 
 /** Deterministic server-side evaluation — never model-graded here. */
+const TB_STOPWORDS = new Set(
+  ("the a an and or of to in is it its that this for on as are was were be by with at from into they their them you your we our so if then than but not no do does did can will would should could how what when where which who why each more most other some such only own same also just over very out up down about between through during before after because while against he she his her i my me us")
+    .split(" "),
+);
+
+/** Content-bearing tokens ≥3 chars, stopwords out — the rubric's own
+ *  vocabulary, so surface phrasing can't inflate the score. */
+function contentTokens(s: string): Set<string> {
+  return new Set(
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length > 2 && !TB_STOPWORDS.has(t)),
+  );
+}
+
 function evaluate(spec: Doc<"activities">["spec"], response: Doc<"attempts">["response"]) {
   if (spec.kind === "multipleChoice") {
     if (response.kind !== "choice" || spec.correctOptionId === undefined) {
@@ -166,7 +183,30 @@ function evaluate(spec: Doc<"activities">["spec"], response: Doc<"attempts">["re
     const verdict = score === 1 ? "correct" as const : score >= 0.5 ? "partial" as const : "incorrect" as const;
     return { verdict, score };
   }
-  // teachBack + mismatched responses need human/model review — never auto-pass.
+  if (spec.kind === "teachBack") {
+    if (response.kind !== "text" || spec.rubricCriteria.length === 0) {
+      return { verdict: "needs_review" as const, score: undefined as number | undefined };
+    }
+    /* Deterministic rubric coverage (W-tenet): each rubric criterion is a
+       checklist item the learner's own words must express — a criterion
+       counts as covered when ≥60% of its content tokens appear in the
+       response. Verdict: all criteria → correct, ≥half → partial, else
+       incorrect. Too-short answers can't demonstrate — they score 0. */
+    const words = response.text.trim().split(/\s+/);
+    if (words.length < 8) return { verdict: "incorrect" as const, score: 0 };
+    const given = contentTokens(response.text);
+    const hits = spec.rubricCriteria.filter((c) => {
+      const req = contentTokens(c);
+      if (req.size === 0) return false;
+      let hit = 0;
+      for (const t of req) if (given.has(t)) hit++;
+      return hit / req.size >= 0.6;
+    });
+    const score = hits.length / spec.rubricCriteria.length;
+    const verdict = score === 1 ? "correct" as const : score >= 0.5 ? "partial" as const : "incorrect" as const;
+    return { verdict, score };
+  }
+  // mismatched responses need human/model review — never auto-pass.
   return { verdict: "needs_review" as const, score: undefined as number | undefined };
 }
 
@@ -262,7 +302,7 @@ export const submitAttempt = mutation({
       await ctx.scheduler.runAfter(0, internal.desk.awardXp, {
         userId,
         points: ev.verdict === "correct" ? 10 : 5,
-        reason: "challenge_correct",
+        reason: activity.spec.kind === "teachBack" ? "teachback_evaluated" : "challenge_correct",
         refId: String(attemptId),
       });
     }

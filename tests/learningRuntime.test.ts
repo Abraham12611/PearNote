@@ -80,10 +80,18 @@ describe("learningRuntime", () => {
     const t2 = await asA.mutation(api.learningRuntime.submitAttempt, {
       activityId: teachAct, activityRevision: 1, attemptKey: "tt", response: { kind: "text", text: "my explanation" },
     });
-    expect(t2.verdict).toBe("needs_review");
-    expect(t2.masteryUpdated).toBe(0);                   // unevaluated → no mastery
+    /* teachBack is now deterministically graded on rubric coverage —
+       a 2-word answer can't demonstrate, so it's incorrect + evaluated. */
+    expect(t2.verdict).toBe("incorrect");
+    expect(t2.masteryUpdated).toBe(1);
+    /* full rubric coverage → correct (criterion "accuracy" hit by name) */
+    const t3 = await asA.mutation(api.learningRuntime.submitAttempt, {
+      activityId: teachAct, activityRevision: 1, attemptKey: "tt2",
+      response: { kind: "text", text: "the accuracy of water moving across the membrane depends entirely on the gradient" },
+    });
+    expect(t3.verdict).toBe("correct");
     const m = await t.run(async (ctx) => ctx.db.query("mastery").collect());
-    expect(m.every((row) => String(row.objectiveId) !== String(obj2))).toBe(true);
+    expect(m.some((row) => String(row.objectiveId) === String(obj2))).toBe(true);
   });
 
   test("two incorrect attempts → engine-generated practice proposal", async () => {
