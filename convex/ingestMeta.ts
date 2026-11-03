@@ -41,8 +41,18 @@ export const runJob = internalAction({
     if (job === null) return { ok: false, detail: "job not found" };
     // Idempotency: a completed/terminal job is never re-processed — a retry
     // can never trigger a second paid model call or duplicate segments.
-    if (["needs_review", "accepted", "building", "ready", "cancelled", "failed"].includes(job.state)) {
+    if (["needs_review", "accepted", "building", "ready", "cancelled"].includes(job.state)) {
       return { ok: true, detail: `already_${job.state}` };
+    }
+    // Failed jobs may proceed only toward the atomic claim, which enforces
+    // consent-per-paid-call + the per-source cap — a non-consented failed job
+    // is refused there without spending anything.
+    if (job.state === "failed") {
+      const consent = job.consentCount ?? (job.modelAuthorized === true ? 1 : 0);
+      const paid = job.paidCalls ?? (job.modelClaimed === true ? 1 : 0);
+      if (job.mime === "application/pdf" && paid >= consent) {
+        return { ok: true, detail: "already_failed" };
+      }
     }
     // Fast-path in-flight check (the atomic claim below is the real guard).
     if (job.state === "classifying") return { ok: false, detail: "already_classifying" };
@@ -136,8 +146,11 @@ export const runJob = internalAction({
     // can never silently re-spend.
     const claim = await ctx.runMutation(internal.learningImport.claimModelDispatch, { jobId });
     if (!claim.claimed) {
-      // Never touch state here — a concurrent winner may legitimately be
-      // classifying/needs_review; overwriting would corrupt its lifecycle.
+      // A denied run restores its prior waiting state so the job never sits
+      // misleadingly in "extracting"; a concurrent winner's state is untouched.
+      if (job.state === "failed" || job.state === "awaiting_model") {
+        await ctx.runMutation(internal.learningImport.setJobState, { jobId, state: job.state });
+      }
       return { ok: false, detail: `model_not_claimed:${claim.reason}` };
     }
     const coverageNote = `COVERAGE: partial document — ${payload.length} selected segments${job.focusPages ? ` restricted to pages ${job.focusPages.join(",")}` : ""}; do NOT claim whole-document coverage or cite pages outside the provided set.`;
@@ -169,7 +182,26 @@ export const runJob = internalAction({
     }
 
     const parsed = parseProposal(res.text);
-    if (parsed === null) return await fail("INVALID_MODEL_OUTPUT: response is not a valid proposal");
+    if (parsed === null) {
+      // Sanitized failure diagnostics — lengths, finish reason, token usage
+      // and WHICH stage rejected the output. Raw model text and source
+      // passages are never logged.
+      let stage = "json";
+      try {
+        JSON.parse(res.text);
+        stage = "shape";
+      } catch {
+        const m = res.text.match(/\{[\s\S]*\}/);
+        if (m) { try { JSON.parse(m[0]); stage = "shape"; } catch { /* json */ } }
+      }
+      const d = res.diag;
+      return await fail(
+        `INVALID_MODEL_OUTPUT: response is not a valid proposal ` +
+        `[diag len=${res.text.length} stage=${stage} finish=${d?.finishReason ?? "?"} ` +
+        `pt=${d?.usage?.prompt_tokens ?? "?"} ct=${d?.usage?.completion_tokens ?? "?"} ` +
+        `rt=${d?.usage?.reasoning_tokens ?? "?"}]`,
+      );
+    }
 
     const idSet = selectedIds.size > 0 ? new Set([...selectedIds].map(String)) : new Set<string>(segments.map((s: Doc<"sourceSegments">) => String(s._id)));
     const textMap = new Map<string, string>(segments.map((s: Doc<"sourceSegments">) => [String(s._id), s.text]));
@@ -221,6 +253,9 @@ export const jobDoc = internalQuery({
       storageId: v.id("_storage"),
       state: importJobState,
       modelAuthorized: v.optional(v.boolean()),
+      modelClaimed: v.optional(v.boolean()),
+      paidCalls: v.optional(v.number()),
+      consentCount: v.optional(v.number()),
       focusPages: v.optional(v.array(v.number())),
       focusHint: v.optional(v.string()),
     }),
@@ -237,6 +272,9 @@ export const jobDoc = internalQuery({
           sourceTitle: source.title,
           mime: source.mime,
           storageId: source.storageId,
+          modelClaimed: job.modelClaimed,
+          paidCalls: job.paidCalls,
+          consentCount: job.consentCount,
           state: job.state,
           modelAuthorized: job.modelAuthorized,
           focusPages: job.focusPages,

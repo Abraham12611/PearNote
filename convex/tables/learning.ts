@@ -361,9 +361,15 @@ export const importJobs = defineTable({
   focusPages: v.optional(v.array(v.number())),
   focusHint: v.optional(v.string()),
   // Set atomically by claimModelDispatch the instant a provider call is
-  // dispatched — once claimed it can NEVER be re-claimed, so a retry after
+  // dispatched — once claimed it can NEVER be cleared, so a retry after
   // an ambiguous provider failure can never silently re-spend.
   modelClaimed: v.optional(v.boolean()),
+  // Atomic attempt accounting: paidCalls counts actual provider dispatches
+  // (never decremented — billed attempts stay billed); consentCount counts
+  // explicit owner authorizations. A paid call requires consentCount >
+  // paidCalls, so every retry is a fresh, bounded, owner-consented spend.
+  paidCalls: v.optional(v.number()),
+  consentCount: v.optional(v.number()),
   // Provider facts for audit/eval: model id + prompt version, never secrets.
   model: v.optional(v.string()),
   promptVersion: v.optional(v.number()),

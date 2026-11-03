@@ -154,12 +154,11 @@ describe("orchestration integrity", () => {
       .rejects.toMatchObject({ data: { code: "INVALID_INPUT" } });
   });
 
-  test("sibling job for same source cannot claim a second paid dispatch", async () => {
+  test("sibling job with its own consent shares the bounded source budget", async () => {
     process.env.PDF_MODEL_AUTHORIZED = "1";
     const { t, asA, jobId, sourceId } = await seedPdfJobWithSegments();
     await t.action(api.ingestMeta.runJob, { jobId });
     await asA.mutation(api.learningImport.authorizeModelCall, { jobId });
-    // A SECOND job on the same source, fully authorized — still refused.
     const job2 = await t.run(async (ctx) =>
       ctx.db.insert("importJobs", {
         ownerId: (await ctx.db.get(jobId))!.ownerId, sourceId,
@@ -168,8 +167,79 @@ describe("orchestration integrity", () => {
       }));
     await t.action(api.ingestMeta.runJob, { jobId });
     const r = await t.action(api.ingestMeta.runJob, { jobId: job2 });
-    expect(r.detail).toMatch(/^model_not_claimed|already_/);
+    expect(r.ok).toBe(true);                          // bounded: within cap
+    expect(chatSpy).toHaveBeenCalledTimes(2);
+    const j2 = await t.run(async (ctx) => ctx.db.get(job2));
+    expect(j2?.paidCalls).toBe(1);
+  });
+
+  test("source cap: a 4th dispatch is refused even with consent", async () => {
+    process.env.PDF_MODEL_AUTHORIZED = "1";
+    const { t, asA, jobId, sourceId } = await seedPdfJobWithSegments();
+    // Simulate a source that already spent its 3-dispatch budget.
+    await t.run(async (ctx) => {
+      for (let i = 0; i < 3; i++) {
+        await ctx.db.insert("importJobs", {
+          ownerId: (await ctx.db.get(jobId))!.ownerId, sourceId,
+          idempotencyKey: `spent-${i}`, state: "failed",
+          modelAuthorized: true, modelClaimed: true, paidCalls: 1, consentCount: 1,
+          createdAt: 1, updatedAt: 1,
+        });
+      }
+    });
+    await t.action(api.ingestMeta.runJob, { jobId }); // parks: awaiting_model
+    await asA.mutation(api.learningImport.authorizeModelCall, { jobId });
+    const r = await t.action(api.ingestMeta.runJob, { jobId });
+    expect(r.detail).toBe("model_not_claimed:source_cap");
+    const j = await t.run(async (ctx) => ctx.db.get(jobId));
+    expect(j?.state).toBe("awaiting_model"); // denied run restores waiting state
+    expect(chatSpy).not.toHaveBeenCalled();
+  });
+
+  test("failed job + fresh owner consent → one bounded retry dispatch", async () => {
+    process.env.PDF_MODEL_AUTHORIZED = "1";
+    const { t, asA, jobId } = await seedPdfJobWithSegments();
+    chatSpy.mockResolvedValueOnce({ ok: false, error: { kind: "invalid_json" }, diag: {
+      topLevelKeys: ["choices"], choices: 1, finishReason: "stop", contentType: "chatcmpl",
+      refusal: false, usage: null } } as never);
+    await t.action(api.ingestMeta.runJob, { jobId });
+    await asA.mutation(api.learningImport.authorizeModelCall, { jobId });
+    const r1 = await t.action(api.ingestMeta.runJob, { jobId });
+    expect(r1.ok).toBe(false);                        // provider failed, paidCalls=1
+    const failed = await t.run(async (ctx) => ctx.db.get(jobId));
+    expect(failed?.state).toBe("failed");
+    // No new consent → refused cheaply, never reaches the provider.
+    const r2 = await t.action(api.ingestMeta.runJob, { jobId });
+    expect(r2.detail).toBe("already_failed");
     expect(chatSpy).toHaveBeenCalledTimes(1);
+    // Explicit second consent → exactly one more bounded dispatch.
+    await asA.mutation(api.learningImport.authorizeModelCall, { jobId });
+    const r3 = await t.action(api.ingestMeta.runJob, { jobId });
+    expect(r3.ok).toBe(true);
+    expect(chatSpy).toHaveBeenCalledTimes(2);
+    const job = await t.run(async (ctx) => ctx.db.get(jobId));
+    expect(job?.paidCalls).toBe(2);
+    expect(job?.consentCount).toBe(2);
+    expect(job?.modelClaimed).toBe(true);             // never cleared
+    expect(job?.state).toBe("needs_review");
+  });
+
+  test("malformed proposal records sanitized parse diagnostics, never raw text", async () => {
+    process.env.PDF_MODEL_AUTHORIZED = "1";
+    const { t, asA, jobId } = await seedPdfJobWithSegments();
+    chatSpy.mockResolvedValueOnce({ ok: true, text: "the cells have walls", usage: null, ms: 5,
+      model: "mock", provider: "mock",
+      diag: { topLevelKeys: [], choices: 1, finishReason: "stop", contentType: "chatcmpl",
+        refusal: false, usage: { prompt_tokens: 11, completion_tokens: 7, reasoning_tokens: 0 } } } as never);
+    await t.action(api.ingestMeta.runJob, { jobId });
+    await asA.mutation(api.learningImport.authorizeModelCall, { jobId });
+    const r = await t.action(api.ingestMeta.runJob, { jobId });
+    expect(r.detail).toMatch(/INVALID_MODEL_OUTPUT/);
+    const job = await t.run(async (ctx) => ctx.db.get(jobId));
+    expect(job?.error).toMatch(/stage=json/);
+    expect(job?.error).toMatch(/len=\d+/);
+    expect(job?.error).toMatch(/finish=stop/);
+    expect(job?.error).not.toContain("the cells have walls"); // no raw output
   });
 
   test("parallel runJob calls → exactly one paid dispatch (atomic claim)", async () => {
