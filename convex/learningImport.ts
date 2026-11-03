@@ -164,12 +164,19 @@ export const authorizeModelCall = mutation({
     const ownerId = await requireLearnerId(ctx);
     const job = await ctx.db.get(jobId);
     if (job === null || job.ownerId !== ownerId) throw err("UNAUTHORIZED", "job not found");
-    // Only eligible jobs: a parked awaiting_model PDF job — nothing else.
+    // Eligible jobs: a parked awaiting_model PDF job, or a failed PDF job the
+    // owner is explicitly re-consenting for one more bounded paid attempt.
     const source = await ctx.db.get(job.sourceId);
-    if (source === null || source.mime !== "application/pdf" || job.state !== "awaiting_model") {
+    if (source === null || source.mime !== "application/pdf" ||
+      (job.state !== "awaiting_model" && job.state !== "failed")) {
       throw err("INVALID_INPUT", "job is not an eligible PDF job awaiting authorization");
     }
-    await ctx.db.patch(jobId, { modelAuthorized: true, updatedAt: Date.now() });
+    await ctx.db.patch(jobId, {
+      modelAuthorized: true,
+      // Every consent buys exactly one paid dispatch — counted, never implied.
+      consentCount: (job.consentCount ?? (job.modelAuthorized === true ? 1 : 0)) + 1,
+      updatedAt: Date.now(),
+    });
     // Safe resume: the owner's consent schedules the pipeline continuation —
     // extraction/gate checks re-run inside runJob before any dispatch.
     await ctx.scheduler.runAfter(0, internal.ingestMeta.runJob, { jobId });
@@ -178,11 +185,17 @@ export const authorizeModelCall = mutation({
 });
 
 /**
- * Atomically claims the single permitted provider dispatch. Mutations are
- * serialized per document, so two concurrent runs cannot both pass. Once
- * `modelClaimed` is set it is never cleared — an ambiguous provider failure
- * therefore cannot silently trigger a second paid call. Also refuses when a
- * sibling job for the SAME source already claimed (one paid call per source).
+ * Hard bound on total paid provider dispatches per source across ALL jobs —
+ * retries stay bounded even when every call is individually consented.
+ */
+const MAX_PAID_CALLS_PER_SOURCE = 3;
+
+/**
+ * Atomically claims one permitted provider dispatch. Mutations serialize, so
+ * concurrent runs cannot both pass. `modelClaimed` is never cleared — billed
+ * attempts stay billed. Retries are explicit and bounded: each paid dispatch
+ * consumes one owner consent (consentCount > paidCalls) AND the whole source
+ * is capped at MAX_PAID_CALLS_PER_SOURCE dispatches across all its jobs.
  */
 export const claimModelDispatch = internalMutation({
   args: { jobId: v.id("importJobs") },
@@ -190,24 +203,39 @@ export const claimModelDispatch = internalMutation({
   handler: async (ctx, { jobId }) => {
     const job = await ctx.db.get(jobId);
     if (job === null) return { claimed: false, reason: "not_found" };
-    if (job.modelClaimed === true) return { claimed: false, reason: "already_claimed" };
-    if (["needs_review", "accepted", "building", "ready", "cancelled", "failed", "classifying"].includes(job.state)) {
+    const paidCalls = job.paidCalls ?? (job.modelClaimed === true ? 1 : 0);
+    const consent = job.consentCount ?? (job.modelAuthorized === true ? 1 : 0);
+    // Accounting first: a claimed job may legitimately re-dispatch ONLY when
+    // unspent owner consent remains (a bounded retry after a classified
+    // failure). Concurrent duplicate runs and spent budgets are refused
+    // identically here — by this point runJob may already have flipped the
+    // row to "extracting", so accounting, not state, is the gate.
+    if (job.modelClaimed === true && paidCalls >= consent) {
+      return { claimed: false, reason: "already_claimed" };
+    }
+    if (job.modelClaimed !== true &&
+      ["needs_review", "accepted", "building", "ready", "cancelled", "classifying"].includes(job.state)) {
       return { claimed: false, reason: "terminal_state" };
     }
     const src = await ctx.db.get(job.sourceId);
     if (src === null || src.status === "deleted") return { claimed: false, reason: "source_gone" };
-    if (src.mime === "application/pdf" && job.modelAuthorized !== true) {
-      return { claimed: false, reason: "unauthorized_pdf" };
+    if (src.mime === "application/pdf") {
+      if (consent === 0) return { claimed: false, reason: "unauthorized_pdf" };
+      if (paidCalls >= consent) return { claimed: false, reason: "consent_exhausted" };
     }
-    const priorClaim = await ctx.db
+    const siblings = await ctx.db
       .query("importJobs")
       .withIndex("by_source", (q) => q.eq("sourceId", job.sourceId))
-      .filter((q) => q.eq(q.field("modelClaimed"), true))
-      .first();
-    if (priorClaim !== null) {
-      return { claimed: false, reason: "sibling_claimed" };
+      .collect();
+    const sourceSpent = siblings.reduce(
+      (n, j) => n + (j.paidCalls ?? (j.modelClaimed === true ? 1 : 0)), 0);
+    if (sourceSpent >= MAX_PAID_CALLS_PER_SOURCE) {
+      return { claimed: false, reason: "source_cap" };
     }
-    await ctx.db.patch(jobId, { modelClaimed: true, state: "classifying", updatedAt: Date.now() });
+    await ctx.db.patch(jobId, {
+      modelClaimed: true, paidCalls: paidCalls + 1,
+      state: "classifying", updatedAt: Date.now(),
+    });
     return { claimed: true };
   },
 });
