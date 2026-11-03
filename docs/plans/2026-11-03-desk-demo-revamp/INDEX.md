@@ -47,7 +47,7 @@
 | W2 | Home desk — mockup carbon copy | `feat/demo-persona-backend` | #92 | done — PR open (merged with W3) | pearnote-git-feat-demo-persona-backend |
 | W3 | Demo persona backend ("Sam") + desk data APIs | `feat/demo-persona-backend` | #92 | done — PR open; seed live on dev | same |
 | W4 | Subject → upload → AI path/lesson/practice flow | `feat/intake-curriculum-flow` | #93 | done — PR open (stacked on #92) | pearnote-git-feat-intake-curriculum-flow |
-| W5 | Lesson space = inherited OurSpaces room | `feat/lesson-space-room` | — | pending | — |
+| W5 | Lesson space = inherited OurSpaces room | `feat/lesson-space-room` | #94 | backend contract shipped; UI mount pending | pearnote-git-feat-lesson-space-room |
 | W6 | Landing rebuild + Flora assets | `feat/landing-flora` | — | pending | — |
 
 Sequencing: W1 lands first (standalone). W3 supplies the data W2's carbon
