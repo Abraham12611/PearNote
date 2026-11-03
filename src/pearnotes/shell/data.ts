@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { SUBJECT_AVATAR_IDS, type SubjectStatus } from "../ui/types";
-import { useCurriculumPath } from "../ingestion/curriculumPath";
+import { toPath, useCurriculumPath } from "../ingestion/curriculumPath";
 import { getPathRef } from "../ingestion/api";
 import type {
+  DeskData,
   LearningPath,
   LessonObjectRef,
   LessonSummary,
@@ -319,4 +320,145 @@ export function usePearNotesFixtures(
     lessonFor: (id) => bundle.lessons[id] ?? null,
     label: bundle.label,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/* W3 — desk aggregate + the seeded demo persona ("sam").              */
+/* `desk.get` = the signed-in owner's desk; `demo.getDesk` = the same   */
+/* systems resolved for the flagged demo account — public, read-only.  */
+/* ------------------------------------------------------------------ */
+
+type RawDesk = {
+  learner: { name: string; image?: string; color?: string; personaId?: string };
+  subjects: Parameters<typeof toPearSubject>[0][];
+  resume: { lessonId: string; lessonTitle: string; subjectName: string; unitTitle: string } | null;
+  today: { _id: string; title: string; subjectName?: string; minutes?: number; done: boolean; color?: string }[];
+  focus: { _id: string; text: string; done: boolean }[];
+  studiedDays: string[];
+  streakDays: number;
+  upcoming: { _id: string; kind: DeskData["upcoming"][number]["kind"]; title: string; subjectName?: string; startTs: number; color?: string }[];
+  achievements: { _id: string; key: string; title: string; detail: string; icon: DeskData["achievements"][number]["icon"]; tint?: string; seen: boolean }[];
+  unseenAchievements: number;
+  activity: { _id: string; actorName: string; kind: string; text: string; subjectName?: string; happenedAt: number }[];
+  crew: { userId: string; name: string; image?: string; color?: string; personaId?: string }[];
+  crewNote: { authorName: string; text: string; happenedAt: number } | null;
+  xpTotal: number;
+  sourceCount: number;
+};
+
+function toDeskData(raw: RawDesk): DeskData {
+  return {
+    learner: raw.learner,
+    today: raw.today.map((e) => ({ id: e._id, title: e.title, subjectName: e.subjectName, minutes: e.minutes, done: e.done, color: e.color })),
+    focus: raw.focus.map((f) => ({ id: f._id, text: f.text, done: f.done })),
+    studiedDays: raw.studiedDays,
+    streakDays: raw.streakDays,
+    upcoming: raw.upcoming.map((e) => ({ id: e._id, kind: e.kind, title: e.title, subjectName: e.subjectName, startTs: e.startTs, color: e.color })),
+    achievements: raw.achievements.map((a) => ({ id: a._id, key: a.key, title: a.title, detail: a.detail, icon: a.icon, tint: a.tint, unseen: !a.seen })),
+    unseenAchievements: raw.unseenAchievements,
+    activity: raw.activity.map((e) => ({ id: e._id, actorName: e.actorName, kind: e.kind, text: e.text, subjectName: e.subjectName, happenedAt: e.happenedAt })),
+    crew: raw.crew,
+    crewNote: raw.crewNote,
+    xpTotal: raw.xpTotal,
+    sourceCount: raw.sourceCount,
+  };
+}
+
+/** The signed-in learner's desk — mounted only when liveReads allowed. */
+export function usePearNotesLiveDesk(): DeskData | null | "loading" {
+  const raw = useQuery(api.desk.get, {});
+  return useMemo(() => (raw === undefined ? "loading" : raw === null ? null : toDeskData(raw as RawDesk)), [raw]);
+}
+
+export function LiveDeskBridge({ onDesk }: { onDesk: (d: DeskData | null | "loading") => void }) {
+  const desk = usePearNotesLiveDesk();
+  useEffect(() => { onDesk(desk); }, [desk, onDesk]);
+  return null;
+}
+
+/* ---- the demo persona ------------------------------------------------ */
+
+export type DemoData = PearNotesData & {
+  desk: DeskData;
+  persona: { name: string; bio: string; image?: string; color?: string };
+  label: string;
+};
+
+type RawDemo = {
+  persona: { name: string; bio: string; image?: string; color?: string };
+  desk: RawDesk;
+  paths: { subjectId: string; tree: Parameters<typeof toPath>[0] }[];
+  lessons: {
+    _id: string; title?: string; subjectId: string; subjectName: string;
+    objectives: { _id: string; statement: string; mastery: LessonSummary["objectives"][number]["state"]; evidenceCount: number }[];
+    activities: { _id: string; spec: { kind?: string; title?: string; prompt?: string }; revision: number }[];
+  }[];
+};
+
+/** The seeded "sam" account — a real backend user, read-only for the
+ *  public demo. `null` when the deployment isn't seeded. */
+export function usePearNotesDemoData(): DemoData | null | "loading" {
+  const raw = useQuery(api.demo.getDesk, {});
+  return useMemo<DemoData | null | "loading">(() => {
+    if (raw === undefined) return "loading";
+    if (raw === null) return null;
+    const d = raw as RawDemo;
+    const subjects = d.desk.subjects.map(toPearSubject);
+    const paths: Record<string, LearningPath> = {};
+    for (const p of d.paths) paths[p.subjectId] = toPath(p.tree);
+    const lessons: Record<string, LessonSummary> = {};
+    for (const l of d.lessons) {
+      lessons[l._id] = {
+        id: l._id,
+        title: l.title ?? "untitled lesson",
+        subjectId: l.subjectId,
+        subjectName: l.subjectName,
+        stepIndex: null,
+        stepCount: 0,
+        objectives: l.objectives.map((o) => ({ id: o._id, text: o.statement, state: o.mastery })),
+        objects: l.activities.map((a, i) => ({
+          id: a._id,
+          kind: LESSON_OBJECT_KIND[(a.spec as { kind?: string }).kind ?? ""] ?? "challenge",
+          title: a.spec.title ?? a.spec.prompt ?? `activity ${i + 1}`,
+          state: "todo" as const,
+        })),
+      };
+    }
+    const desk = toDeskData(d.desk);
+    return {
+      status: "ready",
+      subjects,
+      resume: d.desk.resume
+        ? { lessonId: d.desk.resume.lessonId, lessonTitle: d.desk.resume.lessonTitle, subjectName: d.desk.resume.subjectName }
+        : null,
+      subjectFor: (id) => subjects.find((s) => s.id === id) ?? null,
+      pathFor: (id) => paths[id] ?? null,
+      lessonFor: (id) => lessons[id] ?? null,
+      desk,
+      persona: d.persona,
+      label: "sample account",
+    };
+  }, [raw]);
+}
+
+export function DemoDataBridge({ onData }: { onData: (d: DemoData | null | "loading") => void }) {
+  const data = usePearNotesDemoData();
+  useEffect(() => { onData(data); }, [data, onData]);
+  return null;
+}
+
+/** Self-checklist toggles — the only desk write a client may do (own
+ *  rows only, enforced server-side in desk.toggleChecklistItem). */
+export function DeskActionBridge({
+  onToggle,
+}: {
+  onToggle: (fn: (table: "weeklyFocus" | "studyEvents", id: string) => void) => void;
+}) {
+  const toggle = useMutation(api.desk.toggleChecklistItem);
+  useEffect(() => {
+    onToggle((table, id) => {
+      void toggle({ table, id: id as never });
+    });
+  }, [toggle, onToggle]);
+  return null;
 }

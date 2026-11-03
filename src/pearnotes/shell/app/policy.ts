@@ -21,6 +21,9 @@ export interface AppAccessPolicy {
   liveMutations: boolean;
   /** `?fixtures=1` may inject labelled fixture content */
   fixturesAllowed: boolean;
+  /** mount the public demo-persona reads (api.demo.*) — read-only,
+   *  demo-account scoped, never a personal query. */
+  demoReads: boolean;
   /** require the authenticated gate (off → public demo surface) */
   authGate: boolean;
 }
@@ -40,6 +43,10 @@ export function appAccessPolicy({
     authGate: !demoMode,
     liveReads: liveBackend && !demoMode,
     liveMutations: liveBackend && !demoMode,
+    /* demoReads is the one Convex read allowed in demo mode: api.demo.*
+       resolves only the flagged demo account's rows and exposes no
+       mutation surface — personal reads stay suppressed. */
+    demoReads: liveBackend && demoMode,
     fixturesAllowed: demoMode || dev,
   };
 }

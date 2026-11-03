@@ -1,14 +1,13 @@
 /**
- * Issue #64b — the Home desk adapts `/#/space/crew/knows` components
- * (.room-knows, .knows-sheets, .knows-people, .knows-empty) rather than
- * inventing a dashboard system, and every empty state stays honest.
- * These tests pin the structural contract on the rendered markup.
+ * Home desk — the owner-approved "your desk" mockup on the /knows paper
+ * grammar. Every module is desk-aggregate driven; with no desk backend a
+ * fresh account gets honest empties, never invented records.
  */
 import { describe, expect, test } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { HomeDesk } from "../src/pearnotes/shell/app/HomeDesk";
-import type { PearNotesData } from "../src/pearnotes/shell/types";
+import type { DeskData, PearNotesData } from "../src/pearnotes/shell/types";
 
 const EMPTY: PearNotesData = {
   status: "ready",
@@ -27,6 +26,22 @@ const SUBJECT = {
   status: "ready" as const,
 };
 
+const DESK: DeskData = {
+  learner: { name: "sam" },
+  today: [{ id: "t1", title: "Cell biology", minutes: 30, done: true }],
+  focus: [{ id: "f1", text: "Finish Diffusion and osmosis", done: true }],
+  studiedDays: ["2026-11-01"],
+  streakDays: 3,
+  upcoming: [{ id: "u1", kind: "quiz", title: "Unit 2 quiz", startTs: Date.now() + 86400000 }],
+  achievements: [{ id: "a1", key: "streak3", title: "study streak", detail: "3 days", icon: "sprout", unseen: true }],
+  unseenAchievements: 1,
+  activity: [{ id: "e1", actorName: "Maya", kind: "lesson", text: "completed Cell biology — Unit 1", happenedAt: Date.now() }],
+  crew: [{ userId: "u-maya", name: "Maya" }],
+  crewNote: { authorName: "Maya", text: "anyone up for a study session later?", happenedAt: Date.now() },
+  xpTotal: 405,
+  sourceCount: 1,
+};
+
 const props = {
   data: EMPTY,
   resume: null,
@@ -37,83 +52,55 @@ const props = {
   onResume: () => {},
 };
 
-describe("HomeDesk — /knows-adapted Home (#64b)", () => {
-  test("uses the original knows grammar, not a new dashboard system", () => {
+describe("HomeDesk — the mockup desk", () => {
+  test("keeps the knows paper grammar", () => {
     const html = renderToStaticMarkup(createElement(HomeDesk, props));
-    /* the real knows classes carry the visuals — no parallel system */
-    for (const cls of [
-      "room-knows",
-      "knows-side-paper",
-      "knows-scroll",
-      "knows-head",
-      "knows-kicker",
-      "knows-sheets",
-      "knows-sec",
-      "knows-people",
-      "knows-empty",
-      "knows-foot",
-    ]) {
+    for (const cls of ["room-knows", "knows-side-paper", "knows-scroll", "knows-kicker"]) {
       expect(html, `missing .${cls}`).toContain(cls);
     }
+    expect(html).toContain("your desk");
   });
 
-  test("a fresh account is honest — no seeded subjects, resume or friends", () => {
+  test("a fresh account is honest — every module, zero invented records", () => {
     const html = renderToStaticMarkup(createElement(HomeDesk, props));
     expect(html).not.toContain("desk-subject-");
     expect(html).not.toContain("desk-resume");
-    /* every section exists but each shows its honest empty, not data */
     for (const id of [
-      "desk-continue",
-      "desk-week",
-      "desk-subjects",
-      "desk-activity",
-      "desk-shelf",
-      "desk-friends",
+      "desk-continue", "desk-subjects", "desk-focus", "desk-session",
+      "desk-calendar", "desk-achievements", "desk-crew", "desk-activity", "desk-upcoming",
     ]) {
       expect(html).toContain(`data-testid="${id}"`);
     }
-    expect(html).toContain("nothing is seeded");
-    expect(html).toContain("deferred");
+    for (const honest of ["nothing in progress", "no subjects yet", "no focus yet", "no earned stickers", "just you so far", "nothing to report", "nothing scheduled"]) {
+      expect(html, `missing honest empty "${honest}"`).toContain(honest);
+    }
   });
 
   test("each subject tile is exactly one accessible button — no nesting", () => {
     const html = renderToStaticMarkup(
-      createElement(HomeDesk, {
-        ...props,
-        data: { ...EMPTY, subjects: [SUBJECT] },
-      }),
+      createElement(HomeDesk, { ...props, data: { ...EMPTY, subjects: [SUBJECT] } }),
     );
-    /* a subject tile's inner content must be spans/text only — a
-       <button> inside a <button> is invalid and breaks activation */
-    const tile = html.match(
-      /<button[^>]*data-testid="desk-subject-sub-1"[^>]*>([\s\S]*?)<\/button>/,
-    );
+    const tile = html.match(/<button[^>]*data-testid="desk-subject-sub-1"[^>]*>([\s\S]*?)<\/button>/);
     expect(tile).not.toBeNull();
     expect(tile![1]).not.toContain("<button");
   });
 
-  test("the header row is study spaces, not people", () => {
-    const html = renderToStaticMarkup(createElement(HomeDesk, props));
-    expect(html).toContain('data-testid="desk-spaces"');
-    expect(html).toContain("your study spaces");
-    expect(html).not.toContain("your people");
-  });
-
-  test("real subjects + resume render their own data", () => {
+  test("a real desk renders seeded/aggregate data in every module", () => {
     const html = renderToStaticMarkup(
       createElement(HomeDesk, {
         ...props,
-        data: { ...EMPTY, subjects: [SUBJECT] },
-        resume: {
-          lessonId: "l1",
-          lessonTitle: "Diffusion and osmosis",
-          subjectName: "cell biology",
-        },
+        desk: DESK,
+        data: { ...EMPTY, subjects: [SUBJECT], resume: { lessonId: "l1", lessonTitle: "Diffusion and osmosis", subjectName: "cell biology" } },
+        resume: { lessonId: "l1", lessonTitle: "Diffusion and osmosis", subjectName: "cell biology" },
       }),
     );
-    expect(html).toContain('data-testid="desk-subject-sub-1"');
-    expect(html).toContain("cell biology");
-    expect(html).toContain('data-testid="desk-resume"');
-    expect(html).toContain("Diffusion and osmosis");
+    for (const text of [
+      "Diffusion and osmosis", "cell biology", "Cell biology",
+      "Finish Diffusion and osmosis", "study streak", "Unit 2 quiz",
+      "Maya", "anyone up for a study session later?",
+      "completed Cell biology — Unit 1", "3", "1 new",
+    ]) {
+      expect(html, `missing "${text}"`).toContain(text);
+    }
   });
 });

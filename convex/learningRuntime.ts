@@ -18,8 +18,10 @@ import type { ObjectiveEvidence } from "../src/pearnotes/learning-engine/types";
 
 const err = (code: string, message: string) => new ConvexError({ code, message });
 
-/** Resolve lesson→subject and verify the caller owns the subject. */
-async function ownedLesson(ctx: { db: { get: (id: never) => Promise<unknown> } }, lessonId: Id<"lessons">, userId: Id<"users">) {
+/** Resolve lesson→subject and verify the caller owns the subject.
+ *  Exported for the demo read path (convex/demo.ts) which authorizes the
+ *  seeded demo owner instead of the signed-in caller. */
+export async function ownedLesson(ctx: { db: { get: (id: never) => Promise<unknown> } }, lessonId: Id<"lessons">, userId: Id<"users">) {
   const db = ctx.db as { get: (id: string) => Promise<Doc<"lessons"> | Doc<"units"> | Doc<"sections"> | Doc<"curriculumVersions"> | Doc<"subjects"> | null> };
   const lesson = (await db.get(lessonId)) as Doc<"lessons"> | null;
   if (lesson === null) return null;
@@ -112,8 +114,9 @@ export const getLesson = query({
   },
 });
 
-/** Remove server-only answer keys without violating the closed union. */
-function stripKeys(spec: Doc<"activities">["spec"]): Doc<"activities">["spec"] {
+/** Remove server-only answer keys without violating the closed union.
+ *  Exported for the demo read path — same stripping contract. */
+export function stripKeys(spec: Doc<"activities">["spec"]): Doc<"activities">["spec"] {
   const clone = { ...spec } as Record<string, unknown>;
   delete clone.correctOptionId;
   delete clone.expectedAnswer;
