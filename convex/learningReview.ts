@@ -233,10 +233,21 @@ export const review = mutation({
     for (const t of targets) {
       const nextVersion = await nextVersionNo(ctx, t.subjectId);
       const versionId = await ctx.db.insert("curriculumVersions", {
-        subjectId: t.subjectId, version: nextVersion, state: "draft",
-        generatedFromJobId: String(jobId), createdAt: now,
+        subjectId: t.subjectId, version: nextVersion, state: "published",
+        generatedFromJobId: String(jobId), createdAt: now, publishedAt: now,
       });
       versionIds.push(versionId);
+      // Desk feed (W4): the approval itself is the review event.
+      const subj = await ctx.db.get(t.subjectId);
+      await ctx.scheduler.runAfter(0, internal.desk.recordActivity, {
+        ownerId,
+        actorName: "you",
+        actorUserId: ownerId,
+        kind: "review",
+        text: "approved a study path",
+        subjectId: t.subjectId,
+        subjectName: subj?.name,
+      });
       if (dc === undefined) continue;
       const myConcepts = conceptIdsBySubject.get(t.subjectId) ?? [];
       let sOrder = 0;
@@ -271,6 +282,12 @@ export const review = mutation({
             // validated source-backed classify activity for the approved
             // lesson — server-derived key, real authorized segments only.
             await ctx.scheduler.runAfter(0, internal.learningRuntime.materializeScoredActivity, {
+              lessonId: newLessonId,
+            });
+            // W4: the full activity set (lessonCard, MC, shortAnswer, teachBack)
+            // is generated against THIS lesson's own authorized segments —
+            // validated server-side before anything is stored.
+            await ctx.scheduler.runAfter(0, internal.ingestMeta.generateLessonActivities, {
               lessonId: newLessonId,
             });
           }

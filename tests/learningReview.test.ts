@@ -79,7 +79,7 @@ describe("learningReview.review", () => {
       await ctx.db.query("lessons").collect() as Doc<"lessons">[],
     ]);
     expect(sub?.status).toBe("draft");           // never auto-published
-    expect(ver?.state).toBe("draft");            // draft curriculum only
+    expect(ver?.state).toBe("published");         // W4: approval IS the publish consentnly
     expect(ver?.generatedFromJobId).toBe(String(jobId));
     expect(lessons.every((l) => l.canvasSpaceId === undefined)).toBe(true); // no fake canvas
     // Job + proposal terminal states
