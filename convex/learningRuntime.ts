@@ -7,10 +7,11 @@
  */
 import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query, type MutationCtx } from "./_generated/server";
 import { requireLearnerId } from "./learningAuth";
 import type { Doc, Id } from "./_generated/dataModel";
 import { activitySpec, masteryState, sourceRef } from "./tables/learning";
+import type { NoteData } from "./widgetData";
 import { randomSuffix, slugify } from "./spaces";
 
 import { evaluateForRemediation } from "../src/pearnotes/learning-engine/remediation";
@@ -835,27 +836,101 @@ export const ensureLessonSpace = internalMutation({
   handler: async (ctx, { lessonId }) => {
     const lesson = await ctx.db.get(lessonId);
     if (lesson === null) throw err("UNAUTHORIZED", "lesson not found");
-    if (lesson.canvasSpaceId !== undefined) return lesson.canvasSpaceId;
     const unit = await ctx.db.get(lesson.unitId);
     const section = unit === null ? null : await ctx.db.get(unit.sectionId);
     const version = section === null ? null : await ctx.db.get(section.versionId);
     const subject = version === null ? null : await ctx.db.get(version.subjectId);
     const now = Date.now();
     const name = `${subject?.name ?? "lesson"} · ${lesson.title ?? "lesson"}`;
-    const spaceId = await ctx.db.insert("spaces", {
-      name,
-      type: "ongoing",
-      icon: "lesson",
-      color: subject?.theme ?? "#7c5cff",
-      ownerId: subject?.ownerId,
-      slug: `${slugify(name)}-${randomSuffix()}`,
-      createdAt: now,
-      lastActivityAt: now,
-    });
-    await ctx.db.patch(lessonId, { canvasSpaceId: spaceId });
+    let spaceId = lesson.canvasSpaceId;
+    if (spaceId === undefined) {
+      spaceId = await ctx.db.insert("spaces", {
+        name,
+        type: "ongoing",
+        icon: "lesson",
+        color: subject?.theme ?? "#7c5cff",
+        ownerId: subject?.ownerId,
+        slug: `${slugify(name)}-${randomSuffix()}`,
+        createdAt: now,
+        lastActivityAt: now,
+      });
+      await ctx.db.patch(lessonId, { canvasSpaceId: spaceId });
+    }
+    await ensureLessonWidgets(ctx, spaceId, lesson, subject?.name ?? "lesson", now);
     return spaceId;
   },
 });
+
+/** Widget synthesis (W5 tail) — pin the lesson's activities as note
+ *  cards inside its room: lessonCard → the pinned sheet, graded kinds →
+ *  challenge prompts (answer keys NEVER render), teachBack → the
+ *  teach-it-back prompt. `createdBy: "lesson:<id>"` is the provenance
+ *  marker AND the dedupe key — re-provisioning can never duplicate cards. */
+async function ensureLessonWidgets(
+  ctx: MutationCtx,
+  spaceId: Id<"spaces">,
+  lesson: Doc<"lessons">,
+  subjectName: string,
+  now: number,
+) {
+  const marker = `lesson:${String(lesson._id)}`;
+  const existing = await ctx.db
+    .query("widgets")
+    .withIndex("by_space", (q) => q.eq("spaceId", spaceId))
+    .take(50);
+  if (existing.some((w) => w.createdBy === marker)) return;
+  const acts = await ctx.db
+    .query("activities")
+    .withIndex("by_lesson", (q) => q.eq("lessonId", lesson._id))
+    .take(20);
+  let z = existing.length + 1;
+  const pin = (i: number, data: NoteData) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    return ctx.db.insert("widgets", {
+      spaceId,
+      type: "note",
+      x: 140 + col * 360,
+      y: 150 + row * 300,
+      w: 320,
+      h: 240,
+      z: z++,
+      data,
+      createdBy: marker,
+      createdAt: now,
+      rotate: ((i * 7) % 5) - 2,
+    });
+  };
+  // The room's anchor card — what this lesson is for.
+  await pin(0, {
+    title: lesson.title ?? "lesson",
+    text: `a ${subjectName} lesson — the cards here are its activities`,
+    kicker: subjectName,
+    pin: true,
+  });
+  for (const [i, act] of acts.entries()) {
+    const s = act.spec;
+    if (s.kind === "lessonCard") {
+      await pin(i + 1, { title: s.heading, text: s.body, kicker: "read me" });
+    } else if (s.kind === "multipleChoice") {
+      await pin(i + 1, {
+        title: s.prompt,
+        text: s.options.map((o, j) => `${String.fromCharCode(97 + j)}) ${o.label}`).join("   "),
+        kicker: "challenge",
+      });
+    } else if (s.kind === "shortAnswer") {
+      await pin(i + 1, { title: s.prompt, kicker: "answer it", text: "write the answer in your own words" });
+    } else if (s.kind === "classify") {
+      await pin(i + 1, {
+        title: s.prompt,
+        text: `sort ${s.items.length} items into ${s.buckets.map((b) => b.label).join(" / ")}`,
+        kicker: "challenge",
+      });
+    } else if (s.kind === "teachBack") {
+      await pin(i + 1, { title: s.prompt, kicker: "teach it back", text: "explain it like a friend would check you" });
+    }
+  }
+}
 
 /** W5 — the lesson's room handle for the UI mount. Owner-scoped; the
  *  client gets {spaceId, slug} or null (no canvas yet / foreign id). */
