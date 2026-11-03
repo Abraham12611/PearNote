@@ -253,6 +253,27 @@ export const submitAttempt = mutation({
       createdAt: now,
       attemptKey,
     });
+    // Desk emitters (W4): XP follows the verdict — never the click — and
+    // the feed records the honest event. Scheduled after commit so a slow
+    // feed write can never block the verdict path.
+    if (ev.verdict === "correct" || ev.verdict === "partial") {
+      await ctx.scheduler.runAfter(0, internal.desk.awardXp, {
+        userId,
+        points: ev.verdict === "correct" ? 10 : 5,
+        reason: "challenge_correct",
+        refId: String(attemptId),
+      });
+    }
+    const subject = await ctx.db.get(found.subject._id);
+    await ctx.scheduler.runAfter(0, internal.desk.recordActivity, {
+      ownerId: userId,
+      actorName: "you",
+      actorUserId: userId,
+      kind: "challenge",
+      text: `answered a ${activity.spec.kind === "multipleChoice" ? "challenge" : activity.spec.kind === "teachBack" ? "teach-back" : "question"} — ${ev.verdict.replace("_", " ")}`,
+      subjectId: found.subject._id,
+      subjectName: subject?.name ?? found.subject.name,
+    });
     // Per-item marks only once a verdict exists — never for needs_review.
     const marks = ev.verdict === "needs_review" ? undefined : classifyMarks(activity.spec, response);
 

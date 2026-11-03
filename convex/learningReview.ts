@@ -237,6 +237,17 @@ export const review = mutation({
         generatedFromJobId: String(jobId), createdAt: now, publishedAt: now,
       });
       versionIds.push(versionId);
+      // Desk feed (W4): the approval itself is the review event.
+      const subj = await ctx.db.get(t.subjectId);
+      await ctx.scheduler.runAfter(0, internal.desk.recordActivity, {
+        ownerId,
+        actorName: "you",
+        actorUserId: ownerId,
+        kind: "review",
+        text: "approved a study path",
+        subjectId: t.subjectId,
+        subjectName: subj?.name,
+      });
       if (dc === undefined) continue;
       const myConcepts = conceptIdsBySubject.get(t.subjectId) ?? [];
       let sOrder = 0;

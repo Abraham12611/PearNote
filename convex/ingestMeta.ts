@@ -6,7 +6,7 @@
  * subjects/curriculum — the learner approves separately.
  */
 import { v } from "convex/values";
-import { internalAction, internalQuery } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 // _generated/api.d.ts predates these modules (codegen is deployment-gated);
 // internal resolves through the same anyApi proxy at runtime.
 import { anyApi } from "convex/server";
@@ -15,7 +15,8 @@ import { chat, META_PROMPT_VERSION, META_SPARK } from "./metaClient";
 import { importJobState } from "./tables/learning";
 declare const process: { env: Record<string, string | undefined> };
 import { checkCitations, checkEvidence, parseProposal, resolveSegmentIds } from "./metaProposal";
-import type { Doc } from "./_generated/dataModel";
+import { activitySpec, sourceRef } from "./tables/learning";
+import type { Doc, Id } from "./_generated/dataModel";
 
 const SEGMENT_TEXT_CAP = 3000;
 const SEGMENT_COUNT_CAP = 200;
@@ -350,7 +351,9 @@ export const generateLessonActivities = internalAction({
     if (lesson.activityCount > 0) return { ok: true, detail: "already_has_activities" };
     if (lesson.segments.length === 0) return { ok: false, detail: "no_approved_segments" };
 
-    const segsForPrompt = lesson.segments.slice(0, 12).map((s) => ({ id: s._id, text: s.text.slice(0, SEGMENT_TEXT_CAP) }));
+    const segsForPrompt = lesson.segments
+      .slice(0, 12)
+      .map((s: { _id: string; text: string }) => ({ id: s._id, text: s.text.slice(0, SEGMENT_TEXT_CAP) }));
     const user = JSON.stringify({
       lessonTitle: lesson.title ?? "lesson",
       objectives: lesson.objectives,
@@ -364,8 +367,10 @@ export const generateLessonActivities = internalAction({
 
     let parsed: unknown = null;
     try { parsed = JSON.parse(res.text); } catch { return { ok: false, detail: "bad_json" }; }
-    const authorized = new Set(lesson.segments.map((s) => String(s._id)));
-    const segText = new Map(lesson.segments.map((s) => [String(s._id), s.text] as const));
+    const authorized = new Set(lesson.segments.map((s: { _id: string }) => String(s._id)));
+    const segText = new Map<string, string>(
+      lesson.segments.map((s: { _id: string; text: string }) => [String(s._id), s.text]),
+    );
     const acts = parseActivities(parsed);
     // Validation gate: every activity needs >=1 evidence quote, verbatim,
     // from a segment inside THIS lesson's authorized set.
@@ -381,7 +386,10 @@ export const generateLessonActivities = internalAction({
         spec: a.spec,
         sourceRefs: a.evidence
           .filter((e) => authorized.has(e.segmentId))
-          .map((e) => ({ sourceId: lesson.sourceId, segmentId: e.segmentId })),
+          .map((e) => ({
+            sourceId: lesson.sourceId,
+            segmentId: e.segmentId as Id<"sourceSegments">,
+          })),
       })),
       objectiveIds: lesson.objectiveIds,
     });
@@ -427,8 +435,9 @@ export const applyActivities = internalMutation({
     objectiveIds: v.array(v.id("objectives")),
     activities: v.array(
       v.object({
-        spec: v.any(), // already validated to the closed union by parseActivities
-        sourceRefs: v.array(v.object({ sourceId: v.id("sources"), segmentId: v.string() })),
+        /* already validated to the closed union by parseActivities */
+        spec: activitySpec,
+        sourceRefs: v.array(sourceRef),
       }),
     ),
   },
@@ -445,9 +454,9 @@ export const applyActivities = internalMutation({
     for (const a of activities) {
       await ctx.db.insert("activities", {
         lessonId,
-        spec: a.spec as never,
+        spec: a.spec,
         objectiveIds,
-        sourceRefs: a.sourceRefs.map((r) => ({ sourceId: r.sourceId, segmentId: r.segmentId as never })),
+        sourceRefs: a.sourceRefs,
         revision: 1,
         createdAt: now,
       });
