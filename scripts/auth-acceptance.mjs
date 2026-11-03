@@ -26,20 +26,24 @@ const SHOTS = process.argv.includes("--shots");
 const SHOT_DIR = "docs/phase00/screenshots/authenticated";
 
 const LOADING =
-  /pinning things up|reading your|checking your|loading|hanging tight|fetching|almost there|one moment/i;
+  /pinning things up|reading your|reading the shelf|checking your|loading|hanging tight|fetching|almost there|one moment/i;
 const ROUTES = [
-  /* home ready only when the subject list has a COMPLETED read —
-     heading text alone can appear while data is still "checking" */
-  { name: "app-home", path: "/app", ready: /your desk|continue studying|your subjects|nothing lives here/i, dataMarker: "[data-testid='desk-subjects']" },
+  /* doneSel = element that only exists once the page's own data read
+     is COMPLETE — rows OR the section's scoped empty card, never the
+     bare section shell (it mounts before the query resolves). */
+  { name: "app-home", path: "/app", ready: /your desk|continue studying|your subjects|nothing lives here/i,
+    doneSel: "[data-testid='desk-subjects'] li, .knows-empty" },
   { name: "app-learn", path: "/app/learn", ready: /subject|learn|\+/i },
   { name: "app-new", path: "/app/new", ready: /subject|source|create|name/i },
-  { name: "app-library", path: "/app/library", ready: /library|sources|bring your first|nothing/i },
+  { name: "app-library", path: "/app/library", ready: /library|sources|bring your first|nothing/i,
+    doneSel: "[data-testid^='src-'], .knows-empty" },
   { name: "app-groups", path: "/app/groups", ready: /group|study room|invite|crew/i },
   /* achievements: an aside bleeds off the desktop edge (decorative,
        E2-owned surface) — logged, not failed. */
-  { name: "app-achievements", path: "/app/achievements", ready: /shelf|troph|earned|locked|empty/i, allowOverflow: true },
+  { name: "app-achievements", path: "/app/achievements", ready: /shelf|troph|earned|locked|empty/i },
   { name: "app-profile", path: "/app/profile", ready: /profile|display name|identity|avatar|look/i },
-  { name: "app-settings", path: "/app/settings", ready: /settings|account|sign out|session/i },
+  { name: "app-settings", path: "/app/settings", ready: /settings|account|sign out|session/i,
+    doneSel: "[data-testid='settings-desk']" },
 ];
 const VIEWPORTS = [
   { width: 390, height: 844, mobile: true },
@@ -123,10 +127,9 @@ for (const vp of VIEWPORTS) {
     await page.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: 1, isMobile: vp.mobile });
     await goto(page, BASE + route.path);
     const done = await waitReady(page, route.ready);
-    const dataReady = route.dataMarker
-      ? await page
-          .evaluate((sel) => !!document.querySelector(sel), route.dataMarker)
-          .catch(() => false)
+    /* bounded wait for the page's own completed-data element */
+    const dataReady = route.doneSel
+      ? !!(await page.waitForSelector(route.doneSel, { timeout: 15000 }).catch(() => null))
       : true;
     const report = await page.evaluate(() => {
       const vw = document.documentElement.clientWidth;
@@ -145,7 +148,7 @@ for (const vp of VIEWPORTS) {
     });
     const bad = [];
     if (!done) bad.push(`never reached finished content — "${report.snippet.slice(0, 60)}…"`);
-    if (done && !dataReady) bad.push(`ready text but data view missing (${route.dataMarker})`);
+    if (done && !dataReady) bad.push(`ready text but completed-data element missing (${route.doneSel})`);
     if (report.scrollW > report.vw) bad.push(`scrollW ${report.scrollW} > vw`);
     const realOver = report.over.filter((o) => o !== "aside"); // decorative bleed on E2 surfaces — reported, not failed
     if (realOver.length) bad.push(`overflow: ${realOver.join("|")}`);
@@ -153,23 +156,26 @@ for (const vp of VIEWPORTS) {
     if (!report.rail) bad.push("no rail");
     if (bad.length) { failures += bad.length; console.log(`✗ ${route.name} @${vp.width}px`); for (const b of bad) console.log(`    ${b}`); }
     else console.log(`✓ ${route.name} @${vp.width}px — ${report.title}`);
-    /* screenshots only from fully-passing pages — a failed capture
-       must never masquerade as evidence under a normal filename */
-    if (SHOTS && done && bad.length === 0)
+    /* screenshots only after EVERY assertion passes AND entry
+       animations have settled — no half-drawn captures */
+    if (SHOTS && done && bad.length === 0) {
+      await new Promise((r) => setTimeout(r, 900));
       await page.screenshot({ path: `${SHOT_DIR}/${route.name}-${vp.width}.png` });
+    }
     await page.close();
   }
 }
 
-/* ---- identity + empty-account proof + sign-out ------------------------- */
+/* ---- ONE uninterrupted sequence on the SAME authenticated account ------
+   empty Home → Library → exact Back → Settings → sign out → gate.
+   Identity consistency: the "hey <name>" persona must match. */
 {
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
   const bad = [];
+  let persona = null;
 
-  await goto(page, `${BASE}/app`);
-  /* 1. empty-account proof from a COMPLETED read — the desk's subject
-     section exists and lists zero rows; fixture text must be absent. */
+  /* 1. empty Home — completed read, zero subject rows, empty card */
   await goto(page, `${BASE}/app`);
   if (await waitReady(page, ROUTES[0].ready)) {
     const home = await page
@@ -177,36 +183,48 @@ for (const vp of VIEWPORTS) {
         empty: !!document.querySelector(".knows-empty, [role='status']"),
         subjectRows: document.querySelectorAll("[data-testid='desk-subjects'] li").length,
         fixture: /cell biology|fixture|diffusion/i.test(document.body.innerText),
+        persona: document.body.innerText.match(/hey ([a-z]+)/i)?.[1]?.toLowerCase() ?? null,
       }))
-      .catch(() => ({ empty: false, subjectRows: -1, fixture: false }));
-    if (home.fixture) bad.push("fixture content inside real account");
-    if (home.subjectRows === -1) bad.push("subject section unreadable");
-    else if (home.subjectRows > 0) bad.push(`expected zero subjects, found ${home.subjectRows}`);
-    else if (!home.empty) bad.push("zero subjects but no explicit empty state shown");
+      .catch(() => null);
+    if (!home) bad.push("home state unreadable");
+    else {
+      persona = home.persona;
+      if (home.fixture) bad.push("fixture content inside real account");
+      if (home.subjectRows > 0) bad.push(`expected zero subjects, found ${home.subjectRows}`);
+      else if (!home.empty) bad.push("zero subjects but no explicit empty state shown");
+    }
   } else bad.push("home never finished loading — can't prove empty state");
 
-  /* 2. Back/Forward BEFORE sign-out while the session is still valid */
+  /* 2. Library — completed shelf read, same persona */
   await goto(page, `${BASE}/app/library`);
-  await waitReady(page, ROUTES[3].ready);
-  await page.goBack({ waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
-  await new Promise((r) => setTimeout(r, 1500));
-  const backTo = await page.evaluate(() => location.pathname).catch(() => "eval-failed");
-  if (!backTo.startsWith("/app")) bad.push(`Back landed at ${backTo}`);
+  if (await waitReady(page, ROUTES[3].ready)) {
+    const lib = await page
+      .evaluate(() => ({
+        done: !!document.querySelector("[data-testid^='src-'], .knows-empty"),
+        persona: document.body.innerText.match(/hey ([a-z]+)/i)?.[1]?.toLowerCase() ?? null,
+      }))
+      .catch(() => ({ done: false, persona: null }));
+    if (!lib.done) bad.push("library shows neither source rows nor its empty card");
+    if (persona && lib.persona && lib.persona !== persona)
+      bad.push(`identity drift: home "${persona}" vs library "${lib.persona}"`);
+  } else bad.push("library never finished loading");
 
-  /* 3. sign-out is MANDATORY — missing control or surviving session fails */
+  /* 3. EXACT Back navigation → /app */
+  await page.goBack({ waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
+  await new Promise((r) => setTimeout(r, 1200));
+  const backTo = await page.evaluate(() => location.pathname).catch(() => "eval-failed");
+  if (backTo !== "/app") bad.push(`Back landed at "${backTo}", expected exactly /app`);
+
+  /* 4. Settings → sign out via its real testid, bounded wait */
   await goto(page, `${BASE}/app/settings`);
   await waitReady(page, ROUTES[7].ready);
-  const signOut = await page
-    .evaluate(() => {
-      const btn = [...document.querySelectorAll("button, a")].find((b) => /\bsign out\b|\blog out\b/i.test(b.textContent));
-      if (btn) { btn.click(); return true; }
-      return false;
-    })
-    .catch(() => false);
-  if (!signOut) {
-    bad.push("sign-out control missing on settings (mandatory)");
+  const signOutBtn = await page
+    .waitForSelector("[data-testid='set-signout']", { timeout: 15000 })
+    .catch(() => null);
+  if (!signOutBtn) {
+    bad.push("sign-out control [data-testid=set-signout] missing (mandatory)");
   } else {
-    /* the unauthenticated gate must come back */
+    await signOutBtn.click().catch(() => {});
     const gateBack = await (async () => {
       const start = Date.now();
       while (Date.now() - start < 20000) {
@@ -217,9 +235,7 @@ for (const vp of VIEWPORTS) {
             text: document.body.innerText.slice(0, 200),
           }));
           if (s.gate && !s.rail) return s;
-        } catch {
-          /* a single eval timing out must not kill the poll */
-        }
+        } catch { /* eval timeout = keep polling */ }
         await new Promise((r) => setTimeout(r, 400));
       }
       return null;
@@ -228,8 +244,8 @@ for (const vp of VIEWPORTS) {
     else console.log(`    sign-out → gate back ("${gateBack.text.slice(0, 60)}")`);
   }
 
-  if (bad.length) { failures += bad.length; console.log("✗ identity/sign-out/nav"); for (const b of bad) console.log(`    ${b}`); }
-  else console.log("✓ identity — empty proof, Back/Forward, sign-out gate");
+  if (bad.length) { failures += bad.length; console.log("✗ sequence — empty/nav/identity/sign-out"); for (const b of bad) console.log(`    ${b}`); }
+  else console.log(`✓ sequence — empty proof, exact Back, identity "${persona ?? "?"}", sign-out gate`);
   await page.close();
 }
 
