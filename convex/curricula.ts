@@ -212,3 +212,38 @@ export const getPath = query({
     return await readPathTree(ctx, ownerId, subjectId);
   },
 });
+
+/** `curricula.publish` — the owner's explicit publish of a draft version.
+ *  Approving a proposal already lands `published` directly (the approval
+ *  IS the consent); this exists for drafts materialized before that rule
+ *  and for re-publishing an older validated draft. Validates the tree is
+ *  non-empty before flipping state, then supersedes any older published
+ *  head — at most one published version per subject. */
+export const publish = mutation({
+  args: { subjectId: v.id("subjects"), versionId: v.id("curriculumVersions") },
+  returns: v.union(v.object({ published: v.literal(true) }), v.object({ published: v.literal(false), reason: v.string() })),
+  handler: async (ctx, { subjectId, versionId }) => {
+    const ownerId = await requireLearnerId(ctx);
+    const subject = await ctx.db.get(subjectId);
+    if (subject === null || subject.ownerId !== ownerId) throw err("UNAUTHORIZED", "subject not found");
+    const version = await ctx.db.get(versionId);
+    if (version === null || version.subjectId !== subjectId) throw err("UNAUTHORIZED", "version not found");
+    if (version.state === "published") return { published: true as const };
+    if (version.state !== "draft" && version.state !== "validated") {
+      return { published: false as const, reason: `version is ${version.state}` };
+    }
+    const sections = await ctx.db
+      .query("sections")
+      .withIndex("by_version_order", (q) => q.eq("versionId", versionId))
+      .take(1);
+    if (sections.length === 0) return { published: false as const, reason: "empty curriculum" };
+    const older = await ctx.db
+      .query("curriculumVersions")
+      .withIndex("by_subject_state", (q) => q.eq("subjectId", subjectId).eq("state", "published"))
+      .collect();
+    const now = Date.now();
+    for (const v2 of older) await ctx.db.patch(v2._id, { state: "superseded" });
+    await ctx.db.patch(versionId, { state: "published", publishedAt: now });
+    return { published: true as const };
+  },
+});
