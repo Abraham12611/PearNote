@@ -75,6 +75,9 @@ function UploadCard({
 
 function StatusCard({ jobId }: { jobId: JobId }) {
   const status = useQuery(ingestApi.learningImport.getStatus, { jobId });
+  const authorize = useMutation(ingestApi.learningImport.authorizeModelCall);
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
   if (status === undefined) {
     return <section className="pni-card" aria-busy="true">checking the job…</section>;
   }
@@ -94,11 +97,34 @@ function StatusCard({ jobId }: { jobId: JobId }) {
         <strong>{IMPORT_STATE_LABEL[status.state] ?? status.state}</strong>
       </div>
       {status.state === "awaiting_model" && (
-        <p className="pni-hint">
-          your document was read. the model step is gated on explicit
-          owner/deployment authorization — nothing is spent automatically.
-          check back when it's approved.
-        </p>
+        <>
+          <p className="pni-hint">
+            your document was read. the model step is gated on explicit
+            owner/deployment authorization — nothing is spent automatically.
+          </p>
+          <button
+            type="button"
+            className="pn-cta"
+            disabled={consentBusy}
+            data-testid="authorize-model"
+            onClick={() => {
+              setConsentBusy(true);
+              setConsentError(null);
+              void authorize({ jobId })
+                .catch((e: unknown) =>
+                  setConsentError(convexErrorCode(e).message),
+                )
+                .finally(() => setConsentBusy(false));
+            }}
+          >
+            {consentBusy ? "authorizing…" : "authorize the model step →"}
+          </button>
+          {consentError && (
+            <p className="pni-error" role="alert">
+              {consentError}
+            </p>
+          )}
+        </>
       )}
       {status.state === "failed" && (
         <p className="pni-error">{status.error ?? "the import failed."}</p>
