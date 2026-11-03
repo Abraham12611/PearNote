@@ -15,6 +15,10 @@ export const users = defineTable({
   // Issue #66 — one of the eight illustrated personas (convex/personas.ts);
   // written once by profiles.initialize, never re-rolled.
   personaId: v.optional(v.string()),
+  // Seeded demo-account marker (convex/seedDemo.ts — internal only, never
+  // settable from a client). demo.* public reads resolve data exclusively
+  // through this tag; a real account can never carry it.
+  demoTag: v.optional(v.string()),
   // a guest seat folded into an account when the person joined with that account's email on it (auth.ts)
   mergedInto: v.optional(v.string()),
 }).index("email", ["email"]).index("phone", ["phone"]);

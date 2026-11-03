@@ -6,6 +6,7 @@ import * as voice from "./tables/voice";
 import * as row from "./tables/rightOfWay";
 import * as games from "./tables/games";
 import * as learning from "./tables/learning";
+import * as desk from "./tables/desk";
 
 // The whole data model at a glance; each table's fields and indexes live in
 // convex/tables/<area>.ts. Shape rationale: docs/data-model-plan.md §11.
@@ -69,4 +70,13 @@ export default defineSchema({
   importProposals: learning.importProposals, // reviewable model suggestions
   practiceProposals: learning.practiceProposals, // consented remediation branches
   factAttestations: learning.factAttestations, // per-item fact→bucket evidence
+
+  // PearNotes desk domain (session plan W3): the Home "your desk" systems.
+  // Server-issued records — clients read, only backend flows write.
+  xpLedger: desk.xpLedger, // audited XP awards — the streak's evidence
+  achievements: desk.achievements, // server-issued shelf trophies
+  activityEvents: desk.activityEvents, // "recent activity" feed lines
+  studyEvents: desk.studyEvents, // session checklist, calendar, coming-up
+  weeklyFocus: desk.weeklyFocus, // "this week's focus" checklist
+  friendships: desk.friendships, // the crew — consented, real accounts only
 });
