@@ -883,3 +883,54 @@ export const purge = internalMutation({
     return null;
   },
 });
+
+/** W5 — backfill rooms for every seeded demo lesson (run once after seed). */
+export const ensureRooms = internalAction({
+  args: {},
+  returns: v.object({ ok: v.boolean(), rooms: v.number() }),
+  handler: async (ctx): Promise<{ ok: boolean; rooms: number }> => {
+    const owner = await ctx.runQuery(internal.seedDemo.demoOwnerId, {});
+    if (owner === null) return { ok: false, rooms: 0 };
+    const lessons = await ctx.runQuery(internal.seedDemo.demoLessonIds, { ownerId: owner });
+    for (const lessonId of lessons) {
+      await ctx.runMutation(internal.learningRuntime.ensureLessonSpace, { lessonId });
+    }
+    return { ok: true, rooms: lessons.length };
+  },
+});
+
+export const demoLessonIds = internalQuery({
+  args: { ownerId: v.id("users") },
+  returns: v.array(v.id("lessons")),
+  handler: async (ctx, { ownerId }) => {
+    const subjects = await ctx.db
+      .query("subjects")
+      .withIndex("by_owner", (q) => q.eq("ownerId", ownerId))
+      .collect();
+    const out: Id<"lessons">[] = [];
+    for (const s of subjects) {
+      for (const ver of await ctx.db
+        .query("curriculumVersions")
+        .withIndex("by_subject", (q) => q.eq("subjectId", s._id))
+        .collect()) {
+        for (const sec of await ctx.db
+          .query("sections")
+          .withIndex("by_version_order", (q) => q.eq("versionId", ver._id))
+          .collect()) {
+          for (const unit of await ctx.db
+            .query("units")
+            .withIndex("by_section_order", (q) => q.eq("sectionId", sec._id))
+            .collect()) {
+            for (const l of await ctx.db
+              .query("lessons")
+              .withIndex("by_unit_order", (q) => q.eq("unitId", unit._id))
+              .collect()) {
+              out.push(l._id);
+            }
+          }
+        }
+      }
+    }
+    return out;
+  },
+});

@@ -856,3 +856,18 @@ export const ensureLessonSpace = internalMutation({
     return spaceId;
   },
 });
+
+/** W5 — the lesson's room handle for the UI mount. Owner-scoped; the
+ *  client gets {spaceId, slug} or null (no canvas yet / foreign id). */
+export const getLessonSpace = query({
+  args: { lessonId: v.id("lessons") },
+  returns: v.union(v.object({ spaceId: v.id("spaces"), slug: v.string() }), v.null()),
+  handler: async (ctx, { lessonId }) => {
+    const userId = await requireLearnerId(ctx);
+    const found = await ownedLesson(ctx, lessonId, userId);
+    if (found === null || found.lesson.canvasSpaceId === undefined) return null;
+    const space = await ctx.db.get(found.lesson.canvasSpaceId);
+    if (space === null || space.slug === undefined) return null;
+    return { spaceId: space._id, slug: space.slug };
+  },
+});
