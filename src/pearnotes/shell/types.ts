@@ -240,6 +240,8 @@ export type LearningPathDrawerProps = {
   selectedLessonId?: string | null;
   initialScrollTop?: number;
   fixtureLabel?: string;
+  /** live-only publish affordance slot (DraftPublish) — null in demo */
+  publishSlot?: ReactNode;
   onSelectLesson?: (lessonId: string | null) => void;
   onStartLesson?: (lessonId: string) => void;
   onBack?: () => void;

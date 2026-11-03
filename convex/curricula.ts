@@ -247,3 +247,25 @@ export const publish = mutation({
     return { published: true as const };
   },
 });
+
+/** `curricula.listDrafts` — the owner's draft/validated versions for a
+ *  subject (the publish button's menu). Most accounts have none —
+ *  approval publishes directly since W4. */
+export const listDrafts = query({
+  args: { subjectId: v.id("subjects") },
+  returns: v.array(
+    v.object({ _id: v.id("curriculumVersions"), version: v.number(), state: v.string(), createdAt: v.number() }),
+  ),
+  handler: async (ctx, { subjectId }) => {
+    const ownerId = await requireLearnerId(ctx);
+    const subject = await ctx.db.get(subjectId);
+    if (subject === null || subject.ownerId !== ownerId) return [];
+    const rows = await ctx.db
+      .query("curriculumVersions")
+      .withIndex("by_subject", (q) => q.eq("subjectId", subjectId))
+      .take(20);
+    return rows
+      .filter((r) => r.state === "draft" || r.state === "validated")
+      .map((r) => ({ _id: r._id, version: r.version, state: r.state, createdAt: r.createdAt }));
+  },
+});

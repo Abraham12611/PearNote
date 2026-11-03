@@ -1507,3 +1507,20 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/* DraftPublish — the publish affordance inside the path drawer */
+.pn-draft-pub {
+  padding: 10px 18px 0;
+}
+.pn-draft-pub-btn {
+  width: 100%;
+  border: 2px dashed var(--color-ink, #1d1712);
+  border-radius: 10px;
+  background: transparent;
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.pn-draft-pub-btn:hover { background: rgba(198, 247, 80, 0.25); }

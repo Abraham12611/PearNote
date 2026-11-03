@@ -57,6 +57,7 @@ import type { JobId } from "../../ingestion/api";
 import { CreateSubjectSheet } from "../../ingestion/CreateSubjectSheet";
 import { LiveLessonBoard } from "../../learning-widgets";
 import { LessonRoom } from "./LessonRoom";
+import { DraftPublish } from "../../ui/DraftPublish";
 import { loadPearNotesUiStyles, pearnotesSlots } from "../slots";
 import type { DeskData, LearningPath, LessonMode, PearNotesData } from "../types";
 import { PearNotesDock } from "./PearNotesDock";
@@ -575,6 +576,11 @@ function PearNotesApp({
                   : pending("the source library")
             }
             fixtureLabel={fixtureLabel}
+            publishSlot={
+              policy.liveMutations && route.kind === "path" ? (
+                <DraftPublish subjectId={route.subjectId} />
+              ) : undefined
+            }
           />
         </>
       )}
