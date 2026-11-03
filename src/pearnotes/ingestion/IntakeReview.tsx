@@ -99,8 +99,9 @@ function StatusCard({ jobId }: { jobId: JobId }) {
       {status.state === "awaiting_model" && (
         <>
           <p className="pni-hint">
-            your document was read. the model step is gated on explicit
-            owner/deployment authorization — nothing is spent automatically.
+            your document was read. choosing authorize sends relevant PDF
+            excerpts to Meta's Muse Spark AI service to suggest lessons.
+            you can leave this step off; no model call is made without your consent.
           </p>
           <button
             type="button"
@@ -117,7 +118,7 @@ function StatusCard({ jobId }: { jobId: JobId }) {
                 .finally(() => setConsentBusy(false));
             }}
           >
-            {consentBusy ? "authorizing…" : "authorize the model step →"}
+            {consentBusy ? "authorizing…" : "authorize Meta AI processing →"}
           </button>
           {consentError && (
             <p className="pni-error" role="alert">
