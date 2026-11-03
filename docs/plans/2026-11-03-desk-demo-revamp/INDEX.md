@@ -61,6 +61,9 @@ Specs: `W1-LEARN-OVERLAY.md` `W2-DESK-MOCKUP.md` `W3-DEMO-PERSONA-BACKEND.md`
 
 ## Session log
 
+Post-plan stacked PRs: **#96** widget synthesis · **#97** teach-back grading · **#98** cold-start review · **#99** achievement awards (chain 92→93→94→96→97→98→99).
+
+
 - 2026-11-03 — Plan authored from `origin/develop @ 08ddd19`. Diagnosis of
   the Learn bug verified in code (see W1). Backend gaps for the mockup
   confirmed: no XP/achievements/activity-feed/calendar/friends tables;
