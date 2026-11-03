@@ -495,3 +495,77 @@ export const issueAchievement = internalMutation({
     return null;
   },
 });
+
+/** `desk.evaluateAchievements` — the ONLY issuer for real accounts.
+ *  Called after evaluated attempts and review approvals; each award is
+ *  checked against actual evidence rows, and `issueAchievement` dedupes
+ *  by (userId, key), so repeat calls are free. Nothing fires on clicks. */
+export const evaluateAchievements = internalMutation({
+  args: { userId: v.id("users") },
+  returns: v.null(),
+  handler: async (ctx, { userId }) => {
+    const now = Date.now();
+    const [masteryRows, attempts, xpRows, subjects] = await Promise.all([
+      ctx.db.query("mastery").withIndex("by_user", (q) => q.eq("userId", userId)).take(200),
+      ctx.db.query("attempts").withIndex("by_user_time", (q) => q.eq("userId", userId)).take(100),
+      ctx.db.query("xpLedger").withIndex("by_user", (q) => q.eq("userId", userId)).take(500),
+      ctx.db.query("subjects").withIndex("by_owner", (q) => q.eq("ownerId", userId)).take(50),
+    ]);
+
+    // streak: distinct xp days (xp only lands on evaluated evidence),
+    // consecutive ending today or yesterday.
+    const days = new Set(xpRows.map((x) => x.day));
+    const todayStart = Date.parse(dayKey(now));
+    let streak = 0;
+    let cursor = days.has(dayKey(now)) ? todayStart : todayStart - DAY_MS;
+    while (days.has(dayKey(cursor))) {
+      streak += 1;
+      cursor -= DAY_MS;
+    }
+
+    let teachBackDone = false;
+    for (const a of attempts) {
+      if (a.evaluation === undefined) continue;
+      if (a.evaluation.verdict === "correct" || a.evaluation.verdict === "partial") {
+        const act = await ctx.db.get(a.activityId);
+        if (act?.spec.kind === "teachBack") { teachBackDone = true; break; }
+      }
+    }
+
+    let pathPublished = false;
+    for (const s of subjects) {
+      const pub = await ctx.db
+        .query("curriculumVersions")
+        .withIndex("by_subject_state", (q) => q.eq("subjectId", s._id).eq("state", "published"))
+        .first();
+      if (pub !== null) { pathPublished = true; break; }
+    }
+
+    const issue = (key: string, title: string, detail: string, icon: "sprout" | "star" | "bolt" | "book" | "trophy", tint?: string) =>
+      ctx.db
+        .query("achievements")
+        .withIndex("by_user_key", (q) => q.eq("userId", userId).eq("key", key))
+        .first()
+        .then((existing) => {
+          if (existing !== null) return;
+          void ctx.db.insert("achievements", { userId, key, title, detail, icon, tint, seen: false, issuedAt: now });
+        });
+
+    const checks: Promise<void>[] = [];
+    if (streak >= 3) checks.push(issue("study_streak_3", "study streak", `${streak} days`, "sprout", "#a8e05f"));
+    if (masteryRows.some((m) => m.state === "demonstrated")) {
+      checks.push(issue("first_demonstrated", "first proof", "an objective you actually showed", "star", "#ffd23f"));
+    }
+    if (attempts.length >= 5) {
+      checks.push(issue("warmed_up", "getting warmed", "5 graded attempts", "bolt", "#b985ff"));
+    }
+    if (teachBackDone) {
+      checks.push(issue("taught_it_back", "taught it back", "a teach-back that held up", "book", "#8fd3ff"));
+    }
+    if (pathPublished) {
+      checks.push(issue("first_path", "first path", "a study path you approved", "trophy", "#ff9d76"));
+    }
+    await Promise.all(checks);
+    return null;
+  },
+});
