@@ -11,6 +11,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { requireLearnerId } from "./learningAuth";
 import type { Doc, Id } from "./_generated/dataModel";
 import { activitySpec, masteryState, sourceRef } from "./tables/learning";
+import { randomSuffix, slugify } from "./spaces";
 
 import { evaluateForRemediation } from "../src/pearnotes/learning-engine/remediation";
 import { deriveMastery } from "../src/pearnotes/learning-engine/mastery";
@@ -18,8 +19,10 @@ import type { ObjectiveEvidence } from "../src/pearnotes/learning-engine/types";
 
 const err = (code: string, message: string) => new ConvexError({ code, message });
 
-/** Resolve lesson→subject and verify the caller owns the subject. */
-async function ownedLesson(ctx: { db: { get: (id: never) => Promise<unknown> } }, lessonId: Id<"lessons">, userId: Id<"users">) {
+/** Resolve lesson→subject and verify the caller owns the subject.
+ *  Exported for the demo read path (convex/demo.ts) which authorizes the
+ *  seeded demo owner instead of the signed-in caller. */
+export async function ownedLesson(ctx: { db: { get: (id: never) => Promise<unknown> } }, lessonId: Id<"lessons">, userId: Id<"users">) {
   const db = ctx.db as { get: (id: string) => Promise<Doc<"lessons"> | Doc<"units"> | Doc<"sections"> | Doc<"curriculumVersions"> | Doc<"subjects"> | null> };
   const lesson = (await db.get(lessonId)) as Doc<"lessons"> | null;
   if (lesson === null) return null;
@@ -112,8 +115,9 @@ export const getLesson = query({
   },
 });
 
-/** Remove server-only answer keys without violating the closed union. */
-function stripKeys(spec: Doc<"activities">["spec"]): Doc<"activities">["spec"] {
+/** Remove server-only answer keys without violating the closed union.
+ *  Exported for the demo read path — same stripping contract. */
+export function stripKeys(spec: Doc<"activities">["spec"]): Doc<"activities">["spec"] {
   const clone = { ...spec } as Record<string, unknown>;
   delete clone.correctOptionId;
   delete clone.expectedAnswer;
@@ -249,6 +253,27 @@ export const submitAttempt = mutation({
       evaluation: { verdict: ev.verdict, score: ev.score, evaluatedAt: now },
       createdAt: now,
       attemptKey,
+    });
+    // Desk emitters (W4): XP follows the verdict — never the click — and
+    // the feed records the honest event. Scheduled after commit so a slow
+    // feed write can never block the verdict path.
+    if (ev.verdict === "correct" || ev.verdict === "partial") {
+      await ctx.scheduler.runAfter(0, internal.desk.awardXp, {
+        userId,
+        points: ev.verdict === "correct" ? 10 : 5,
+        reason: "challenge_correct",
+        refId: String(attemptId),
+      });
+    }
+    const subject = await ctx.db.get(found.subject._id);
+    await ctx.scheduler.runAfter(0, internal.desk.recordActivity, {
+      ownerId: userId,
+      actorName: "you",
+      actorUserId: userId,
+      kind: "challenge",
+      text: `answered a ${activity.spec.kind === "multipleChoice" ? "challenge" : activity.spec.kind === "teachBack" ? "teach-back" : "question"} — ${ev.verdict.replace("_", " ")}`,
+      subjectId: found.subject._id,
+      subjectName: subject?.name ?? found.subject.name,
     });
     // Per-item marks only once a verdict exists — never for needs_review.
     const marks = ev.verdict === "needs_review" ? undefined : classifyMarks(activity.spec, response);
@@ -796,5 +821,53 @@ export const reviewPractice = mutation({
     });
     await ctx.db.patch(proposalId, { state: "accepted", activityId, updatedAt: now });
     return { state: "accepted" as const, activityId };
+  },
+});
+
+/** W5 — provision the lesson's inherited-room canvas.
+ *  Idempotent: an already-provisioned lesson returns its space; the room
+ *  is owned by the subject's owner and named after the lesson so it reads
+ *  correctly in the rail/spaces list. Internal only — provisioning comes
+ *  from the approval path (learningReview) or the demo seed. */
+export const ensureLessonSpace = internalMutation({
+  args: { lessonId: v.id("lessons") },
+  returns: v.id("spaces"),
+  handler: async (ctx, { lessonId }) => {
+    const lesson = await ctx.db.get(lessonId);
+    if (lesson === null) throw err("UNAUTHORIZED", "lesson not found");
+    if (lesson.canvasSpaceId !== undefined) return lesson.canvasSpaceId;
+    const unit = await ctx.db.get(lesson.unitId);
+    const section = unit === null ? null : await ctx.db.get(unit.sectionId);
+    const version = section === null ? null : await ctx.db.get(section.versionId);
+    const subject = version === null ? null : await ctx.db.get(version.subjectId);
+    const now = Date.now();
+    const name = `${subject?.name ?? "lesson"} · ${lesson.title ?? "lesson"}`;
+    const spaceId = await ctx.db.insert("spaces", {
+      name,
+      type: "ongoing",
+      icon: "lesson",
+      color: subject?.theme ?? "#7c5cff",
+      ownerId: subject?.ownerId,
+      slug: `${slugify(name)}-${randomSuffix()}`,
+      createdAt: now,
+      lastActivityAt: now,
+    });
+    await ctx.db.patch(lessonId, { canvasSpaceId: spaceId });
+    return spaceId;
+  },
+});
+
+/** W5 — the lesson's room handle for the UI mount. Owner-scoped; the
+ *  client gets {spaceId, slug} or null (no canvas yet / foreign id). */
+export const getLessonSpace = query({
+  args: { lessonId: v.id("lessons") },
+  returns: v.union(v.object({ spaceId: v.id("spaces"), slug: v.string() }), v.null()),
+  handler: async (ctx, { lessonId }) => {
+    const userId = await requireLearnerId(ctx);
+    const found = await ownedLesson(ctx, lessonId, userId);
+    if (found === null || found.lesson.canvasSpaceId === undefined) return null;
+    const space = await ctx.db.get(found.lesson.canvasSpaceId);
+    if (space === null || space.slug === undefined) return null;
+    return { spaceId: space._id, slug: space.slug };
   },
 });

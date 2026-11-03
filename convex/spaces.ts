@@ -136,7 +136,7 @@ export const getSpaceWithWidgets = query({
 });
 
 /** "the tahoe trip" -> "the-tahoe-trip". Empty-safe. */
-function slugify(name: string) {
+export function slugify(name: string) {
   const stem = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -149,7 +149,7 @@ function slugify(name: string) {
  * The slug IS the invite link (#/join/<slug>) and the link is full access, so
  * it has to carry entropy — "the-house" would be guessable by anyone.
  */
-function randomSuffix() {
+export function randomSuffix() {
   const alphabet = "abcdefghijkmnpqrstuvwxyz23456789"; // no l/o/0/1
   const bytes = new Uint8Array(6);
   crypto.getRandomValues(bytes);

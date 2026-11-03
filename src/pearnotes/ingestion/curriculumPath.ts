@@ -42,7 +42,7 @@ const PROGRESS_NODE_STATE: Record<string, PathNodeState> = {
   demonstrated: "demonstrated",
 };
 
-function toPath(raw: GetPathResult): LearningPath {
+export function toPath(raw: GetPathResult): LearningPath {
   const sections: PathSection[] = raw.sections.map((sec) => ({
     id: sec._id,
     title: sec.title,

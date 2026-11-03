@@ -40,20 +40,25 @@ import {
 } from "../../../lib/routes";
 import {
   CONVEX_ID,
+  DemoDataBridge,
+  DeskActionBridge,
   LiveDataBridge,
+  LiveDeskBridge,
   LiveLessonBridge,
   LivePathBridge,
   pearnotesLiveBackend,
   usePearNotesData,
   usePearNotesFixtures,
+  type DemoData,
   type LiveLessonState,
 } from "../data";
 import { IntakeReview } from "../../ingestion/IntakeReview";
 import type { JobId } from "../../ingestion/api";
 import { CreateSubjectSheet } from "../../ingestion/CreateSubjectSheet";
 import { LiveLessonBoard } from "../../learning-widgets";
+import { LessonRoom } from "./LessonRoom";
 import { loadPearNotesUiStyles, pearnotesSlots } from "../slots";
-import type { LearningPath, LessonMode, PearNotesData } from "../types";
+import type { DeskData, LearningPath, LessonMode, PearNotesData } from "../types";
 import { PearNotesDock } from "./PearNotesDock";
 import { HomeDesk } from "./HomeDesk";
 import { LibraryDesk } from "./LibraryDesk";
@@ -189,6 +194,13 @@ function PearNotesApp({
   });
   const fixtures = usePearNotesFixtures(policy.fixturesAllowed);
   const [liveData, setLiveData] = useState<PearNotesData | null>(null);
+  /* W3 — the seeded demo account (public, read-only) and the signed-in
+     desk aggregate. Demo data outranks client fixtures when seeded. */
+  const [demoData, setDemoData] = useState<DemoData | null | "loading">(null);
+  const [liveDesk, setLiveDesk] = useState<DeskData | null | "loading">(null);
+  const [toggleItem, setToggleItem] = useState<
+    ((table: "weeklyFocus" | "studyEvents", id: string) => void) | undefined
+  >(undefined);
   const [livePath, setLivePath] = useState<{
     subjectId: string;
     path: LearningPath;
@@ -201,8 +213,23 @@ function PearNotesApp({
     setLiveLesson(null);
   }, [route.kind === "lesson" ? route.lessonId : null]);
 
-  const data = fixtures ?? liveData ?? staticData;
-  const fixtureLabel = fixtures?.label;
+  const data =
+    (demoData !== null && demoData !== "loading" ? demoData : null) ??
+    fixtures ??
+    liveData ??
+    staticData;
+  const fixtureLabel =
+    demoData !== null && demoData !== "loading"
+      ? demoData.label
+      : fixtures?.label;
+  /* The desk modules read the same aggregate whichever surface is up:
+     seeded demo desk, signed-in desk, or null (mock/loading). */
+  const desk =
+    demoData !== null && demoData !== "loading"
+      ? demoData.desk
+      : liveDesk === "loading"
+        ? null
+        : liveDesk;
 
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
@@ -229,11 +256,13 @@ function PearNotesApp({
      appear, transiently or otherwise (coordinator review). */
   const learnerName = useMemo(
     () =>
-      displayNameFor({
-        demoMode,
-        identityName: demoMode ? undefined : getIdentity().name,
-      }),
-    [demoMode],
+      demoData !== null && demoData !== "loading"
+        ? demoData.persona.name
+        : displayNameFor({
+            demoMode,
+            identityName: demoMode ? undefined : getIdentity().name,
+          }),
+    [demoMode, demoData],
   );
 
   /* Route-driven navigation — the picker/create-sheet are routes, not
@@ -317,6 +346,7 @@ function PearNotesApp({
   const homeView = (
     <HomeDesk
       data={data}
+      desk={desk}
       resume={data.resume}
       learnerName={learnerName}
       fixtureLabel={fixtureLabel}
@@ -333,6 +363,7 @@ function PearNotesApp({
       }
       onOpenSubject={openSubject}
       onResume={openLesson}
+      onToggleItem={toggleItem}
     />
   );
 
@@ -464,12 +495,21 @@ function PearNotesApp({
               }
               fixtureLabel={fixtureLabel}
             >
-              {lessonCanvas}
-              {policy.liveMutations &&
-                !fixtureLabel &&
-                CONVEX_ID.test(route.lessonId) && (
-                  <LiveLessonBoard lessonId={route.lessonId} />
-                )}
+              {/* W5: when the lesson owns a provisioned room, the
+                  inherited OurSpaces runtime IS the canvas. Otherwise
+                  the existing board keeps rendering — no dead frame. */}
+              {policy.liveReads || policy.demoReads ? (
+                <LessonRoom lessonId={route.lessonId} demoMode={demoMode}>
+                  {lessonCanvas}
+                  {policy.liveMutations &&
+                    !fixtureLabel &&
+                    CONVEX_ID.test(route.lessonId) && (
+                      <LiveLessonBoard lessonId={route.lessonId} />
+                    )}
+                </LessonRoom>
+              ) : (
+                lessonCanvas
+              )}
             </LessonShell>
           )
         ) : (
@@ -546,7 +586,18 @@ function PearNotesApp({
            never crash the shell or fabricate subjects. */
         <Boundary fallback={null}>
           <LiveDataBridge onData={setLiveData} />
+          <LiveDeskBridge onDesk={setLiveDesk} />
         </Boundary>
+      )}
+      {/* The public demo reads the seeded "sam" account — the only
+          Convex surface allowed in demo mode, and read-only. */}
+      {policy.demoReads && (
+        <Boundary fallback={null}>
+          <DemoDataBridge onData={setDemoData} />
+        </Boundary>
+      )}
+      {policy.liveMutations && authState === "ready" && (
+        <DeskActionBridge onToggle={setToggleItem} />
       )}
       {policy.liveMutations && authState === "ready" && (
         <CreateSubjectSheet

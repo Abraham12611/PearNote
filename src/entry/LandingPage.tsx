@@ -27,6 +27,7 @@ const WAYS = [
   {
     mark: "↗",
     color: "var(--color-couple)",
+    art: "0% 0%",
     title: "Upload what you need to learn.",
     body: "A PDF, a chapter, pasted notes. Your source is the whole curriculum — PearNotes never invents one.",
     note: "the upload, the paste, the page",
@@ -34,6 +35,7 @@ const WAYS = [
   {
     mark: "✳",
     color: "var(--color-crew)",
+    art: "100% 0%",
     title: "Approve the path it proposes.",
     body: "You review suggested subjects, sections and lessons — rename, split, merge — before anything becomes your curriculum.",
     note: "your call, every time",
@@ -41,6 +43,7 @@ const WAYS = [
   {
     mark: "◔",
     color: "var(--color-trip)",
+    art: "0% 100%",
     title: "Study it on a living canvas.",
     body: "Each lesson is a board: source segments, challenges and teach-back pinned where your hands can reach them.",
     note: "the lesson, the source, the board",
@@ -48,6 +51,7 @@ const WAYS = [
   {
     mark: "✓",
     color: "var(--color-couple)",
+    art: "100% 100%",
     title: "Show proof, not clicks.",
     body: "Progress comes from graded evidence against your material — and untracked means untracked, never a fake bar.",
     note: "evidence you can open",
@@ -66,25 +70,18 @@ function LessonBoardPreview() {
           <span className="about-board-label">
             a source, becoming a lesson <span>✳</span>
           </span>
-          <div className="entry-board-source">
-            <strong>your source</strong>
-            <span>page 14 — the part you highlighted</span>
-          </div>
-          <span className="entry-board-arrow">→</span>
-          <div className="entry-board-lesson">
-            <strong>your lesson</strong>
-            <span className="entry-board-path">
-              <span className="entry-path-node" />
-              <span className="entry-path-node" />
-              <span className="entry-path-node is-next" />
-            </span>
-            <span className="entry-board-claim">
-              every claim stays pinned to its page
-            </span>
-          </div>
+          {/* Flora-generated collage (W6 — see assets/landing/PROVENANCE) */}
+          <img
+            className="entry-board-collage"
+            src="/assets/landing/hero-collage.jpg"
+            alt="a source page becoming a learning path"
+          />
+          <span className="entry-board-claim">
+            every claim stays pinned to its page
+          </span>
           <img
             className="entry-board-sticker"
-            src="/assets/stickers/sparkle-burst.png"
+            src="/assets/landing/pear-sticker.jpg"
             alt=""
           />
           <span className="about-board-tag">a lesson worth keeping.</span>
@@ -202,8 +199,13 @@ export function LandingPage({ live }: { live: boolean }) {
           {WAYS.map((way) => (
             <div key={way.title} className="about-way">
               <span
-                className="about-way-mark"
-                style={{ "--way-color": way.color } as React.CSSProperties}
+                className="about-way-mark has-art"
+                style={
+                  {
+                    "--way-color": way.color,
+                    backgroundPosition: way.art,
+                  } as React.CSSProperties
+                }
               >
                 {way.mark}
               </span>

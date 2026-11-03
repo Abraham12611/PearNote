@@ -115,6 +115,69 @@ export type LessonSummary = {
   objects: LessonObjectRef[];
 };
 
+/* ---- desk view model (W3: convex/desk.ts + convex/demo.ts) ---------- */
+
+export type DeskSessionItem = {
+  id: string;
+  title: string;
+  subjectName?: string;
+  minutes?: number;
+  done: boolean;
+  color?: string;
+};
+export type DeskFocusItem = { id: string; text: string; done: boolean };
+export type DeskUpcomingItem = {
+  id: string;
+  kind: "session_item" | "quiz" | "group" | "review" | "deadline";
+  title: string;
+  subjectName?: string;
+  startTs: number;
+  color?: string;
+};
+export type DeskAchievement = {
+  id: string;
+  key: string;
+  title: string;
+  detail: string;
+  icon: "sprout" | "star" | "bolt" | "book" | "trophy";
+  tint?: string;
+  unseen: boolean;
+};
+export type DeskActivityItem = {
+  id: string;
+  actorName: string;
+  kind: string;
+  text: string;
+  subjectName?: string;
+  happenedAt: number;
+};
+export type DeskCrewMember = {
+  userId: string;
+  name: string;
+  image?: string;
+  color?: string;
+  personaId?: string;
+};
+
+/** Everything the mockup desk shows beyond subjects/resume. All evidence
+ *  derived server-side; `null` = no desk backend (mock mode) → honest
+ *  empties, not invented records. */
+export type DeskData = {
+  learner: { name: string; image?: string; color?: string; personaId?: string };
+  today: DeskSessionItem[];
+  focus: DeskFocusItem[];
+  studiedDays: string[];
+  streakDays: number;
+  upcoming: DeskUpcomingItem[];
+  achievements: DeskAchievement[];
+  unseenAchievements: number;
+  activity: DeskActivityItem[];
+  crew: DeskCrewMember[];
+  crewNote: { authorName: string; text: string; happenedAt: number } | null;
+  xpTotal: number;
+  sourceCount: number;
+};
+
 /* ---- the shell's data seam ---- */
 
 /** What the shell can honestly answer today. Engineer 4's Convex domain

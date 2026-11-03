@@ -409,3 +409,35 @@
 @media (prefers-reduced-motion: reduce) {
   .entry-slip-dot { animation: none; }
 }
+
+/* --- W6: Flora-generated landing visuals (assets/landing/PROVENANCE) - */
+
+/* the pinned collage sheet inside the hero board frame */
+.entry-board-collage {
+  position: absolute;
+  left: 14px;
+  top: 46px;
+  width: calc(100% - 160px);
+  max-width: 300px;
+  border: 2px solid var(--pn-sticker, #0b0b0e);
+  border-radius: 10px;
+  box-shadow: 4px 5px 0 rgba(11, 11, 13, 0.85);
+  rotate: -1.2deg;
+}
+
+.entry-board-claim {
+  position: absolute;
+  bottom: 34px;
+  left: 16px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+/* each way card's mark becomes a quadrant of the generated sheet */
+.about-way-mark.has-art {
+  background-image: url("/assets/landing/ways-sheet.jpg");
+  background-size: 230% 230%;
+  background-repeat: no-repeat;
+  font-size: 0; /* the crop replaces the glyph */
+}

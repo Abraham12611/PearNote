@@ -1,101 +1,114 @@
 /* ------------------------------------------------------------------
- * HomeDesk — the PearNotes Home, adapted from `/#/space/crew/knows`
- * (Issue #64b).
+ * HomeDesk — the PearNotes Home, the owner-approved "your desk" mockup
+ * adapted onto the `/#/space/crew/knows` paper grammar.
  *
- * This reuses the knows page's components and grammar verbatim —
- * `.room-knows`/`.knows-scroll`/`.knows-head`/`.knows-sheets`/
- * `.knows-sec`/`.knows-people`/`.knows-empty`/`.knows-hints`/
- * `.knows-foot` from `src/components/room-knows.css` — it is not a new
- * dashboard system. The mapping:
+ * Every module is data-driven:
+ *   continue learning ← resume point (last real attempt)
+ *   study session?    ← today's session_items (server rows)
+ *   achievements      ← server-issued rows + unseen count
+ *   your crew         ← accepted friendships + latest crew message
+ *   recent activity   ← activityEvents feed
+ *   coming up         ← future studyEvents
+ *   subjects discs    ← owned subjects (empty → just the +)
+ *   this week's focus ← weeklyFocus checklist
+ *   study calendar    ← evidence days + streak
+ *   foot bar          ← sync state — "sample board" on demo, "live
+ *                       sync · last change" with real data
  *
- *   knows-kicker + h1        → "hey <learner>" · "your desk"
- *   knows-total counter      → real subject count (0 → honest copy)
- *   Portrait (knows-people)  → subject faces as die-cut stickers (+ add)
- *   sheet is-a               → continue studying + this week
- *   sheet is-b               → your subjects (source status per tile)
- *   sheet is-c               → recent activity + shelf + friends capsule
- *   knows-empty + hints      → every honest empty state
- *   knows-foot               → the page's honesty line
- *
- * Everything rendered comes from real data or labelled fixtures —
- * nothing invents friends, streaks, events, mastery or finished
- * lessons. Deferred features show honest pending states.
+ * `desk === null` = no desk backend (mock) or a genuinely fresh account:
+ * every module renders its honest empty — nothing is invented.
  * ------------------------------------------------------------------ */
 
 import type { CSSProperties, ReactNode } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
-import { inkOn } from "../../../components/RoomKnowsObjects";
-import type { PearNotesData, PearSubject, ResumePoint } from "../types";
+import { MemberFace } from "../../../components/MemberFace";
+import { SubjectAvatar } from "../../ui/SubjectAvatar";
+import type { SubjectAvatarId } from "../../ui/types";
+import type { DeskData, PearNotesData, ResumePoint } from "../types";
 import "../../../components/room-knows.css";
 import "./home-desk.css";
 
-/* A subject as a die-cut sticker — same treatment as .knows-person:
-   coloured face + name + one honest status line. */
-function SubjectPerson({
-  subject,
-  i,
-  testid,
-  onOpen,
-}: {
-  subject: PearSubject;
-  i: number;
-  testid: string;
-  onOpen: (id: string) => void;
-}) {
-  const status =
-    subject.status === "ready"
-      ? null
-      : subject.status === "needs_review"
-        ? "proposal to review"
-        : subject.status === "generating"
-          ? "sources being read"
-          : subject.status === "needs_material"
-            ? "needs a source"
-            : "attention";
+const INK = "#1d1712";
+
+function ago(ts: number): string {
+  const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  return days === 1 ? "yesterday" : `${days}d ago`;
+}
+
+function dayLabel(ts: number): string {
+  return new Date(ts).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/* tiny ink icons for the achievement shelf — same stroke family as the
+   dock's commissioned set */
+const ACH_ICONS: Record<string, ReactNode> = {
+  sprout: <path d="M12 20V9m0 0C12 5 9 3 5 3c0 4 3 6 7 6Zm0 0c0-4 3-6 7-6 0 4-3 6-7 6Z" />,
+  star: <path d="m12 3 2.7 5.7 6.3.8-4.6 4.3 1.2 6.2-5.6-3-5.6 3 1.2-6.2L3 9.5l6.3-.8Z" />,
+  bolt: <path d="M13 2 4 14h6l-1 8 9-12h-6Z" />,
+  book: <path d="M4 5c3-1.5 6-1.5 8 0v15c-2-1.5-5-1.5-8 0Zm16 0c-3-1.5-6-1.5-8 0v15c2-1.5 5-1.5 8 0Z" />,
+  trophy: <path d="M8 4h8v5a4 4 0 0 1-8 0Zm-4 1h4m8 0h4M12 13v4m-4 3h8m-6-3h4" />,
+};
+
+function AchIcon({ icon, tint }: { icon: string; tint?: string }) {
   return (
-    <button
-      type="button"
-      className="knows-person pna-desk-person"
-      style={
-        {
-          "--i": i,
-          "--by": subject.color || undefined,
-          "--on": inkOn(subject.color ?? "#f5efdf"),
-        } as CSSProperties
-      }
-      onClick={() => onOpen(subject.id)}
-      data-testid={testid}
-    >
-      <span className="knows-face" aria-hidden="true">
-        {subject.name.trim().slice(0, 1)}
-      </span>
-      <b>{subject.name}</b>
-      {status && <em>{status}</em>}
-    </button>
+    <span className="pnd-ach-icon" style={{ "--tint": tint ?? "var(--pn-lime)" } as CSSProperties}>
+      <svg viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {ACH_ICONS[icon] ?? ACH_ICONS.star}
+      </svg>
+    </span>
   );
 }
 
-/* Real source counts for the shelf card — live only, mounted by the
-   caller under policy.liveReads; never guesses numbers. listMine has
-   no subjectId on its rows, so this reports the account total, not a
-   made-up per-subject distribution. */
-function SourceStatusLive() {
-  const sources = useQuery(api.sources.listMine, {}) ?? null;
-  if (!sources?.length) return null;
-  const pending = sources.filter(
-    (s) => s.status === "uploaded" || s.status === "parsing",
-  ).length;
+function Card({
+  title,
+  kicker,
+  className = "",
+  badge,
+  testid,
+  children,
+}: {
+  title?: string;
+  kicker?: string;
+  className?: string;
+  badge?: ReactNode;
+  testid?: string;
+  children: ReactNode;
+}) {
   return (
-    <p className="knows-count" role="status">
-      {sources.length} {sources.length === 1 ? "source" : "sources"} on the
-      shelf{pending ? ` · ${pending} still reading` : ""}
-    </p>
+    <section className={`pnd-card ${className}`} data-testid={testid}>
+      {(title || badge) && (
+        <header className="pnd-card-head">
+          {kicker && <span className="pnd-kicker">{kicker}</span>}
+          {title && <h2>{title}</h2>}
+          {badge}
+        </header>
+      )}
+      {children}
+    </section>
+  );
+}
+
+function Empty({ title, body, cta }: { title: string; body: string; cta?: ReactNode }) {
+  return (
+    <div className="pnd-empty" role="status">
+      <strong>{title}</strong>
+      <p>{body}</p>
+      {cta}
+    </div>
   );
 }
 
 export function HomeDesk({
   data,
+  desk,
   resume,
   learnerName,
   fixtureLabel,
@@ -104,207 +117,253 @@ export function HomeDesk({
   onCreateSubject,
   onOpenSubject,
   onResume,
+  onToggleItem,
 }: {
   data: PearNotesData;
+  desk?: DeskData | null;
   resume: ResumePoint | null;
   learnerName: string;
   fixtureLabel?: string | null;
-  /** mount the real sources.listMine read inside subject tiles */
   liveSources?: boolean;
   onLearn: () => void;
   onCreateSubject: () => void;
   onOpenSubject: (id: string) => void;
   onResume: (lessonId: string) => void;
+  onToggleItem?: (table: "weeklyFocus" | "studyEvents", id: string) => void;
 }) {
   const subjects = data.status === "ready" ? data.subjects : [];
   const loading = data.status === "loading";
 
-  const honestEmpty = (title: string, body: string, hints: string[], cta?: ReactNode) => (
-    <div className="knows-empty" role="status">
-      <h2>{title}</h2>
-      <p>{body}</p>
-      <span className="knows-hints" aria-hidden="true">
-        {hints.map((h, k) => (
-          <i key={h} style={{ "--i": k } as CSSProperties}>{h}</i>
-        ))}
-      </span>
-      {cta}
-    </div>
-  );
+  /* calendar: this month's day cells (mon-first), dotted by evidence */
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
+  const studied = new Set(desk?.studiedDays ?? []);
+  const cells: (string | null)[] = [
+    ...Array<null>(firstDow).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => {
+      const d = new Date(Date.UTC(year, month, i + 1));
+      return d.toISOString().slice(0, 10);
+    }),
+  ];
+  const todayKey = new Date(Date.UTC(year, month, now.getDate())).toISOString().slice(0, 10);
+  const lastChange = desk?.activity[0]?.happenedAt;
 
   return (
-    <div
-      className="room-knows knows-side-paper pna-desk"
-      data-testid="home-desk"
-      data-fixture={fixtureLabel || undefined}
-    >
+    <div className="room-knows knows-side-paper pna-desk" data-testid="home-desk" data-fixture={fixtureLabel || undefined}>
       <div className="knows-scroll pna-desk-scroll">
-        <header className="knows-head">
-          <div className="knows-title">
-            <p className="knows-kicker">hey {learnerName} · the other side of your desk</p>
-            <h1>what's on your desk</h1>
-            <p className="knows-sub">
-              {subjects.length > 0 && (
-                <b className="knows-total">{subjects.length}</b>
-              )}
-              {subjects.length === 1
-                ? " subject lives here."
-                : subjects.length > 0
-                  ? " subjects live here."
-                  : "Nothing lives here yet — your first subject starts with a + or the learn button."}
-              {fixtureLabel ? ` ${fixtureLabel}` : ""}
-            </p>
-            <div className="pna-desk-ctas">
-              <button type="button" className="pn-cta" onClick={onLearn}>
-                learn →
-              </button>
-              <button type="button" className="knows-back" onClick={onCreateSubject}>
-                + new subject
-              </button>
-            </div>
+        <header className="pnd-head">
+          <div className="pnd-title">
+            <p className="knows-kicker">hey {learnerName} · demo learner</p>
+            <h1>
+              your desk
+              <img className="pnd-pear" src="/assets/pearnotes-mark.svg" alt="" aria-hidden="true" />
+            </h1>
+            <p className="pnd-sub">your learning space — study, track, and keep going</p>
           </div>
-          <div className="knows-group">
-            {/* study spaces, not people — same knows-person stickers,
-               honest label (PR #75 review). */}
-            <section className="knows-sec is-who" data-testid="desk-spaces">
-              <h2>your study spaces</h2>
-              <p className="knows-count">
-                {subjects.length
-                  ? `${subjects.length} ${subjects.length === 1 ? "subject" : "subjects"}`
-                  : "just you so far"}
-              </p>
-              <div className="knows-people">
-                {subjects.slice(0, 8).map((s, i) => (
-                  <SubjectPerson
-                    key={s.id}
-                    subject={s}
-                    i={i}
-                    testid={`desk-space-${s.id}`}
-                    onOpen={onOpenSubject}
-                  />
+          {desk && desk.crew.length > 0 && (
+            <div className="pnd-people" data-testid="desk-people">
+              <div className="pnd-faces">
+                {desk.crew.slice(0, 5).map((m) => (
+                  <MemberFace key={m.userId} name={m.name} avatarUrl={m.image} color={m.color ?? "#888"} size="sm" />
                 ))}
-                <button
-                  type="button"
-                  className="knows-person pna-desk-person is-add"
-                  style={{ "--i": subjects.length } as CSSProperties}
-                  onClick={onCreateSubject}
-                  data-testid="desk-add"
-                >
-                  <span className="knows-face" aria-hidden="true">+</span>
-                  <b>new</b>
-                </button>
               </div>
-            </section>
-          </div>
+              <span className="pnd-here">{desk.crew.length + 1} in your crew</span>
+              <button type="button" className="pnd-pill">+ add</button>
+              <button type="button" className="pnd-pill">→ invite</button>
+            </div>
+          )}
         </header>
 
-        <div className="knows-sheets">
-          {/* is-a · continue + this week */}
-          <div className="knows-sheet is-a">
-            <section className="knows-sec" data-testid="desk-continue">
-              <h2>continue studying</h2>
+        <div className="pnd-grid">
+          {/* ---- left column ---------------------------------------- */}
+          <div className="pnd-col">
+            <Card kicker="continue learning" className="is-continue" testid="desk-continue">
               {resume ? (
-                <button
-                  type="button"
-                  className="pna-desk-resume"
-                  onClick={() => onResume(resume.lessonId)}
-                  data-testid="desk-resume"
-                >
-                  <em>pick up where you left off</em>
+                <button type="button" className="pnd-resume" onClick={() => onResume(resume.lessonId)} data-testid="desk-resume">
                   <strong>{resume.lessonTitle}</strong>
                   <small>{resume.subjectName}</small>
-                  <span className="pn-cta">resume →</span>
+                  <span className="pnd-btn">resume →</span>
                 </button>
               ) : loading ? (
-                <p className="knows-count">checking your desk…</p>
+                <p className="pnd-note">checking your desk…</p>
               ) : (
-                honestEmpty(
-                  "nothing in progress yet",
-                  "start a lesson and it lands here, exactly where you left it — no invented progress.",
-                  ["a lesson", "a challenge", "a teach-back"],
-                  <button type="button" className="pn-cta" onClick={onLearn}>
-                    start learning →
-                  </button>,
-                )
+                <Empty
+                  title="nothing in progress yet"
+                  body="start a lesson and it lands here, exactly where you left it."
+                  cta={<button type="button" className="pnd-btn" onClick={onLearn}>start learning →</button>}
+                />
               )}
-            </section>
-            <section className="knows-sec" data-testid="desk-week">
-              <h2>this week</h2>
-              {honestEmpty(
-                "no study calendar yet",
-                "sessions show up here once the backend records them — days, not streaks guessed on the client.",
-                ["mon", "wed", "fri"],
-              )}
-            </section>
-          </div>
+            </Card>
 
-          {/* is-b · your subjects */}
-          <div className="knows-sheet is-b">
-            <section className="knows-sec" data-testid="desk-subjects">
-              <h2>your subjects</h2>
-              {liveSources && <SourceStatusLive />}
+            <Card title="your subjects" className="is-subjects" testid="desk-subjects">
               {loading ? (
-                <p className="knows-count">checking…</p>
-              ) : subjects.length === 0 ? (
-                honestEmpty(
-                  "the shelf is empty",
-                  "subjects you create land here with their own path — nothing is seeded or borrowed from a demo account.",
-                  ["a subject", "some sources", "an approved path"],
-                  <button type="button" className="pn-cta" onClick={onCreateSubject}>
-                    + make your first subject
-                  </button>,
-                )
+                <p className="pnd-note">checking…</p>
               ) : (
-                /* one subject = one accessible button — SubjectPerson IS
-                   the tile; no wrapper button (PR #75 review). */
-                <ul className="pna-desk-subjects">
-                  {subjects.map((s, i) => (
-                    <li key={s.id}>
-                      <SubjectPerson
-                        subject={s}
-                        i={i}
-                        testid={`desk-subject-${s.id}`}
-                        onOpen={onOpenSubject}
-                      />
+                <div className="pnd-discs">
+                  {subjects.map((s) => (
+                    <button key={s.id} type="button" className="pnd-disc" style={{ "--by": s.color } as CSSProperties} onClick={() => onOpenSubject(s.id)} data-testid={`desk-subject-${s.id}`}>
+                      <SubjectAvatar avatar={s.avatar as SubjectAvatarId} color={s.color} size={56} />
+                      <b>{s.name}</b>
+                    </button>
+                  ))}
+                  <button type="button" className="pnd-disc is-new" onClick={onCreateSubject} data-testid="desk-add">
+                    <span className="pnd-disc-plus">+</span>
+                    <b>new</b>
+                  </button>
+                </div>
+              )}
+              {subjects.length === 0 && !loading && (
+                <p className="pnd-note">no subjects yet — your first one starts with a + or a source.</p>
+              )}
+            </Card>
+
+            <Card title="this week's focus" className="is-focus" testid="desk-focus">
+              {desk && desk.focus.length > 0 ? (
+                <ul className="pnd-checks">
+                  {desk.focus.map((f) => (
+                    <li key={f.id}>
+                      <button type="button" className={`pnd-check ${f.done ? "is-done" : ""}`} onClick={() => onToggleItem?.("weeklyFocus", f.id)} aria-pressed={f.done}>
+                        <span className="pnd-box">{f.done ? "✓" : ""}</span>
+                        {f.text}
+                      </button>
                     </li>
                   ))}
                 </ul>
+              ) : (
+                <Empty title="no focus yet" body="add your first study goal — what do you want done this week?" />
               )}
-            </section>
+            </Card>
           </div>
 
-          {/* is-c · activity + shelf + friends */}
-          <div className="knows-sheet is-c">
-            <section className="knows-sec" data-testid="desk-activity">
-              <h2>recent activity</h2>
-              {honestEmpty(
-                "nothing to report yet",
-                "uploads, reviews and finished lessons land here with where they came from — the desk reads evidence, not guesses.",
-                ["an upload", "a review", "a lesson"],
+          {/* ---- center column -------------------------------------- */}
+          <div className="pnd-col">
+            <Card kicker="today" className="is-session" testid="desk-session">
+              <h2 className="pnd-session-title">study session?</h2>
+              {desk && desk.today.length > 0 ? (
+                <>
+                  <ul className="pnd-checks">
+                    {desk.today.map((t) => (
+                      <li key={t.id}>
+                        <button type="button" className={`pnd-check ${t.done ? "is-done" : ""}`} onClick={() => onToggleItem?.("studyEvents", t.id)} aria-pressed={t.done}>
+                          <span className="pnd-box">{t.done ? "✓" : ""}</span>
+                          {t.title}
+                          {t.minutes ? <em> — {t.minutes} min</em> : null}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <button type="button" className="pnd-btn is-dark" onClick={onLearn}>start focus →</button>
+                </>
+              ) : (
+                <Empty title="nothing scheduled today" body="session items you plan land here — a checklist for today, not a guilt trip." />
               )}
-            </section>
-            <section className="knows-sec" data-testid="desk-shelf">
-              <h2>trophy shelf</h2>
-              {honestEmpty(
-                "no earned stickers yet",
-                "stickers land here when real demonstrations earn them — no participation trophies.",
-                ["a challenge", "a teach-back", "a checkpoint"],
+            </Card>
+
+            <Card title="study calendar" kicker="this month" className="is-calendar" testid="desk-calendar">
+              <div className="pnd-cal" role="grid" aria-label="study calendar">
+                {["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((d) => (
+                  <span key={d} className="pnd-cal-dow">{d}</span>
+                ))}
+                {cells.map((key, i) => (
+                  <span
+                    key={key ?? `pad-${i}`}
+                    className={`pnd-cal-day ${key && studied.has(key) ? "is-studied" : ""} ${key === todayKey ? "is-today" : ""}`}
+                  >
+                    {key ? Number(key.slice(8)) : ""}
+                  </span>
+                ))}
+              </div>
+              {desk && desk.streakDays > 0 ? (
+                <p className="pnd-streak"><b>{desk.streakDays}</b> study days in a row 🎉</p>
+              ) : (
+                <p className="pnd-note">days fill in when you actually study — no imagined streaks.</p>
               )}
-            </section>
-            <section className="knows-sec" data-testid="desk-friends">
-              <h2>friend activity</h2>
-              {honestEmpty(
-                "deferred",
-                "consented friend activity needs an authorised relationships API — until then this stays empty rather than inventing people.",
-                [],
+            </Card>
+          </div>
+
+          {/* ---- right column ---------------------------------------- */}
+          <div className="pnd-col">
+            <Card title="achievements" badge={desk && desk.unseenAchievements > 0 ? <span className="pnd-new">{desk.unseenAchievements} new</span> : undefined} className="is-achievements" testid="desk-achievements">
+              {desk && desk.achievements.length > 0 ? (
+                <ul className="pnd-ach">
+                  {desk.achievements.map((a) => (
+                    <li key={a.id}>
+                      <AchIcon icon={a.icon} tint={a.tint} />
+                      <span><b>{a.title}</b><em>{a.detail}</em></span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty title="no earned stickers yet" body="trophies land here when real demonstrations earn them — no participation awards." />
               )}
-            </section>
+            </Card>
+
+            <Card title="your crew" className="is-crew" testid="desk-crew">
+              {desk && desk.crew.length > 0 ? (
+                <>
+                  <div className="pnd-faces is-list">
+                    {desk.crew.map((m) => (
+                      <span key={m.userId} className="pnd-crew-person">
+                        <MemberFace name={m.name} avatarUrl={m.image} color={m.color ?? "#888"} size="sm" />
+                        <b>{m.name}</b>
+                      </span>
+                    ))}
+                  </div>
+                  {desk.crewNote && (
+                    <p className="pnd-crew-note"><b>{desk.crewNote.authorName}</b> {desk.crewNote.text}<em>{ago(desk.crewNote.happenedAt)}</em></p>
+                  )}
+                </>
+              ) : (
+                <Empty title="just you so far" body="invite friends to study together — nothing is shared until they accept." />
+              )}
+            </Card>
+
+            <Card title="recent activity" className="is-activity" testid="desk-activity">
+              {desk && desk.activity.length > 0 ? (
+                <ul className="pnd-feed">
+                  {desk.activity.filter((e) => e.kind !== "crew_message").slice(0, 5).map((e) => (
+                    <li key={e.id}>
+                      <span className="pnd-feed-face" aria-hidden="true">{e.actorName.slice(0, 1).toUpperCase()}</span>
+                      <span className="pnd-feed-text"><b>{e.actorName}</b> {e.text}</span>
+                      <em>{ago(e.happenedAt)}</em>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty title="nothing to report yet" body="uploads, reviews and finished lessons land here — the desk reads evidence, not guesses." />
+              )}
+            </Card>
+
+            <Card title="coming up" className="is-upcoming" testid="desk-upcoming">
+              {desk && desk.upcoming.length > 0 ? (
+                <ul className="pnd-coming">
+                  {desk.upcoming.map((e) => (
+                    <li key={e.id}>
+                      <span className="pnd-dot" style={{ "--dot": e.color ?? "#7c5cff" } as CSSProperties} />
+                      <span><b>{e.title}</b>{e.subjectName ? <em>{e.subjectName}</em> : null}</span>
+                      <time>{dayLabel(e.startTs)}</time>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <Empty title="nothing scheduled" body="quizzes, reviews and group sessions you plan land here." />
+              )}
+            </Card>
           </div>
         </div>
 
-        <p className="knows-foot" data-testid="desk-honest">
-          It reads your subjects, sources and lessons — nothing else. Private
-          sources stay yours; shared rooms stay separate.
+        <span className="pnd-sticky" aria-hidden="true">keep going! ♡</span>
+
+        <p className="pnd-foot" data-testid="desk-honest">
+          <span className="pnd-live-dot" aria-hidden="true" />
+          {fixtureLabel
+            ? `sample board · pearnotes · your learning world, together`
+            : liveSources || desk
+              ? `live sync · pearnotes · your learning world, together${lastChange ? ` · last change ${ago(lastChange)}` : ""}`
+              : `pearnotes · your learning world, together`}
         </p>
       </div>
     </div>
