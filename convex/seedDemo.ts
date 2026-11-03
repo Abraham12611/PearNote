@@ -620,9 +620,9 @@ export const apply = internalMutation({
     };
 
     // lesson 0 (membrane structure) — demonstrated weeks ago
-    await attempt({ lessonIdx: 0, actIdx: 1, at: ago(21), verdict: "correct", response: { kind: "choice", optionId: "o0" }, xp: 40 });
+    const att0 = await attempt({ lessonIdx: 0, actIdx: 1, at: ago(21), verdict: "correct", response: { kind: "choice", optionId: "o0" }, xp: 40 });
     // lesson 1 (diffusion) — demonstrated
-    await attempt({ lessonIdx: 1, actIdx: 1, at: ago(14), verdict: "correct", response: { kind: "text", text: "low" }, xp: 30 });
+    const att1 = await attempt({ lessonIdx: 1, actIdx: 1, at: ago(14), verdict: "correct", response: { kind: "text", text: "low" }, xp: 30 });
     await attempt({ lessonIdx: 1, actIdx: 2, at: ago(14), verdict: "correct", response: { kind: "choice", optionId: "o0" }, xp: 30 });
     // lesson 2 (diffusion and osmosis) — the live thread: one wrong, one right
     await attempt({ lessonIdx: 2, actIdx: 2, at: ago(2), verdict: "incorrect", response: { kind: "choice", optionId: "o1" } });
@@ -643,18 +643,20 @@ export const apply = internalMutation({
     });
 
     // mastery rows matching that history
-    const mkMastery = async (objectiveId: Id<"objectives">, state: "demonstrated" | "learning" | "practicing" | "not_started", at: number) => {
+    const mkMastery = async (objectiveId: Id<"objectives">, state: "demonstrated" | "learning" | "practicing" | "not_started", at: number, evidenceAttemptId?: Id<"attempts">) => {
       await ctx.db.insert("mastery", {
         userId: sam,
         objectiveId,
         state,
         scoreBand: state === "demonstrated" ? "high" : "medium",
-        evidence: [],
+        /* evidence rows power the desk's cold-start revisit — the seed
+           must carry them, not just a state label. */
+        evidence: evidenceAttemptId ? [{ attemptId: evidenceAttemptId, at }] : [],
         updatedAt: at,
       });
     };
-    for (const oid of cell.lessonRefs[0].objectiveIds) await mkMastery(oid, "demonstrated", ago(20));
-    for (const oid of cell.lessonRefs[1].objectiveIds) await mkMastery(oid, "demonstrated", ago(13));
+    for (const oid of cell.lessonRefs[0].objectiveIds) await mkMastery(oid, "demonstrated", ago(20), att0);
+    for (const oid of cell.lessonRefs[1].objectiveIds) await mkMastery(oid, "demonstrated", ago(13), att1);
     for (const oid of cell.lessonRefs[2].objectiveIds) await mkMastery(oid, "practicing", ago(1));
     for (const oid of alg.lessonRefs[0].objectiveIds) await mkMastery(oid, "learning", ago(4));
 
