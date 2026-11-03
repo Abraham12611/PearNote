@@ -178,6 +178,9 @@
 
 .pns-live-note {
   position: fixed;
+  /* above the desk wall (.room-knows = 100500) or these honest-state
+     notes are invisible in /app */
+  z-index: 100600;
   right: 24px;
   bottom: 24px;
   max-width: 340px;
@@ -189,7 +192,6 @@
   color: var(--pn-muted-on-dark, #bac2c6);
   font-size: 0.85rem;
   line-height: 1.45;
-  z-index: 80;
 }
 
 /* ---- responsive: rail becomes a bottom bar ------------------------------- */

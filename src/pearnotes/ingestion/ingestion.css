@@ -82,7 +82,8 @@
 /* ---- full-screen live lesson (Issue #46) ---- */
 .pni-lesson {
   position: fixed;
-  z-index: 30;
+  /* above the knows desk wall (100500) when mounted over /app */
+  z-index: 100600;
   inset: 0;
   overflow-y: auto;
   background: var(--pn-ink);
@@ -105,7 +106,8 @@
 
 .pns-live-note {
   position: fixed;
-  z-index: 25;
+  /* see app.css — must clear the desk wall (100500) in /app */
+  z-index: 100600;
   bottom: 14px;
   left: 50%;
   translate: -50% 0;

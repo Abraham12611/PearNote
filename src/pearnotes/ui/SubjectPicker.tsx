@@ -81,7 +81,7 @@ export function SubjectPicker({
   };
 
   return (
-    <div className="pn-layer">
+    <div className="pn-layer pn-layer-picker">
       {/* nothing unsaved here — a backdrop tap may close freely */}
       <div className="pn-scrim" onClick={onClose} aria-hidden="true" />
       <section

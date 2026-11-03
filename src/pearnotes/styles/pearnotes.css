@@ -667,6 +667,13 @@
   z-index: 100600;
 }
 
+/* The subject picker keeps the centered modal layout but rides the same
+   overlay band as the drawers — without it the desk wall paints over it
+   and every click lands on the desk beneath (reported Learn dead-end). */
+.pn-layer-picker {
+  z-index: 100600;
+}
+
 .pn-scrim-drawer { backdrop-filter: blur(5px); }
 
 .pn-drawer {
