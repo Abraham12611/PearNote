@@ -176,6 +176,14 @@ export type DeskData = {
   crewNote: { authorName: string; text: string; happenedAt: number } | null;
   xpTotal: number;
   sourceCount: number;
+  /* cold-start review: demonstrated objectives stale enough to revisit */
+  revisit: {
+    objectiveId: string;
+    subjectId: string;
+    statement: string;
+    subjectName: string;
+    lastAt: number;
+  }[];
 };
 
 /* ---- the shell's data seam ---- */

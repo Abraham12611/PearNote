@@ -344,6 +344,7 @@ type RawDesk = {
   crewNote: { authorName: string; text: string; happenedAt: number } | null;
   xpTotal: number;
   sourceCount: number;
+  revisit: { objectiveId: string; subjectId: string; statement: string; subjectName: string; lastAt: number }[];
 };
 
 function toDeskData(raw: RawDesk): DeskData {
@@ -361,6 +362,7 @@ function toDeskData(raw: RawDesk): DeskData {
     crewNote: raw.crewNote,
     xpTotal: raw.xpTotal,
     sourceCount: raw.sourceCount,
+    revisit: raw.revisit,
   };
 }
 

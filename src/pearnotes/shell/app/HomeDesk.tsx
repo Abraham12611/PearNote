@@ -220,6 +220,21 @@ export function HomeDesk({
               )}
             </Card>
 
+            {desk && desk.revisit.length > 0 && (
+              <Card title="revisit these" kicker="cold start" className="is-revisit" testid="desk-revisit">
+                <ul className="pnd-revisit">
+                  {desk.revisit.map((r) => (
+                    <li key={r.objectiveId}>
+                      <button type="button" onClick={() => onOpenSubject(r.subjectId)}>
+                        <span className="pnd-revisit-dot" aria-hidden="true" />
+                        <span className="pnd-revisit-text"><b>{r.statement}</b><em>{r.subjectName} · shown {ago(r.lastAt)}</em></span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+
             <Card title="this week's focus" className="is-focus" testid="desk-focus">
               {desk && desk.focus.length > 0 ? (
                 <ul className="pnd-checks">

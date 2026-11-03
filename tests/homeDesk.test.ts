@@ -40,6 +40,7 @@ const DESK: DeskData = {
   crewNote: { authorName: "Maya", text: "anyone up for a study session later?", happenedAt: Date.now() },
   xpTotal: 405,
   sourceCount: 1,
+  revisit: [{ objectiveId: "o1", subjectId: "sub-1", statement: "Predict water movement across a membrane", subjectName: "Cell biology", lastAt: Date.now() - 8 * 86400000 }],
 };
 
 const props = {
