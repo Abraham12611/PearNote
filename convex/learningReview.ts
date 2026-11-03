@@ -248,6 +248,8 @@ export const review = mutation({
         subjectId: t.subjectId,
         subjectName: subj?.name,
       });
+      // first_path + friends: publishing real evidence may earn awards.
+      await ctx.scheduler.runAfter(0, internal.desk.evaluateAchievements, { userId: ownerId });
       if (dc === undefined) continue;
       const myConcepts = conceptIdsBySubject.get(t.subjectId) ?? [];
       let sOrder = 0;

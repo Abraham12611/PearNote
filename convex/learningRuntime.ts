@@ -316,6 +316,8 @@ export const submitAttempt = mutation({
       subjectId: found.subject._id,
       subjectName: subject?.name ?? found.subject.name,
     });
+    // Evidence-checked award pass — deduped per key, so free to re-fire.
+    await ctx.scheduler.runAfter(0, internal.desk.evaluateAchievements, { userId });
     // Per-item marks only once a verdict exists — never for needs_review.
     const marks = ev.verdict === "needs_review" ? undefined : classifyMarks(activity.spec, response);
 
