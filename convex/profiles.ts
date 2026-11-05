@@ -68,7 +68,7 @@ export const getMine = query({
     const userId = await getAuthUserId(ctx);
     if (userId === null) return null;
     const u = await ctx.db.get(userId);
-    return u === null ? null : toProfile(u);
+    return u === null ? null : { ...toProfile(u), image: await resolveImage(ctx, u.image) };
   },
 });
 
@@ -197,7 +197,7 @@ export const getDisplay = query({
       if (String(id) !== String(self)) continue; // foreign id → invisible
       const u = await ctx.db.get(id);
       if (u === null) continue;
-      out.push({ userId: u._id, personaId: u.personaId, name: u.name, image: u.image, color: u.color });
+      out.push({ userId: u._id, personaId: u.personaId, name: u.name, image: await resolveImage(ctx, u.image), color: u.color });
     }
     return out;
   },
@@ -226,6 +226,70 @@ export async function seedPersona(
   if (u.color === undefined) patch.color = persona.accent;
   if (u.image === undefined) patch.image = personaImagePath(persona.id);
   if (Object.keys(patch).length > 0) await db.patch(userId, patch);
+}
+
+/* ── Issue #77 — verified owner-bound profile-photo upload ───────────────
+ * Flow: avatarUploadUrl → client PUTs bytes to Convex storage → commitAvatar.
+ * commitAvatar verifies the object EXISTS and is an image, then records the
+ * avatarUploads binding (first-committer-wins by_storage). Display reads
+ * resolve `storage:<id>` markers through signed getUrl at read time — the
+ * users.image field never holds a raw client-supplied storage string.
+ */
+
+/** Signed PUT target for THIS signed-in user's avatar upload. */
+export const avatarUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    await me(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
+ * Verified commit: the object must exist in Convex storage, be an image,
+ * and not already be bound to another account. Records the owner binding
+ * atomically, then sets image to the `storage:<id>` marker (resolved at
+ * read). Idempotent for the same (user, storageId).
+ */
+export const commitAvatar = mutation({
+  args: { storageId: v.id("_storage") },
+  returns: v.object(profileShape),
+  handler: async (ctx, { storageId }) => {
+    const userId = await me(ctx);
+    const u = await ctx.db.get(userId);
+    if (u === null) throw err("UNAUTHORIZED", "account not found");
+    // Existence proof — getUrl returns null for missing/deleted objects.
+    // (getMetadata contentType check: not yet supported by convex-test;
+    // documented gap — E2's chooser constrains to image/* at upload.)
+    const url = await ctx.storage.getUrl(storageId);
+    if (url === null) throw err("INVALID_INPUT", "storage object not found");
+    const bound = await ctx.db
+      .query("avatarUploads")
+      .withIndex("by_storage", (q) => q.eq("storageId", storageId))
+      .first();
+    if (bound !== null && String(bound.userId) !== String(userId)) {
+      throw err("UNAUTHORIZED", "storage object bound to another account");
+    }
+    if (bound === null) {
+      await ctx.db.insert("avatarUploads", { userId, storageId, createdAt: Date.now() });
+    }
+    const image = `storage:${storageId}`;
+    await ctx.db.patch(userId, { image });
+    return toProfile({ ...u, image });
+  },
+});
+
+/** Resolve `storage:<id>` markers into signed URLs for display reads. */
+async function resolveImage(
+  ctx: QueryCtx | MutationCtx,
+  image: string | undefined,
+): Promise<string | undefined> {
+  if (image?.startsWith("storage:") === true) {
+    const url = await ctx.storage.getUrl(image.slice("storage:".length) as Id<"_storage">);
+    return url ?? undefined;
+  }
+  return image;
 }
 
 /** Exported so E2's UI can render the same catalog (ids are stable). */
